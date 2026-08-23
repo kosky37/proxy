@@ -23,6 +23,8 @@ public sealed class ProxyDetailDto
     public required DestinationDto Destination { get; set; }
     public bool MocksEnabled { get; set; }
     public int PassthroughDelayMs { get; set; }
+    public int? LogRetentionDays { get; set; }
+    public int? BodyLogLimitBytes { get; set; }
 }
 
 public sealed class ListenDto
@@ -63,6 +65,8 @@ public sealed class UpsertProxyRequest
     public required DestinationDto Destination { get; set; }
     public bool MocksEnabled { get; set; } = true;
     public int PassthroughDelayMs { get; set; }
+    public int? LogRetentionDays { get; set; }
+    public int? BodyLogLimitBytes { get; set; }
 }
 
 public sealed class MocksEnabledRequest
@@ -162,6 +166,34 @@ public sealed class ProxyStatsDto
     public DateTimeOffset? LastRequestUtc { get; set; }
 }
 
+public sealed class LogStorageDto
+{
+    public long DatabaseBytes { get; set; }
+    public long WalBytes { get; set; }
+    public long ShmBytes { get; set; }
+    public long TotalBytes { get; set; }
+    public int EntryCount { get; set; }
+}
+
+public sealed class LogTimelineDto
+{
+    public DateTimeOffset FromUtc { get; set; }
+    public DateTimeOffset ToUtc { get; set; }
+    public int BucketSeconds { get; set; }
+    public required IReadOnlyList<LogTimelineBucketDto> Buckets { get; set; }
+}
+
+public sealed class LogTimelineBucketDto
+{
+    public DateTimeOffset StartUtc { get; set; }
+    public int Count { get; set; }
+}
+
+public sealed class LogClearResultDto
+{
+    public int Deleted { get; set; }
+}
+
 public sealed class HealthDto
 {
     public required string Status { get; set; }
@@ -199,7 +231,9 @@ public static class DtoMapper
         Listen = ToDto(proxy.Definition.Listen),
         Destination = ToDto(proxy.Definition.Destination),
         MocksEnabled = proxy.Definition.MocksEnabled,
-        PassthroughDelayMs = proxy.Definition.PassthroughDelayMs
+        PassthroughDelayMs = proxy.Definition.PassthroughDelayMs,
+        LogRetentionDays = proxy.Definition.LogRetentionDays,
+        BodyLogLimitBytes = proxy.Definition.BodyLogLimitBytes
     };
 
     public static ProxyDefinition ToDefinition(UpsertProxyRequest request) => new()
@@ -220,7 +254,9 @@ public static class DtoMapper
             AcceptAnyServerCertificate = request.Destination.AcceptAnyServerCertificate
         },
         MocksEnabled = request.MocksEnabled,
-        PassthroughDelayMs = request.PassthroughDelayMs
+        PassthroughDelayMs = request.PassthroughDelayMs,
+        LogRetentionDays = request.LogRetentionDays,
+        BodyLogLimitBytes = request.BodyLogLimitBytes
     };
 
     public static MockDto ToDto(MockDefinition mock) => new()
@@ -287,6 +323,27 @@ public static class DtoMapper
         ResponseHeaders = entry.ResponseHeaders,
         ResponseBody = entry.ResponseBody,
         ResponseBodyTruncated = entry.ResponseBodyTruncated
+    };
+
+    public static LogStorageDto ToDto(LogStorageInfo storage) => new()
+    {
+        DatabaseBytes = storage.DatabaseBytes,
+        WalBytes = storage.WalBytes,
+        ShmBytes = storage.ShmBytes,
+        TotalBytes = storage.TotalBytes,
+        EntryCount = storage.EntryCount
+    };
+
+    public static LogTimelineDto ToDto(LogTimeline timeline) => new()
+    {
+        FromUtc = timeline.FromUtc,
+        ToUtc = timeline.ToUtc,
+        BucketSeconds = timeline.BucketSeconds,
+        Buckets = timeline.Buckets.Select(item => new LogTimelineBucketDto
+        {
+            StartUtc = item.StartUtc,
+            Count = item.Count
+        }).ToList()
     };
 
     public static ProxyStatsDto ToDto(ProxyStats stats) => new()

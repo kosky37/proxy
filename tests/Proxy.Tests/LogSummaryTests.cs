@@ -28,4 +28,21 @@ public class LogSummaryTests
         LogSummary.RequestBytes(entry).Should().BeGreaterThan(0);
         LogSummary.ResponseBytes(entry).Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void Uses_original_byte_counts_when_the_body_was_not_stored()
+    {
+        var entry = new RequestLogEntry
+        {
+            RequestBody = null,
+            RequestBodyTruncated = true,
+            RequestBodyOriginalBytes = 2048,
+            ResponseBody = null,
+            ResponseBodyTruncated = true,
+            ResponseBodyOriginalBytes = 4096
+        };
+
+        LogSummary.RequestBytes(entry).Should().Be(2048);
+        LogSummary.ResponseBytes(entry).Should().Be(4096);
+    }
 }

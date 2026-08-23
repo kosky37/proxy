@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddSingleton<ManualRequestSender>();
         services.AddHostedService<ProxyConfigWatcher>();
         services.AddHostedService<ProxyListenerManager>();
+        services.AddHostedService<LogRetentionService>();
         return services;
     }
 }

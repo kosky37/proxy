@@ -2,23 +2,23 @@ using System.Text;
 
 namespace Proxy.Infrastructure.Listeners;
 
+public readonly record struct BodyLimitResult(string? Text, int OriginalBytes, bool Exceeded);
+
 public static class BodyLimiter
 {
-    public static (string? Text, bool Truncated) Limit(string? body, int limitBytes)
+    public static BodyLimitResult Limit(string? body, int limitBytes)
     {
         if (string.IsNullOrEmpty(body))
         {
-            return (body, false);
+            return new BodyLimitResult(body, 0, false);
         }
 
         var bytes = Encoding.UTF8.GetByteCount(body);
-        if (bytes <= limitBytes)
+        if (limitBytes <= 0 || bytes <= limitBytes)
         {
-            return (body, false);
+            return new BodyLimitResult(body, bytes, false);
         }
 
-        var buffer = Encoding.UTF8.GetBytes(body);
-        var text = Encoding.UTF8.GetString(buffer, 0, limitBytes);
-        return (text + "\n… [truncated]", true);
+        return new BodyLimitResult(null, bytes, true);
     }
 }

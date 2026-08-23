@@ -93,8 +93,9 @@ public sealed class ManualRequestSender
             error = exception.InnerException?.Message ?? exception.Message;
         }
 
-        var (limitedRequest, requestTruncated) = BodyLimiter.Limit(request.Body, _options.BodyLogLimitBytes);
-        var (limitedResponse, responseTruncated) = BodyLimiter.Limit(responseBody, _options.BodyLogLimitBytes);
+        var limit = LogLimits.BodyLimitBytes(proxy.Definition, _options);
+        var requestLimit = BodyLimiter.Limit(request.Body, limit);
+        var responseLimit = BodyLimiter.Limit(responseBody, limit);
 
         var entry = new RequestLogEntry
         {
@@ -104,12 +105,14 @@ public sealed class ManualRequestSender
             Query = string.IsNullOrWhiteSpace(request.Query) ? null : request.Query.Trim().TrimStart('?'),
             Protocol = protocol,
             RequestHeaders = headers.HeadersToJson(),
-            RequestBody = limitedRequest,
-            RequestBodyTruncated = requestTruncated,
+            RequestBody = requestLimit.Text,
+            RequestBodyTruncated = requestLimit.Exceeded,
+            RequestBodyOriginalBytes = requestLimit.OriginalBytes,
             StatusCode = statusCode,
             ResponseHeaders = responseHeaders.Count == 0 ? null : responseHeaders.HeadersToJson(),
-            ResponseBody = limitedResponse,
-            ResponseBodyTruncated = responseTruncated,
+            ResponseBody = responseLimit.Text,
+            ResponseBodyTruncated = responseLimit.Exceeded,
+            ResponseBodyOriginalBytes = responseLimit.OriginalBytes,
             DurationMs = started.ElapsedMilliseconds,
             Mode = RequestMode.Manual,
             Error = error

@@ -13,10 +13,12 @@ public sealed class RequestLogRecord
     public string? RequestHeaders { get; set; }
     public string? RequestBody { get; set; }
     public bool RequestBodyTruncated { get; set; }
+    public int RequestBodyOriginalBytes { get; set; }
     public int? StatusCode { get; set; }
     public string? ResponseHeaders { get; set; }
     public string? ResponseBody { get; set; }
     public bool ResponseBodyTruncated { get; set; }
+    public int ResponseBodyOriginalBytes { get; set; }
     public long DurationMs { get; set; }
     public string Mode { get; set; } = nameof(RequestMode.Passthrough);
     public string? MockName { get; set; }
@@ -33,10 +35,12 @@ public sealed class RequestLogRecord
         RequestHeaders = RequestHeaders,
         RequestBody = RequestBody,
         RequestBodyTruncated = RequestBodyTruncated,
+        RequestBodyOriginalBytes = RequestBodyOriginalBytes,
         StatusCode = StatusCode,
         ResponseHeaders = ResponseHeaders,
         ResponseBody = ResponseBody,
         ResponseBodyTruncated = ResponseBodyTruncated,
+        ResponseBodyOriginalBytes = ResponseBodyOriginalBytes,
         DurationMs = DurationMs,
         Mode = Enum.TryParse<RequestMode>(Mode, true, out var mode) ? mode : RequestMode.Passthrough,
         MockName = MockName,
@@ -54,10 +58,12 @@ public sealed class RequestLogRecord
         RequestHeaders = entry.RequestHeaders,
         RequestBody = entry.RequestBody,
         RequestBodyTruncated = entry.RequestBodyTruncated,
+        RequestBodyOriginalBytes = entry.RequestBodyOriginalBytes,
         StatusCode = entry.StatusCode,
         ResponseHeaders = entry.ResponseHeaders,
         ResponseBody = entry.ResponseBody,
         ResponseBodyTruncated = entry.ResponseBodyTruncated,
+        ResponseBodyOriginalBytes = entry.ResponseBodyOriginalBytes,
         DurationMs = entry.DurationMs,
         Mode = entry.Mode.ToString(),
         MockName = entry.MockName,

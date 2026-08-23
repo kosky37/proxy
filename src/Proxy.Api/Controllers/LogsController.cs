@@ -58,6 +58,60 @@ public sealed class LogsController : ControllerBase
         });
     }
 
+    [HttpGet("logs/storage")]
+    [ProducesResponseType(typeof(LogStorageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LogStorageDto>> Storage(string proxyId, CancellationToken cancellationToken)
+    {
+        var proxy = _store.Get(proxyId);
+        if (proxy is null)
+        {
+            return NotFound();
+        }
+
+        var storage = await _logs.GetStorageAsync(proxyId, proxy.FolderPath, cancellationToken);
+        return Ok(DtoMapper.ToDto(storage));
+    }
+
+    [HttpGet("logs/timeline")]
+    [ProducesResponseType(typeof(LogTimelineDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LogTimelineDto>> Timeline(
+        string proxyId,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] int buckets = 80,
+        CancellationToken cancellationToken = default)
+    {
+        var proxy = _store.Get(proxyId);
+        if (proxy is null)
+        {
+            return NotFound();
+        }
+
+        var timeline = await _logs.GetTimelineAsync(proxyId, proxy.FolderPath, from, to, buckets, cancellationToken);
+        return Ok(DtoMapper.ToDto(timeline));
+    }
+
+    [HttpDelete("logs")]
+    [ProducesResponseType(typeof(LogClearResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<LogClearResultDto>> Clear(
+        string proxyId,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        CancellationToken cancellationToken = default)
+    {
+        var proxy = _store.Get(proxyId);
+        if (proxy is null)
+        {
+            return NotFound();
+        }
+
+        var deleted = await _logs.DeleteAsync(proxyId, proxy.FolderPath, from, to, cancellationToken);
+        return Ok(new LogClearResultDto { Deleted = deleted });
+    }
+
     [HttpGet("logs/{entryId:long}")]
     [ProducesResponseType(typeof(LogDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1,8 +1,11 @@
 import { emptySplitApi } from './emptyApi'
 import type {
+  LogClearResultDto,
   LogDetailDto,
   LogListDto,
   LogQueryArgs,
+  LogStorageDto,
+  LogTimelineDto,
   ManualSendRequestDto,
   CertificateDto,
   IgnoredPathDto,
@@ -144,6 +147,28 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       query: ({ proxyId, entryId }) => `/api/proxies/${proxyId}/logs/${entryId}`,
       providesTags: ['Logs'],
     }),
+    getLogStorage: build.query<LogStorageDto, string>({
+      query: (proxyId) => `/api/proxies/${proxyId}/logs/storage`,
+      providesTags: ['Logs'],
+    }),
+    getLogTimeline: build.query<
+      LogTimelineDto,
+      { proxyId: string; from?: string; to?: string; buckets?: number }
+    >({
+      query: ({ proxyId, ...params }) => ({
+        url: `/api/proxies/${proxyId}/logs/timeline`,
+        params,
+      }),
+      providesTags: ['Logs'],
+    }),
+    clearLogs: build.mutation<LogClearResultDto, { proxyId: string; from?: string; to?: string }>({
+      query: ({ proxyId, ...params }) => ({
+        url: `/api/proxies/${proxyId}/logs`,
+        method: 'DELETE',
+        params,
+      }),
+      invalidatesTags: ['Logs', 'Stats'],
+    }),
     getStats: build.query<ProxyStatsDto, string>({
       query: (proxyId) => `/api/proxies/${proxyId}/stats`,
       providesTags: ['Stats'],
@@ -179,6 +204,9 @@ export const {
   useUploadCertificateMutation,
   useGetLogsQuery,
   useGetLogQuery,
+  useGetLogStorageQuery,
+  useGetLogTimelineQuery,
+  useClearLogsMutation,
   useGetStatsQuery,
   useSendManualRequestMutation,
 } = proxyApi

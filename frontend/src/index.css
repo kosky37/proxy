@@ -25,3 +25,36 @@ pre {
 .mock-icons .is-off {
   opacity: 0.28;
 }
+
+.log-timeline-card {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.log-timeline {
+  display: block;
+  width: 100%;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.log-timeline-plot {
+  fill: var(--bs-tertiary-bg);
+}
+
+.log-timeline-bar {
+  fill: var(--bs-primary);
+  opacity: 0.8;
+}
+
+.log-timeline-selection {
+  fill: var(--bs-warning);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.log-timeline-axis {
+  fill: var(--bs-secondary-color);
+  font-size: 0.7rem;
+}

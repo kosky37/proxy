@@ -9,7 +9,7 @@ export function formatBytes(bytes?: number | null, truncated = false): string {
   }
 
   const text = unit === 0 ? `${amount} ${units[unit]}` : `${amount.toFixed(1)} ${units[unit]}`
-  return truncated ? `${text}+` : text
+  return truncated ? `${text} (exceeded)` : text
 }
 
 export function hasAdvancedMatch(match: {

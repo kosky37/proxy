@@ -16,11 +16,11 @@ import {
 import { Link, useParams } from 'react-router-dom'
 import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
+import { LogsPanel } from '../components/LogsPanel'
 import { ManualSendPanel } from '../components/ManualSendPanel'
 import { MockEditor } from '../components/MockEditor'
-import { formatBytes, hasAdvancedMatch } from '../format'
+import { hasAdvancedMatch } from '../format'
 import { mockFromLog } from '../mockFromLog'
-import { modeBadge } from '../modeBadge'
 import {
   useCreateIgnoreMutation,
   useCreateMockMutation,
@@ -29,7 +29,6 @@ import {
   useGetCertificatesQuery,
   useGetIgnoresQuery,
   useGetLogQuery,
-  useGetLogsQuery,
   useGetMocksQuery,
   useGetProxyQuery,
   useGetStatsQuery,
@@ -49,18 +48,18 @@ export function ProxyDetailPage() {
   const mocks = useGetMocksQuery(id)
   const ignores = useGetIgnoresQuery(id)
   const certificates = useGetCertificatesQuery()
-  const stats = useGetStatsQuery(id)
   const [tab, setTab] = useState<Tab>('settings')
+  const [logsPaused, setLogsPaused] = useState(false)
+  const stats = useGetStatsQuery(id)
+  useGetStatsQuery(id, {
+    skip: tab !== 'logs' || logsPaused,
+    pollingInterval: 2000,
+  })
   const [form, setForm] = useState<UpsertProxyRequest | null>(null)
   const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
   const [editingExisting, setEditingExisting] = useState(false)
   const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined)
   const [logId, setLogId] = useState<number | null>(null)
-  const [logFilter, setLogFilter] = useState({ path: '', mode: '', protocol: '' })
-  const logs = useGetLogsQuery(
-    { proxyId: id, ...logFilter, take: 100 },
-    { skip: tab !== 'logs' || !id, pollingInterval: tab === 'logs' ? 2000 : 0 },
-  )
   const logDetail = useGetLogQuery({ proxyId: id, entryId: logId ?? 0 }, { skip: logId == null })
   const [updateProxy] = useUpdateProxyMutation()
   const [setMocksEnabled] = useSetMocksEnabledMutation()
@@ -80,6 +79,8 @@ export function ProxyDetailPage() {
         destination: proxy.data.destination,
         mocksEnabled: proxy.data.mocksEnabled,
         passthroughDelayMs: proxy.data.passthroughDelayMs,
+        logRetentionDays: proxy.data.logRetentionDays ?? 7,
+        bodyLogLimitBytes: proxy.data.bodyLogLimitBytes ?? 1_048_576,
       })
     }
   }, [proxy.data])
@@ -233,6 +234,32 @@ export function ProxyDetailPage() {
                   value={form.passthroughDelayMs}
                   onChange={(event) => setForm({ ...form, passthroughDelayMs: Number(event.target.value) })}
                 />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Log retention (days)</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  value={form.logRetentionDays ?? 7}
+                  onChange={(event) => setForm({ ...form, logRetentionDays: Number(event.target.value) })}
+                />
+                <Form.Text>0 keeps logs forever. Older entries are deleted automatically.</Form.Text>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Max logged body (KB)</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={1}
+                  value={Math.round((form.bodyLogLimitBytes ?? 1_048_576) / 1024)}
+                  onChange={(event) =>
+                    setForm({ ...form, bodyLogLimitBytes: Math.max(1, Number(event.target.value)) * 1024 })
+                  }
+                />
+                <Form.Text>Bodies larger than this are not stored; only the original size is logged.</Form.Text>
               </Form.Group>
             </Col>
             <Col md={3} className="d-flex align-items-end">
@@ -407,108 +434,14 @@ export function ProxyDetailPage() {
       )}
 
       {tab === 'logs' && (
-        <>
-          <Row className="g-2 mb-3">
-            <Col md={4}>
-              <Form.Control
-                placeholder="Path contains"
-                value={logFilter.path}
-                onChange={(event) => setLogFilter({ ...logFilter, path: event.target.value })}
-              />
-            </Col>
-            <Col md={3}>
-              <Form.Select
-                value={logFilter.mode}
-                onChange={(event) => setLogFilter({ ...logFilter, mode: event.target.value })}
-              >
-                <option value="">Any mode</option>
-                <option value="mock">mock</option>
-                <option value="passthrough">passthrough</option>
-                <option value="manual">manual</option>
-              </Form.Select>
-            </Col>
-            <Col md={3}>
-              <Form.Select
-                value={logFilter.protocol}
-                onChange={(event) => setLogFilter({ ...logFilter, protocol: event.target.value })}
-              >
-                <option value="">Any protocol</option>
-                <option value="rest">rest</option>
-                <option value="soap">soap</option>
-              </Form.Select>
-            </Col>
-          </Row>
-          <Table striped hover responsive size="sm" className="align-middle">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Mode</th>
-                <th>Request</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.data?.items.map((item) => (
-                <tr key={item.id} role="button" onClick={() => setLogId(item.id)}>
-                  <td>
-                    <div>{new Date(item.timestampUtc).toLocaleString()}</div>
-                    <div className="row-meta">{item.durationMs} ms</div>
-                  </td>
-                  <td>
-                    <Badge bg={item.protocol === 'soap' ? 'warning' : 'primary'} text={item.protocol === 'soap' ? 'dark' : undefined}>
-                      {item.protocol === 'soap' ? 'SOAP' : 'REST'}
-                    </Badge>
-                    {item.protocol === 'soap' && (
-                      <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>
-                    )}
-                  </td>
-                  <td>
-                    <Badge bg={modeBadge(item.mode).bg}>{modeBadge(item.mode).label}</Badge>
-                    {item.mockName && (
-                      <div>
-                        {mocks.data?.some((mock) => mock.name.toLowerCase() === item.mockName?.toLowerCase()) ? (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="p-0"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              const mock = mocks.data?.find(
-                                (entry) => entry.name.toLowerCase() === item.mockName?.toLowerCase(),
-                              )
-                              if (mock) {
-                                openExistingMock(mock)
-                              }
-                            }}
-                          >
-                            {item.mockName}
-                          </Button>
-                        ) : (
-                          <span className="row-meta">{item.mockName}</span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div>
-                      <strong>{item.method}</strong> {item.path}
-                      {item.query && <span className="text-secondary">?{item.query}</span>}
-                    </div>
-                    <div className="row-meta">
-                      {item.contentType || 'no content-type'}
-                      {' · '}
-                      {formatBytes(item.requestBytes, item.requestBodyTruncated)}
-                      {' → '}
-                      {formatBytes(item.responseBytes, item.responseBodyTruncated)}
-                    </div>
-                  </td>
-                  <td>{item.statusCode ?? '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </>
+        <LogsPanel
+          proxyId={id}
+          active
+          mocks={mocks.data ?? []}
+          onOpenLog={setLogId}
+          onOpenMock={openExistingMock}
+          onPausedChange={setLogsPaused}
+        />
       )}
 
       <LogDetailModal

@@ -186,8 +186,9 @@ public sealed class ProxyPipelineMiddleware
             responseBody = await reader.ReadToEndAsync();
         }
 
-        var (requestBody, requestTruncated) = BodyLimiter.Limit(snapshot.Body, _options.BodyLogLimitBytes);
-        var (limitedResponse, responseTruncated) = BodyLimiter.Limit(responseBody, _options.BodyLogLimitBytes);
+        var limit = LogLimits.BodyLimitBytes(proxy.Definition, _options);
+        var requestLimit = BodyLimiter.Limit(snapshot.Body, limit);
+        var responseLimit = BodyLimiter.Limit(responseBody, limit);
 
         var entry = new RequestLogEntry
         {
@@ -197,12 +198,14 @@ public sealed class ProxyPipelineMiddleware
             Query = snapshot.Query.Count == 0 ? null : string.Join("&", snapshot.Query.Select(item => $"{item.Key}={item.Value}")),
             Protocol = MockEngine.DetectProtocol(snapshot, mock),
             RequestHeaders = snapshot.Headers.HeadersToJson(),
-            RequestBody = requestBody,
-            RequestBodyTruncated = requestTruncated,
+            RequestBody = requestLimit.Text,
+            RequestBodyTruncated = requestLimit.Exceeded,
+            RequestBodyOriginalBytes = requestLimit.OriginalBytes,
             StatusCode = mock?.Response.Block == true && !context.Response.HasStarted ? null : context.Response.StatusCode,
             ResponseHeaders = context.Response.Headers.HeadersToJson(),
-            ResponseBody = limitedResponse,
-            ResponseBodyTruncated = responseTruncated,
+            ResponseBody = responseLimit.Text,
+            ResponseBodyTruncated = responseLimit.Exceeded,
+            ResponseBodyOriginalBytes = responseLimit.OriginalBytes,
             DurationMs = durationMs,
             Mode = mode,
             MockName = mock?.Name,

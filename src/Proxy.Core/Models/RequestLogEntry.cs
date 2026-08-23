@@ -11,10 +11,12 @@ public sealed class RequestLogEntry
     public string? RequestHeaders { get; set; }
     public string? RequestBody { get; set; }
     public bool RequestBodyTruncated { get; set; }
+    public int RequestBodyOriginalBytes { get; set; }
     public int? StatusCode { get; set; }
     public string? ResponseHeaders { get; set; }
     public string? ResponseBody { get; set; }
     public bool ResponseBodyTruncated { get; set; }
+    public int ResponseBodyOriginalBytes { get; set; }
     public long DurationMs { get; set; }
     public RequestMode Mode { get; set; } = RequestMode.Passthrough;
     public string? MockName { get; set; }

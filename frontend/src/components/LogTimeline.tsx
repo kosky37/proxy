@@ -1,0 +1,156 @@
+import { useEffect, useRef, useState } from 'react'
+import type { LogTimelineBucketDto } from '../store/types'
+
+interface Props {
+  fromUtc: string
+  toUtc: string
+  bucketSeconds: number
+  buckets: LogTimelineBucketDto[]
+  selection?: { from: string; to: string } | null
+  onSelect: (from: string, to: string) => void
+}
+
+const HEIGHT = 96
+const PADDING = { left: 8, right: 8, top: 10, bottom: 22 }
+
+export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection, onSelect }: Props) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [width, setWidth] = useState(640)
+  const [drag, setDrag] = useState<{ start: number; current: number } | null>(null)
+
+  useEffect(() => {
+    const element = svgRef.current
+    if (!element) {
+      return
+    }
+
+    const frame = () => setWidth(element.clientWidth || 640)
+    frame()
+    const observer = new ResizeObserver(frame)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  const from = Date.parse(fromUtc)
+  const to = Date.parse(toUtc)
+  const plotWidth = Math.max(width - PADDING.left - PADDING.right, 1)
+  const plotHeight = HEIGHT - PADDING.top - PADDING.bottom
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.count))
+  const barWidth = buckets.length === 0 ? plotWidth : plotWidth / buckets.length
+
+  const timeToX = (iso: string) => {
+    const ratio = (Date.parse(iso) - from) / Math.max(to - from, 1)
+    return PADDING.left + Math.min(1, Math.max(0, ratio)) * plotWidth
+  }
+
+  const xToTime = (x: number) => {
+    const ratio = Math.min(1, Math.max(0, (x - PADDING.left) / plotWidth))
+    return new Date(from + ratio * Math.max(to - from, 1)).toISOString()
+  }
+
+  const clientX = (event: { clientX: number }) => {
+    const rect = svgRef.current?.getBoundingClientRect()
+    return event.clientX - (rect?.left ?? 0)
+  }
+
+  const finishSelection = (startX: number, endX: number) => {
+    if (Math.abs(endX - startX) < 4) {
+      const index = Math.min(buckets.length - 1, Math.max(0, Math.floor((endX - PADDING.left) / barWidth)))
+      const bucket = buckets[index]
+      if (!bucket) {
+        return
+      }
+
+      const start = Date.parse(bucket.startUtc)
+      onSelect(bucket.startUtc, new Date(start + bucketSeconds * 1000).toISOString())
+      return
+    }
+
+    const left = Math.min(startX, endX)
+    const right = Math.max(startX, endX)
+    onSelect(xToTime(left), xToTime(right))
+  }
+
+  useEffect(() => {
+    if (!drag) {
+      return
+    }
+
+    const onMove = (event: MouseEvent) => {
+      setDrag((current) => (current ? { ...current, current: clientX(event) } : current))
+    }
+    const onUp = (event: MouseEvent) => {
+      finishSelection(drag.start, clientX(event))
+      setDrag(null)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [drag, buckets, bucketSeconds, from, to, plotWidth])
+
+  const overlay = drag
+    ? { left: Math.min(drag.start, drag.current), right: Math.max(drag.start, drag.current) }
+    : selection
+      ? { left: timeToX(selection.from), right: timeToX(selection.to) }
+      : null
+
+  return (
+    <svg
+      ref={svgRef}
+      className="log-timeline"
+      height={HEIGHT}
+      width="100%"
+      role="img"
+      aria-label="Log timeline"
+      onMouseDown={(event) => {
+        event.preventDefault()
+        const x = clientX(event)
+        setDrag({ start: x, current: x })
+      }}
+    >
+      <rect
+        x={PADDING.left}
+        y={PADDING.top}
+        width={plotWidth}
+        height={plotHeight}
+        className="log-timeline-plot"
+      />
+      {buckets.map((bucket, index) => {
+        const height = (bucket.count / max) * plotHeight
+        return (
+          <rect
+            key={`${bucket.startUtc}-${index}`}
+            className="log-timeline-bar"
+            x={PADDING.left + index * barWidth + 0.5}
+            y={PADDING.top + plotHeight - height}
+            width={Math.max(barWidth - 1, 0.5)}
+            height={height}
+          >
+            <title>
+              {bucket.count} at {new Date(bucket.startUtc).toLocaleString()}
+            </title>
+          </rect>
+        )
+      })}
+      {overlay && (
+        <rect
+          className="log-timeline-selection"
+          x={overlay.left}
+          y={PADDING.top}
+          width={Math.max(overlay.right - overlay.left, 1)}
+          height={plotHeight}
+        />
+      )}
+      <text className="log-timeline-axis" x={PADDING.left} y={HEIGHT - 6}>
+        {new Date(fromUtc).toLocaleString()}
+      </text>
+      <text className="log-timeline-axis" x={width - PADDING.right} y={HEIGHT - 6} textAnchor="end">
+        {new Date(toUtc).toLocaleString()}
+      </text>
+    </svg>
+  )
+}

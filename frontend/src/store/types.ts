@@ -42,6 +42,8 @@ export interface ProxyDetailDto {
   destination: DestinationDto
   mocksEnabled: boolean
   passthroughDelayMs: number
+  logRetentionDays?: number | null
+  bodyLogLimitBytes?: number | null
 }
 
 export interface UpsertProxyRequest {
@@ -52,6 +54,8 @@ export interface UpsertProxyRequest {
   destination: DestinationDto
   mocksEnabled: boolean
   passthroughDelayMs: number
+  logRetentionDays?: number | null
+  bodyLogLimitBytes?: number | null
 }
 
 export interface MockMatchDto {
@@ -153,6 +157,32 @@ export interface LogQueryArgs {
   mode?: string
   protocol?: string
   statusCode?: number
+  from?: string
+  to?: string
   skip?: number
   take?: number
+}
+
+export interface LogStorageDto {
+  databaseBytes: number
+  walBytes: number
+  shmBytes: number
+  totalBytes: number
+  entryCount: number
+}
+
+export interface LogTimelineBucketDto {
+  startUtc: string
+  count: number
+}
+
+export interface LogTimelineDto {
+  fromUtc: string
+  toUtc: string
+  bucketSeconds: number
+  buckets: LogTimelineBucketDto[]
+}
+
+export interface LogClearResultDto {
+  deleted: number
 }

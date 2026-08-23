@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
+import { formatBytes } from '../format'
 import { modeBadge } from '../modeBadge'
 import type { LogDetailDto, MockDto } from '../store/types'
 import { CopyButton } from './CopyButton'
@@ -51,6 +52,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
                 headers={log.requestHeaders}
                 body={log.requestBody}
                 truncated={log.requestBodyTruncated ?? false}
+                originalBytes={log.requestBytes}
                 raw={raw}
               />
             </Col>
@@ -60,6 +62,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
                 headers={log.responseHeaders}
                 body={log.responseBody}
                 truncated={log.responseBodyTruncated ?? false}
+                originalBytes={log.responseBytes}
                 raw={raw}
               />
             </Col>
@@ -90,12 +93,14 @@ function HttpMessage({
   headers,
   body,
   truncated,
+  originalBytes,
   raw,
 }: {
   title: string
   headers?: string | null
   body?: string | null
   truncated: boolean
+  originalBytes?: number
   raw: boolean
 }) {
   const parsed = parseHeaders(headers)
@@ -145,12 +150,21 @@ function HttpMessage({
       <div>
         <Stack direction="horizontal" className="mb-2">
           <strong>Body</strong>
-          {truncated && <Badge bg="warning" text="dark">truncated</Badge>}
+          {truncated && (
+            <Badge bg="warning" text="dark" className="ms-2">
+              exceeded limit
+            </Badge>
+          )}
           <div className="ms-auto">
             <CopyButton value={body ?? ''} label="Copy body" />
           </div>
         </Stack>
-        <pre className="border rounded p-2 mb-0">{body || '(empty)'}</pre>
+        <pre className="border rounded p-2 mb-0">
+          {body ||
+            (truncated
+              ? `Body not stored. Original size: ${formatBytes(originalBytes)}.`
+              : '(empty)')}
+        </pre>
       </div>
     </Stack>
   )

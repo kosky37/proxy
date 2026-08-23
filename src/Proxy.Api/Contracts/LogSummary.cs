@@ -21,9 +21,11 @@ public static class LogSummary
         return SoapEnvelope.GetSoapAction(ParseHeaders(entry.RequestHeaders));
     }
 
-    public static int RequestBytes(RequestLogEntry entry) => ByteCount(entry.RequestBody);
+    public static int RequestBytes(RequestLogEntry entry) =>
+        entry.RequestBodyOriginalBytes > 0 ? entry.RequestBodyOriginalBytes : ByteCount(entry.RequestBody);
 
-    public static int ResponseBytes(RequestLogEntry entry) => ByteCount(entry.ResponseBody);
+    public static int ResponseBytes(RequestLogEntry entry) =>
+        entry.ResponseBodyOriginalBytes > 0 ? entry.ResponseBodyOriginalBytes : ByteCount(entry.ResponseBody);
 
     private static int ByteCount(string? text) =>
         string.IsNullOrEmpty(text) ? 0 : Encoding.UTF8.GetByteCount(text);

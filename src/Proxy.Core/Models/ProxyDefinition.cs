@@ -8,4 +8,6 @@ public sealed class ProxyDefinition
     public DestinationConfig Destination { get; set; } = new();
     public bool MocksEnabled { get; set; } = true;
     public int PassthroughDelayMs { get; set; }
+    public int? LogRetentionDays { get; set; }
+    public int? BodyLogLimitBytes { get; set; }
 }
