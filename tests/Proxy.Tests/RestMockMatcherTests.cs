@@ -55,6 +55,26 @@ public class RestMockMatcherTests
     }
 
     [Fact]
+    public void Matches_xml_xpath()
+    {
+        var mock = new MockDefinition
+        {
+            Match = new MockMatch
+            {
+                Path = "/accounts",
+                XPath = "//*[local-name()='AccountId' and text()='12']"
+            }
+        };
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("POST", "/accounts", "<Account><AccountId>12</AccountId></Account>")).Should().BeTrue();
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("POST", "/accounts", """{"AccountId":"12"}""")).Should().BeFalse();
+    }
+
+    [Fact]
     public void Matches_body_contains_and_regex()
     {
         var mock = new MockDefinition

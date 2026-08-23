@@ -69,6 +69,16 @@ public static class RestMockMatcher
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(match.XPath))
+        {
+            if (!XmlBody.TryParse(request.Body, out var document) ||
+                document is null ||
+                !XmlBody.XPathMatches(document, match.XPath))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 

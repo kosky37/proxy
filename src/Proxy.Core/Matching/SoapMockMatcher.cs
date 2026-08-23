@@ -23,8 +23,14 @@ public static class SoapMockMatcher
             return false;
         }
 
-        var needsBody = !string.IsNullOrWhiteSpace(match.Operation) || !string.IsNullOrWhiteSpace(match.XPath);
-        if (!needsBody)
+        if (!string.IsNullOrEmpty(match.BodyContains) &&
+            !request.Body.Contains(match.BodyContains, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var needsXml = !string.IsNullOrWhiteSpace(match.Operation) || !string.IsNullOrWhiteSpace(match.XPath);
+        if (!needsXml)
         {
             return true;
         }
@@ -41,6 +47,6 @@ public static class SoapMockMatcher
         }
 
         return string.IsNullOrWhiteSpace(match.XPath) ||
-               document is not null && SoapEnvelope.XPathMatches(document, match.XPath);
+               document is not null && XmlBody.XPathMatches(document, match.XPath);
     }
 }

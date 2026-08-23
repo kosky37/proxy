@@ -39,6 +39,29 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
+    public void Matches_plain_text_in_the_body_without_xpath_or_operation()
+    {
+        var mock = new MockDefinition
+        {
+            Type = MockType.Soap,
+            Match = new MockMatch
+            {
+                SoapAction = "GetAccount",
+                BodyContains = "accountid>999"
+            }
+        };
+
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        })).Should().BeTrue();
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope.Replace("999", "1"), new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        })).Should().BeFalse();
+    }
+
+    [Fact]
     public void Matches_soap_action_without_reading_the_body()
     {
         var mock = new MockDefinition

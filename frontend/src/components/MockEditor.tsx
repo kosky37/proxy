@@ -171,9 +171,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
             </Col>
             {useAdvanced && !isSoap && (
               <>
-                <Col md={6}>
+                <Col xs={12}>
                   <Form.Group>
-                    <FieldLabel help='The request body must contain this text, ignoring case. Example: "status":"open"'>
+                    <FieldLabel help='Plain text search in the raw body. No JSON or XML parsing. Case is ignored. Example: "status":"open"'>
                       Body contains
                     </FieldLabel>
                     <Form.Control
@@ -186,7 +186,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 </Col>
                 <Col md={6}>
                   <Form.Group>
-                    <FieldLabel help='JSONPath picks a value out of a JSON body. $.user.id with 42 matches {"user":{"id":42}}. Leave the value empty to only require that the path exists.'>
+                    <FieldLabel help='For JSON bodies only. JSONPath picks a value out of JSON. $.user.id with 42 matches {"user":{"id":42}}. Leave the value empty to only require that the path exists.'>
                       JSON path equals
                     </FieldLabel>
                     <InputGroup>
@@ -207,13 +207,38 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     </InputGroup>
                   </Form.Group>
                 </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help="For XML bodies only. XPath is a query into the XML. The mock matches when the query finds something. Examples: //Account (that element exists), //AccountId[text()='42'] (that element has this text).">
+                      XML XPath
+                    </FieldLabel>
+                    <Form.Control
+                      placeholder="//AccountId"
+                      value={mock.match.xpath ?? ''}
+                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })}
+                    />
+                  </Form.Group>
+                </Col>
               </>
             )}
             {useAdvanced && isSoap && (
               <>
                 <Col md={6}>
                   <Form.Group>
-                    <FieldLabel help="The first child element inside the SOAP Body, i.e. the operation name. Example: GetAccount. Use this when SOAPAction is missing or unreliable.">
+                    <FieldLabel help="Plain text search in the raw SOAP body. No XML parsing. Case is ignored. Example: AccountId>42">
+                      Body contains
+                    </FieldLabel>
+                    <Form.Control
+                      value={mock.match.bodyContains ?? ''}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, bodyContains: event.target.value } })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help="The first child element inside the SOAP Body, i.e. the operation name. Example: GetAccount. Use this when SOAPAction is missing or unreliable. Requires parsing the XML.">
                       Operation
                     </FieldLabel>
                     <Form.Control
@@ -224,10 +249,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     />
                   </Form.Group>
                 </Col>
-                <Col md={6}>
+                <Col xs={12}>
                   <Form.Group>
-                    <FieldLabel help="XPath is a query into the SOAP XML. The mock matches when the query finds something. Examples: //GetAccount (that element exists), //AccountId[text()='42'] (that element has this text).">
-                      XPath
+                    <FieldLabel help="For the SOAP XML envelope. XPath is a query into the XML. The mock matches when the query finds something. Examples: //GetAccount (that element exists), //AccountId[text()='42'] (that element has this text). Requires parsing the XML.">
+                      XML XPath
                     </FieldLabel>
                     <Form.Control
                       placeholder="//GetAccount"
