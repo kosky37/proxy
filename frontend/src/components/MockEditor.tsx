@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Col, Form, InputGroup, Modal, Row } from 'react-bootstrap'
 import type { MockDto, MockMatchDto } from '../store/types'
 import { FieldLabel, pathModeHelp } from './FieldHelp'
+import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
 
 const blank = (type: string): MockDto => ({
   name: '',
@@ -144,24 +145,15 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
             ) : (
               <Col md={4}>
                 <Form.Group>
-                  <FieldLabel help="HTTP methods this mock accepts, separated by commas. Empty means any method. Example: GET, POST">
+                  <FieldLabel help="HTTP methods this mock accepts. Leave empty to match any method.">
                     Methods
                   </FieldLabel>
-                  <Form.Control
-                    placeholder="GET, POST"
-                    value={(mock.match.methods ?? []).join(', ')}
-                    onChange={(event) =>
-                      setMock({
-                        ...mock,
-                        match: {
-                          ...mock.match,
-                          methods: event.target.value
-                            .split(',')
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                        },
-                      })
-                    }
+                  <MethodTypeahead
+                    id="mock-methods"
+                    multiple
+                    selected={mock.match.methods ?? []}
+                    onChange={(methods) => setMock({ ...mock, match: { ...mock.match, methods } })}
+                    placeholder="Any method"
                   />
                 </Form.Group>
               </Col>
@@ -280,13 +272,14 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
             </Col>
             <Col md={5}>
               <Form.Group>
-                <FieldLabel help="Content-Type of the mocked response. Example: application/json or text/xml.">
+                <FieldLabel help="Content-Type of the mocked response. Pick a common type or type your own.">
                   Content type
                 </FieldLabel>
-                <Form.Control
-                  value={mock.response.contentType ?? ''}
-                  onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, contentType: event.target.value } })
+                <ContentTypeTypeahead
+                  id="mock-content-type"
+                  value={mock.response.contentType}
+                  onChange={(contentType) =>
+                    setMock({ ...mock, response: { ...mock.response, contentType } })
                   }
                 />
               </Form.Group>

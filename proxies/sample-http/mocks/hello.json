@@ -5,15 +5,12 @@
     "methods": [
       "GET"
     ],
-    "path": "/hello",
-    "pathMode": "exact",
-    "jsonPath": "",
-    "jsonPathEquals": ""
+    "path": "/test",
+    "pathMode": "exact"
   },
   "response": {
     "statusCode": 200,
     "contentType": "application/json",
-    "body": "{ \u0022message\u0022: \u0022mocked hello\u0022 }",
     "delayMs": 0,
     "block": false
   },

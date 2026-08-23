@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Col, Form, Modal, Row } from 'react-bootstrap'
 import type { IgnoredPathDto } from '../store/types'
 import { FieldLabel, pathModeHelp } from './FieldHelp'
+import { MethodTypeahead } from './TypeaheadFields'
 
 const blank = (): IgnoredPathDto => ({
   name: '',
@@ -82,19 +83,13 @@ export function IgnoreEditor({ show, initial, onSave, onCancel }: Props) {
             </Col>
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Methods (optional, comma)</Form.Label>
-                <Form.Control
-                  placeholder="GET, POST"
-                  value={(ignore.methods ?? []).join(', ')}
-                  onChange={(event) =>
-                    setIgnore({
-                      ...ignore,
-                      methods: event.target.value
-                        .split(',')
-                        .map((item) => item.trim())
-                        .filter(Boolean),
-                    })
-                  }
+                <Form.Label>Methods (optional)</Form.Label>
+                <MethodTypeahead
+                  id="ignore-methods"
+                  multiple
+                  selected={ignore.methods ?? []}
+                  onChange={(methods) => setIgnore({ ...ignore, methods })}
+                  placeholder="Any method"
                 />
                 <Form.Text>Leave empty to ignore every method for this path.</Form.Text>
               </Form.Group>

@@ -5,6 +5,7 @@ import { protocolBadge } from '../protocolBadge'
 import { useSendManualRequestMutation } from '../store/proxyApi'
 import type { LogDetailDto } from '../store/types'
 import { CopyButton } from './CopyButton'
+import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
 
 const soapTemplate = `<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
@@ -148,13 +149,12 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
           <Col md={2}>
             <Form.Group>
               <Form.Label>Method</Form.Label>
-              <Form.Select value={method} onChange={(event) => setMethod(event.target.value)} disabled={protocol === 'soap'}>
-                {['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'].map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </Form.Select>
+              <MethodTypeahead
+                id="send-method"
+                selected={[method]}
+                disabled={protocol === 'soap'}
+                onChange={(methods) => setMethod(methods[0] ?? 'GET')}
+              />
             </Form.Group>
           </Col>
           <Col md={6}>
@@ -224,7 +224,7 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
           <Col md={protocol === 'soap' ? 6 : 12}>
             <Form.Group>
               <Form.Label>Content type</Form.Label>
-              <Form.Control value={contentType} onChange={(event) => setContentType(event.target.value)} />
+              <ContentTypeTypeahead id="send-content-type" value={contentType} onChange={setContentType} />
             </Form.Group>
           </Col>
           <Col xs={12}>

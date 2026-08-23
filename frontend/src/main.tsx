@@ -4,6 +4,8 @@ import { Provider } from 'react-redux'
 import App from './App.tsx'
 import { store } from './store/store'
 import { applyTheme, readTheme } from './theme'
+import 'react-bootstrap-typeahead/css/Typeahead.css'
+import 'react-bootstrap-typeahead/css/Typeahead.bs5.css'
 import './index.css'
 
 applyTheme(readTheme())
