@@ -6,7 +6,9 @@
       "GET"
     ],
     "path": "/hello",
-    "pathMode": "exact"
+    "pathMode": "exact",
+    "jsonPath": "$.id",
+    "jsonPathEquals": "6"
   },
   "response": {
     "statusCode": 200,

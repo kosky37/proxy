@@ -3,6 +3,11 @@ export interface CertificateDto {
   password?: string | null
 }
 
+export interface UploadedCertificateDto {
+  pfxPath?: string | null
+  password?: string | null
+}
+
 export interface ListenDto {
   url: string
   pathPrefix?: string | null

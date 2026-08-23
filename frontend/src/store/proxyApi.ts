@@ -7,6 +7,7 @@ import type {
   ProxyDetailDto,
   ProxyListItemDto,
   ProxyStatsDto,
+  UploadedCertificateDto,
   UpsertProxyRequest,
 } from './types'
 
@@ -73,6 +74,13 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       }),
       invalidatesTags: ['Mocks', 'Proxies'],
     }),
+    uploadCertificate: build.mutation<UploadedCertificateDto, { proxyId: string; file: File }>({
+      query: ({ proxyId, file }) => {
+        const body = new FormData()
+        body.append('file', file)
+        return { url: `/api/proxies/${proxyId}/certificates`, method: 'POST', body }
+      },
+    }),
     getLogs: build.query<LogListDto, LogQueryArgs>({
       query: ({ proxyId, ...params }) => ({
         url: `/api/proxies/${proxyId}/logs`,
@@ -104,6 +112,7 @@ export const {
   useUpdateMockMutation,
   useDeleteMockMutation,
   useToggleMockMutation,
+  useUploadCertificateMutation,
   useGetLogsQuery,
   useGetLogQuery,
   useGetStatsQuery,

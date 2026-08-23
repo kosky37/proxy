@@ -78,6 +78,41 @@ public sealed class ProxiesController : ControllerBase
         }
     }
 
+    [HttpPost("{id}/certificates")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(CertificateDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<CertificateDto>> UploadCertificate(string id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var proxy = _store.Get(id);
+        if (proxy is null)
+        {
+            return NotFound();
+        }
+
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { message = "Select a certificate file." });
+        }
+
+        var fileName = MockFileNames.Sanitize(Path.GetFileName(file.FileName));
+        if (!Path.HasExtension(fileName))
+        {
+            fileName += ".pfx";
+        }
+
+        var certsFolder = Path.Combine(proxy.FolderPath, "certs");
+        Directory.CreateDirectory(certsFolder);
+        var fullPath = Path.Combine(certsFolder, fileName);
+        await using (var stream = System.IO.File.Create(fullPath))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        return Ok(new CertificateDto { PfxPath = Path.Combine("certs", fileName).Replace('\\', '/') });
+    }
+
     [HttpPut("{id}/mocks-enabled")]
     [ProducesResponseType(typeof(ProxyDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1,3 +1,4 @@
+import { Badge, Button, Container, Nav, Navbar } from 'react-bootstrap'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useGetHealthQuery } from '../store/proxyApi'
 import { applyTheme, readTheme, type Theme } from '../theme'
@@ -19,27 +20,27 @@ export function Layout() {
 
   return (
     <>
-      <nav className="navbar navbar-expand bg-body-tertiary border-bottom">
-        <div className="container-fluid">
-          <Link className="navbar-brand" to="/">
+      <Navbar expand bg="body-tertiary" className="border-bottom">
+        <Container fluid>
+          <Navbar.Brand as={Link} to="/">
             Proxy
-          </Link>
-          <div className="navbar-nav me-auto">
-            <NavLink className="nav-link" to="/">
+          </Navbar.Brand>
+          <Nav className="me-auto">
+            <Nav.Link as={NavLink} to="/">
               Proxies
-            </NavLink>
-          </div>
-          <span className={`badge me-3 ${health.data?.status === 'ok' ? 'text-bg-success' : 'text-bg-secondary'}`}>
+            </Nav.Link>
+          </Nav>
+          <Badge bg={health.data?.status === 'ok' ? 'success' : 'secondary'} className="me-3">
             API {health.data?.status ?? 'offline'}
-          </span>
-          <button className="btn btn-outline-secondary btn-sm" type="button" onClick={toggleTheme}>
+          </Badge>
+          <Button variant="outline-secondary" size="sm" onClick={toggleTheme}>
             {theme === 'light' ? 'Dark' : 'Light'} mode
-          </button>
-        </div>
-      </nav>
-      <main className="container py-4">
+          </Button>
+        </Container>
+      </Navbar>
+      <Container className="py-4">
         <Outlet />
-      </main>
+      </Container>
     </>
   )
 }
