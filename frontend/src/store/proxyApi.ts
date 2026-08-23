@@ -10,6 +10,7 @@ import type {
   CertificateDto,
   IgnoredPathDto,
   MockDto,
+  MockSetDto,
   ProxyDetailDto,
   ProxyListItemDto,
   UploadedCertificateFileDto,
@@ -78,6 +79,36 @@ export const proxyApi = emptySplitApi.injectEndpoints({
         method: 'POST',
       }),
       invalidatesTags: ['Mocks', 'Proxies'],
+    }),
+    getMockSets: build.query<MockSetDto[], string>({
+      query: (proxyId) => `/api/proxies/${proxyId}/mock-sets`,
+      providesTags: ['MockSets'],
+    }),
+    createMockSet: build.mutation<MockSetDto, { proxyId: string; body: MockSetDto }>({
+      query: ({ proxyId, body }) => ({ url: `/api/proxies/${proxyId}/mock-sets`, method: 'POST', body }),
+      invalidatesTags: ['MockSets'],
+    }),
+    updateMockSet: build.mutation<MockSetDto, { proxyId: string; name: string; body: MockSetDto }>({
+      query: ({ proxyId, name, body }) => ({
+        url: `/api/proxies/${proxyId}/mock-sets/${encodeURIComponent(name)}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['MockSets'],
+    }),
+    deleteMockSet: build.mutation<void, { proxyId: string; name: string }>({
+      query: ({ proxyId, name }) => ({
+        url: `/api/proxies/${proxyId}/mock-sets/${encodeURIComponent(name)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['MockSets'],
+    }),
+    applyMockSet: build.mutation<MockDto[], { proxyId: string; name: string }>({
+      query: ({ proxyId, name }) => ({
+        url: `/api/proxies/${proxyId}/mock-sets/${encodeURIComponent(name)}/apply`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['MockSets', 'Mocks', 'Proxies'],
     }),
     getIgnores: build.query<IgnoredPathDto[], string>({
       query: (proxyId) => `/api/proxies/${proxyId}/ignores`,
@@ -188,6 +219,11 @@ export const {
   useUpdateMockMutation,
   useDeleteMockMutation,
   useToggleMockMutation,
+  useGetMockSetsQuery,
+  useCreateMockSetMutation,
+  useUpdateMockSetMutation,
+  useDeleteMockSetMutation,
+  useApplyMockSetMutation,
   useGetIgnoresQuery,
   useCreateIgnoreMutation,
   useUpdateIgnoreMutation,

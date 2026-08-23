@@ -122,6 +122,13 @@ public sealed class IgnoredPathDto
     public List<string>? Methods { get; set; }
 }
 
+public sealed class MockSetDto
+{
+    public required string Name { get; set; }
+    public required string FileName { get; set; }
+    public List<string> MockNames { get; set; } = [];
+}
+
 public sealed class LogListDto
 {
     public required IReadOnlyList<LogListItemDto> Items { get; set; }
@@ -451,5 +458,19 @@ public static class DtoMapper
         Path = dto.Path,
         PathMode = Enum.TryParse<PathMatchMode>(dto.PathMode, true, out var mode) ? mode : PathMatchMode.Exact,
         Methods = dto.Methods
+    };
+
+    public static MockSetDto ToDto(MockSet set) => new()
+    {
+        Name = set.Name,
+        FileName = set.FileName,
+        MockNames = set.MockNames
+    };
+
+    public static MockSet ToModel(MockSetDto dto) => new()
+    {
+        Name = dto.Name,
+        FileName = dto.FileName,
+        MockNames = dto.MockNames
     };
 }

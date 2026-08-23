@@ -92,6 +92,12 @@ export interface IgnoredPathDto {
   methods?: string[] | null
 }
 
+export interface MockSetDto {
+  name: string
+  fileName: string
+  mockNames: string[]
+}
+
 export interface MockDto {
   name: string
   fileName: string

@@ -116,4 +116,73 @@ public class FolderStoreTests
             Directory.Delete(workspace, recursive: true);
         }
     }
+
+    [Fact]
+    public void Apply_mock_set_enables_named_mocks_and_disables_the_rest()
+    {
+        var workspace = Directory.CreateTempSubdirectory("proxy-mock-sets-").FullName;
+        var root = Path.Combine(workspace, "proxies");
+        var certificatesRoot = Path.Combine(workspace, "certificates");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var store = new ProxyFolderStore(Options.Create(new AppOptions
+            {
+                DataRoot = root,
+                CertificatesRoot = certificatesRoot,
+                MockDisablePrefix = "_"
+            }), NullLogger<ProxyFolderStore>.Instance);
+
+            store.Create("demo", new ProxyDefinition
+            {
+                Name = "Demo",
+                Listen = new ListenConfig { Url = "http://127.0.0.1:18081" },
+                Destination = new DestinationConfig { Address = "http://127.0.0.1:18090" }
+            });
+            store.CreateMock("demo", new MockDefinition
+            {
+                Name = "alpha",
+                Enabled = true,
+                Type = MockType.Rest,
+                Match = new MockMatch { Path = "/alpha" },
+                Response = new MockResponse { Body = "a" }
+            });
+            store.CreateMock("demo", new MockDefinition
+            {
+                Name = "beta",
+                Enabled = true,
+                Type = MockType.Rest,
+                Match = new MockMatch { Path = "/beta" },
+                Response = new MockResponse { Body = "b" }
+            });
+            store.CreateMock("demo", new MockDefinition
+            {
+                Name = "gamma",
+                Enabled = false,
+                Type = MockType.Rest,
+                Match = new MockMatch { Path = "/gamma" },
+                Response = new MockResponse { Body = "c" }
+            });
+
+            var created = store.CreateMockSet("demo", new MockSet
+            {
+                Name = "happy-path",
+                MockNames = ["gamma", "alpha"]
+            });
+            created.Name.Should().Be("happy-path");
+            File.Exists(Path.Combine(root, "demo", "mock-sets", "happy-path.json")).Should().BeTrue();
+
+            var applied = store.ApplyMockSet("demo", "happy-path");
+            applied.Single(item => item.Name == "alpha").Enabled.Should().BeTrue();
+            applied.Single(item => item.Name == "alpha").FileName.Should().Be("alpha.json");
+            applied.Single(item => item.Name == "beta").Enabled.Should().BeFalse();
+            applied.Single(item => item.Name == "beta").FileName.Should().Be("_beta.json");
+            applied.Single(item => item.Name == "gamma").Enabled.Should().BeTrue();
+            applied.Single(item => item.Name == "gamma").FileName.Should().Be("gamma.json");
+        }
+        finally
+        {
+            Directory.Delete(workspace, recursive: true);
+        }
+    }
 }

@@ -7,4 +7,5 @@ public sealed class LoadedProxy
     public required ProxyDefinition Definition { get; init; }
     public required IReadOnlyList<MockDefinition> Mocks { get; init; }
     public required IReadOnlyList<IgnoredPath> Ignores { get; init; }
+    public IReadOnlyList<MockSet> MockSets { get; init; } = [];
 }

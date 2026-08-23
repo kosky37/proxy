@@ -239,6 +239,92 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         NotifyChanged();
     }
 
+    public MockSet CreateMockSet(string proxyId, MockSet set)
+    {
+        MockSet created;
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var fileName = $"{MockFileNames.Sanitize(set.Name)}.json";
+            var path = Path.Combine(proxy.FolderPath, "mock-sets", fileName);
+            if (File.Exists(path) || FindMockSetFile(proxy, set.Name) is not null)
+            {
+                throw new InvalidOperationException($"Mock set '{set.Name}' already exists.");
+            }
+
+            WriteGeneration++;
+            WriteMockSetFile(path, set);
+            ReloadCore();
+            created = Require(proxyId).MockSets.First(item => item.Name.Equals(set.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        NotifyChanged();
+        return created;
+    }
+
+    public MockSet UpdateMockSet(string proxyId, string name, MockSet set)
+    {
+        MockSet updated;
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var existing = FindMockSetFile(proxy, name) ?? throw new KeyNotFoundException($"Mock set '{name}' was not found.");
+            WriteGeneration++;
+            WriteMockSetFile(existing, set);
+            var desiredPath = Path.Combine(proxy.FolderPath, "mock-sets", $"{MockFileNames.Sanitize(set.Name)}.json");
+            if (!existing.Equals(desiredPath, StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(desiredPath))
+                {
+                    throw new InvalidOperationException($"Mock set '{set.Name}' already exists.");
+                }
+
+                File.Move(existing, desiredPath);
+            }
+
+            ReloadCore();
+            updated = Require(proxyId).MockSets.First(item => item.Name.Equals(set.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        NotifyChanged();
+        return updated;
+    }
+
+    public void DeleteMockSet(string proxyId, string name)
+    {
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var existing = FindMockSetFile(proxy, name) ?? throw new KeyNotFoundException($"Mock set '{name}' was not found.");
+            WriteGeneration++;
+            File.Delete(existing);
+            ReloadCore();
+        }
+
+        NotifyChanged();
+    }
+
+    public IReadOnlyList<MockDefinition> ApplyMockSet(string proxyId, string name)
+    {
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var set = proxy.MockSets.FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                      ?? throw new KeyNotFoundException($"Mock set '{name}' was not found.");
+            WriteGeneration++;
+            foreach (var mock in proxy.Mocks)
+            {
+                var enable = set.MockNames.Any(item => item.Equals(mock.Name, StringComparison.OrdinalIgnoreCase));
+                SetMockEnabledLocked(proxy, mock.Name, enable);
+            }
+
+            ReloadCore();
+        }
+
+        NotifyChanged();
+        return Require(proxyId).Mocks;
+    }
+
     public LoadedProxy SetMocksEnabled(string proxyId, bool enabled)
     {
         lock (_gate)
@@ -377,6 +463,7 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         var mocksDirectory = Path.Combine(folder, "mocks");
         Directory.CreateDirectory(mocksDirectory);
         Directory.CreateDirectory(Path.Combine(folder, "ignores"));
+        Directory.CreateDirectory(Path.Combine(folder, "mock-sets"));
         var mocks = Directory.GetFiles(mocksDirectory, "*.json")
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Select(path => LoadMock(path))
@@ -389,6 +476,12 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             .Where(item => item is not null)
             .Cast<IgnoredPath>()
             .ToList();
+        var mockSets = Directory.GetFiles(Path.Combine(folder, "mock-sets"), "*.json")
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(LoadMockSet)
+            .Where(item => item is not null)
+            .Cast<MockSet>()
+            .ToList();
 
         return new LoadedProxy
         {
@@ -396,7 +489,8 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             FolderPath = folder,
             Definition = definition,
             Mocks = mocks,
-            Ignores = ignores
+            Ignores = ignores,
+            MockSets = mockSets
         };
     }
 
@@ -450,6 +544,34 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         catch (Exception exception)
         {
             _logger.LogError(exception, "Failed to load ignore {Path}", path);
+            return null;
+        }
+    }
+
+    private MockSet? LoadMockSet(string path)
+    {
+        try
+        {
+            var json = File.ReadAllText(path);
+            var set = JsonSerializer.Deserialize<MockSet>(json, JsonDefaults.Options)
+                      ?? throw new InvalidOperationException("Mock set file was empty.");
+            var fileName = Path.GetFileName(path);
+            set.FileName = fileName;
+            if (string.IsNullOrWhiteSpace(set.Name))
+            {
+                set.Name = Path.GetFileNameWithoutExtension(fileName);
+            }
+
+            set.MockNames = set.MockNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return set;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to load mock set {Path}", path);
             return null;
         }
     }
@@ -524,6 +646,63 @@ public sealed class ProxyFolderStore : IProxyConfigStore
                     return false;
                 }
             });
+    }
+
+    private static string? FindMockSetFile(LoadedProxy proxy, string name)
+    {
+        var directory = Path.Combine(proxy.FolderPath, "mock-sets");
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        return Directory.GetFiles(directory, "*.json")
+            .FirstOrDefault(path =>
+            {
+                if (Path.GetFileNameWithoutExtension(path).Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                try
+                {
+                    var set = JsonSerializer.Deserialize<MockSet>(File.ReadAllText(path), JsonDefaults.Options);
+                    return set?.Name.Equals(name, StringComparison.OrdinalIgnoreCase) == true;
+                }
+                catch (JsonException)
+                {
+                    return false;
+                }
+            });
+    }
+
+    private void SetMockEnabledLocked(LoadedProxy proxy, string name, bool enabled)
+    {
+        var existing = FindMockFile(proxy, name);
+        if (existing is null)
+        {
+            return;
+        }
+
+        var currentlyEnabled = !MockFileNames.IsDisabled(Path.GetFileName(existing), DisablePrefix);
+        if (currentlyEnabled == enabled)
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(existing) ?? Path.Combine(proxy.FolderPath, "mocks");
+        File.Move(existing, Path.Combine(directory, MockFileNames.ToggleFileName(existing, DisablePrefix)));
+    }
+
+    private static void WriteMockSetFile(string path, MockSet set)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var persisted = new MockSet
+        {
+            Name = set.Name,
+            MockNames = set.MockNames
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(persisted, JsonDefaults.Options));
     }
 
     private static void WriteIgnoreFile(string path, IgnoredPath ignore)

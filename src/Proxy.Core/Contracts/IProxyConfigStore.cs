@@ -20,6 +20,10 @@ public interface IProxyConfigStore
     IgnoredPath CreateIgnore(string proxyId, IgnoredPath ignore);
     IgnoredPath UpdateIgnore(string proxyId, string name, IgnoredPath ignore);
     void DeleteIgnore(string proxyId, string name);
+    MockSet CreateMockSet(string proxyId, MockSet set);
+    MockSet UpdateMockSet(string proxyId, string name, MockSet set);
+    void DeleteMockSet(string proxyId, string name);
+    IReadOnlyList<MockDefinition> ApplyMockSet(string proxyId, string name);
     LoadedProxy SetMocksEnabled(string proxyId, bool enabled);
     IReadOnlyList<CertificateDefinition> GetCertificates();
     CertificateDefinition CreateCertificate(CertificateDefinition certificate);
