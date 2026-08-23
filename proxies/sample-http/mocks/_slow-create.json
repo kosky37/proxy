@@ -1,0 +1,15 @@
+{
+  "type": "rest",
+  "name": "slow-create",
+  "match": {
+    "methods": [ "POST" ],
+    "path": "/items",
+    "pathMode": "exact"
+  },
+  "response": {
+    "statusCode": 201,
+    "contentType": "application/json",
+    "body": "{ \"id\": 1 }",
+    "delayMs": 1500
+  }
+}

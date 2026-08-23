@@ -1,0 +1,13 @@
+{
+  "type": "soap",
+  "name": "get-account",
+  "match": {
+    "soapAction": "GetAccount",
+    "operation": "GetAccount"
+  },
+  "response": {
+    "statusCode": 200,
+    "contentType": "text/xml",
+    "body": "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\"><s:Body><GetAccountResponse><Name>Ada</Name></GetAccountResponse></s:Body></s:Envelope>"
+  }
+}

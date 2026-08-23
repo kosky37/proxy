@@ -1,0 +1,13 @@
+{
+  "name": "Sample SOAP",
+  "enabled": true,
+  "listen": {
+    "url": "http://127.0.0.1:8082"
+  },
+  "destination": {
+    "address": "https://gateway.example.com",
+    "acceptAnyServerCertificate": true
+  },
+  "mocksEnabled": true,
+  "passthroughDelayMs": 0
+}

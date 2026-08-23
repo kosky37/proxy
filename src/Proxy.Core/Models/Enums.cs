@@ -1,0 +1,26 @@
+namespace Proxy.Core.Models;
+
+public enum MockType
+{
+    Rest,
+    Soap
+}
+
+public enum PathMatchMode
+{
+    Exact,
+    Prefix,
+    Template
+}
+
+public enum RequestMode
+{
+    Passthrough,
+    Mock
+}
+
+public enum RequestProtocol
+{
+    Rest,
+    Soap
+}

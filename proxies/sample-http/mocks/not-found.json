@@ -1,0 +1,14 @@
+{
+  "type": "rest",
+  "name": "not-found",
+  "match": {
+    "methods": [ "GET" ],
+    "path": "/missing",
+    "pathMode": "exact"
+  },
+  "response": {
+    "statusCode": 404,
+    "contentType": "application/json",
+    "body": "{ \"error\": \"not found\" }"
+  }
+}

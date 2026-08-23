@@ -1,0 +1,19 @@
+{
+  "type": "rest",
+  "name": "hello",
+  "match": {
+    "methods": [
+      "GET"
+    ],
+    "path": "/hello",
+    "pathMode": "exact"
+  },
+  "response": {
+    "statusCode": 200,
+    "contentType": "application/json",
+    "body": "{ \u0022message\u0022: \u0022mocked hello\u0022 }",
+    "delayMs": 0
+  },
+  "fileName": "",
+  "enabled": true
+}

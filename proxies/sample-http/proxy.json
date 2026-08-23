@@ -1,0 +1,13 @@
+{
+  "name": "Sample HTTP",
+  "enabled": true,
+  "listen": {
+    "url": "http://127.0.0.1:8081"
+  },
+  "destination": {
+    "address": "https://google.com",
+    "acceptAnyServerCertificate": false
+  },
+  "mocksEnabled": true,
+  "passthroughDelayMs": 0
+}

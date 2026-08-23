@@ -1,0 +1,10 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+body {
+  min-height: 100vh;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
