@@ -1,4 +1,4 @@
-import type { LogDetailDto, MockDto } from './store/types'
+import type { IgnoredPathDto, LogDetailDto, MockDto } from './store/types'
 
 export function mockFromLog(log: LogDetailDto): MockDto {
   const isSoap = log.protocol === 'soap'
@@ -26,6 +26,17 @@ export function mockFromLog(log: LogDetailDto): MockDto {
       contentType: isSoap ? 'text/xml' : 'application/json',
       block: false,
     },
+  }
+}
+
+export function ignoreFromLog(log: LogDetailDto): IgnoredPathDto {
+  const pathPart = log.path.replace(/\/+$/, '').split('/').filter(Boolean).at(-1) || 'request'
+  return {
+    name: sanitizeName(`${log.method}-${pathPart}`),
+    fileName: '',
+    path: log.path,
+    pathMode: 'exact',
+    methods: log.method ? [log.method] : [],
   }
 }
 

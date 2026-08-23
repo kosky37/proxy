@@ -20,7 +20,7 @@ import { LogsPanel } from '../components/LogsPanel'
 import { ManualSendPanel } from '../components/ManualSendPanel'
 import { MockEditor } from '../components/MockEditor'
 import { hasAdvancedMatch } from '../format'
-import { mockFromLog } from '../mockFromLog'
+import { ignoreFromLog, mockFromLog } from '../mockFromLog'
 import {
   useCreateIgnoreMutation,
   useCreateMockMutation,
@@ -100,8 +100,13 @@ export function ProxyDetailPage() {
   }
 
   const saveIgnore = async (ignore: IgnoredPathDto) => {
-    if (editingIgnore?.name) {
-      await updateIgnore({ proxyId: id, name: editingIgnore.name, body: ignore }).unwrap()
+    const existingName = editingIgnore?.name
+    const exists = Boolean(
+      existingName &&
+        ignores.data?.some((item) => item.name.toLowerCase() === existingName.toLowerCase()),
+    )
+    if (exists && existingName) {
+      await updateIgnore({ proxyId: id, name: existingName, body: ignore }).unwrap()
     } else {
       await createIgnore({ proxyId: id, body: ignore }).unwrap()
     }
@@ -121,6 +126,16 @@ export function ProxyDetailPage() {
     setTab(log.protocol === 'soap' ? 'soap' : 'rest')
     setLogId(null)
   }
+
+  const createIgnoreFromLog = (log: LogDetailDto) => {
+    setEditingIgnore(ignoreFromLog(log))
+    setTab('ignores')
+    setLogId(null)
+  }
+
+  const ignoreIsNew =
+    editingIgnore == null ||
+    !ignores.data?.some((item) => item.name.toLowerCase() === editingIgnore.name.toLowerCase())
 
   const existingLogMock = logDetail.data?.mockName
     ? mocks.data?.find((item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase())
@@ -437,12 +452,6 @@ export function ProxyDetailPage() {
               )}
             </tbody>
           </Table>
-          <IgnoreEditor
-            show={editingIgnore !== undefined}
-            initial={editingIgnore}
-            onSave={saveIgnore}
-            onCancel={() => setEditingIgnore(undefined)}
-          />
         </>
       )}
 
@@ -463,6 +472,15 @@ export function ProxyDetailPage() {
         onClose={() => setLogId(null)}
         onOpenMock={openExistingMock}
         onCreateMock={createMockFromLog}
+        onCreateIgnore={createIgnoreFromLog}
+      />
+
+      <IgnoreEditor
+        show={editingIgnore !== undefined}
+        initial={editingIgnore}
+        isNew={ignoreIsNew}
+        onSave={saveIgnore}
+        onCancel={() => setEditingIgnore(undefined)}
       />
 
       <MockEditor

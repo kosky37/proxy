@@ -15,11 +15,12 @@ const blank = (): IgnoredPathDto => ({
 interface Props {
   show: boolean
   initial?: IgnoredPathDto | null
+  isNew?: boolean
   onSave: (ignore: IgnoredPathDto) => Promise<void>
   onCancel: () => void
 }
 
-export function IgnoreEditor({ show, initial, onSave, onCancel }: Props) {
+export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, onCancel }: Props) {
   const [ignore, setIgnore] = useState<IgnoredPathDto>(initial ?? blank())
   const [saving, setSaving] = useState(false)
 
@@ -43,7 +44,7 @@ export function IgnoreEditor({ show, initial, onSave, onCancel }: Props) {
     <Modal show={show} onHide={onCancel}>
       <Form onSubmit={submit}>
         <Modal.Header closeButton>
-          <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New ignore'}</Modal.Title>
+          <Modal.Title>{isNew ? 'New ignore' : `Edit ${initial?.name}`}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">

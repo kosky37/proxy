@@ -16,9 +16,10 @@ interface Props {
   onClose: () => void
   onOpenMock?: (mock: MockDto) => void
   onCreateMock?: (log: LogDetailDto) => void
+  onCreateIgnore?: (log: LogDetailDto) => void
 }
 
-export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, onCreateMock }: Props) {
+export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, onCreateMock, onCreateIgnore }: Props) {
   const [raw, setRaw] = useState(false)
   const kind = protocolBadge(log?.protocol ?? '')
 
@@ -83,6 +84,11 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
         {!existingMock && log && onCreateMock && (
           <Button variant="primary" onClick={() => onCreateMock(log)}>
             Create mock
+          </Button>
+        )}
+        {log && onCreateIgnore && (
+          <Button variant="outline-primary" onClick={() => onCreateIgnore(log)}>
+            Create ignore
           </Button>
         )}
         <Button variant="secondary" onClick={onClose}>
