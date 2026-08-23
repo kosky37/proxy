@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Proxy.Api/Proxy.Api.csproj" />
     <Project Path="src/Proxy.Core/Proxy.Core.csproj" />
+    <Project Path="src/Proxy.Host/Proxy.Host.csproj" />
     <Project Path="src/Proxy.Infrastructure/Proxy.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">

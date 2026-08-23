@@ -23,6 +23,10 @@ frontend/.env.local
 .idea/
 *.swp
 
+## Published host
+/Proxy.Host.exe
+/Proxy.exe
+
 ## OS
 Thumbs.db
 Desktop.ini
