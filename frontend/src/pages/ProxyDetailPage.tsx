@@ -54,7 +54,7 @@ export function ProxyDetailPage() {
   const ignores = useGetIgnoresQuery(id)
   const mockSets = useGetMockSetsQuery(id)
   const certificates = useGetCertificatesQuery()
-  const [tab, setTab] = useState<Tab>('settings')
+  const [tab, setTab] = useState<Tab>('logs')
   const [form, setForm] = useState<UpsertProxyRequest | null>(null)
   const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
   const [editingExisting, setEditingExisting] = useState(false)
@@ -197,12 +197,12 @@ export function ProxyDetailPage() {
         />
       </Stack>
 
-      <Nav variant="tabs" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'settings')} className="mb-3">
+      <Nav variant="tabs" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'logs')} className="mb-3">
         <Nav.Item>
-          <Nav.Link eventKey="settings">Settings</Nav.Link>
+          <Nav.Link eventKey="logs">Logs</Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey="send">Send</Nav.Link>
+          <Nav.Link eventKey="mock-sets">Mock sets</Nav.Link>
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="rest">REST mocks</Nav.Link>
@@ -211,13 +211,13 @@ export function ProxyDetailPage() {
           <Nav.Link eventKey="soap">SOAP mocks</Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey="mock-sets">Mock sets</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
           <Nav.Link eventKey="ignores">Ignores</Nav.Link>
         </Nav.Item>
         <Nav.Item>
-          <Nav.Link eventKey="logs">Logs</Nav.Link>
+          <Nav.Link eventKey="send">Send</Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link eventKey="settings">Settings</Nav.Link>
         </Nav.Item>
       </Nav>
 
