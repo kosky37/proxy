@@ -37,6 +37,7 @@ public class RequestLogStoreTests
 
             var timeline = await store.GetTimelineAsync("demo", folder, DateTimeOffset.UtcNow.AddHours(-4), DateTimeOffset.UtcNow, 20);
             timeline.Buckets.Sum(item => item.Count).Should().Be(3);
+            timeline.Buckets.Sum(item => item.Status2xx).Should().Be(3);
 
             var removed = await store.DeleteBeforeAsync("demo", folder, DateTimeOffset.UtcNow.AddHours(-1));
             removed.Should().Be(1);
@@ -113,6 +114,36 @@ public class RequestLogStoreTests
     }
 
     [Fact]
+    public async Task Timeline_splits_buckets_by_mode_and_status()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
+        var store = new SqliteRequestLogStore();
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            await store.WriteAsync("demo", folder, Entry(now, "/ok", status: 200));
+            await store.WriteAsync("demo", folder, Entry(now, "/moved", status: 301));
+            await store.WriteAsync("demo", folder, Entry(now, "/missing", status: 404));
+            await store.WriteAsync("demo", folder, Entry(now, "/boom", status: 500));
+            await store.WriteAsync("demo", folder, Entry(now, "/mock", status: 200, mode: RequestMode.Mock));
+            await store.WriteAsync("demo", folder, Entry(now, "/manual", status: 200, mode: RequestMode.Manual));
+
+            var timeline = await store.GetTimelineAsync("demo", folder, now.AddMinutes(-1), now.AddMinutes(1), 10);
+            timeline.Buckets.Sum(item => item.Count).Should().Be(6);
+            timeline.Buckets.Sum(item => item.Status2xx).Should().Be(1);
+            timeline.Buckets.Sum(item => item.Status3xx).Should().Be(1);
+            timeline.Buckets.Sum(item => item.Status4xx).Should().Be(1);
+            timeline.Buckets.Sum(item => item.Status5xx).Should().Be(1);
+            timeline.Buckets.Sum(item => item.MockCount).Should().Be(1);
+            timeline.Buckets.Sum(item => item.ManualCount).Should().Be(1);
+        }
+        finally
+        {
+            DeleteFolder(folder);
+        }
+    }
+
+    [Fact]
     public async Task Release_closes_the_database_so_the_folder_can_be_deleted()
     {
         var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
@@ -139,13 +170,20 @@ public class RequestLogStoreTests
         }
     }
 
-    private static RequestLogEntry Entry(DateTimeOffset timestamp, string path, string? body = null, int original = 0) => new()
+    private static RequestLogEntry Entry(
+        DateTimeOffset timestamp,
+        string path,
+        string? body = null,
+        int original = 0,
+        int status = 200,
+        RequestMode mode = RequestMode.Passthrough) => new()
     {
         TimestampUtc = timestamp,
         Method = "GET",
         Path = path,
         RequestBody = body,
         RequestBodyOriginalBytes = original,
-        Mode = RequestMode.Passthrough
+        StatusCode = status,
+        Mode = mode
     };
 }

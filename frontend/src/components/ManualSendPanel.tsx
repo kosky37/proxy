@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Badge, Button, Card, Col, Form, InputGroup, Nav, Row, Stack } from 'react-bootstrap'
+import { modeClass, statusClass } from '../logColors'
 import { protocolBadge } from '../protocolBadge'
 import { useSendManualRequestMutation } from '../store/proxyApi'
 import type { LogDetailDto } from '../store/types'
@@ -287,10 +288,8 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
               <Badge bg={protocolBadge(result.protocol).bg} text={protocolBadge(result.protocol).text}>
                 {protocolBadge(result.protocol).label}
               </Badge>
-              <Badge bg="success">Manual</Badge>
-              <Badge bg={result.statusCode && result.statusCode < 400 ? 'success' : 'danger'}>
-                {result.statusCode ?? '-'}
-              </Badge>
+              <span className={`badge ${modeClass('manual')}`}>Manual</span>
+              <span className={`badge ${statusClass(result.statusCode)}`}>{result.statusCode ?? '-'}</span>
               <span>{result.durationMs} ms</span>
               {result.error && <Badge bg="danger">{result.error}</Badge>}
               <div className="ms-auto">

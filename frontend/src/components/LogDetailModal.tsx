@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Badge, Button, Col, Form, Modal, OverlayTrigger, Row, Stack, Table, Tooltip } from 'react-bootstrap'
 import { formatBytes } from '../format'
+import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
 import { parseBody, type ParsedField } from '../parseBody'
 import { protocolBadge } from '../protocolBadge'
@@ -34,8 +35,8 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
             <Badge bg={kind.bg} text={kind.text}>
               {kind.label}
             </Badge>
-            <Badge bg={modeBadge(log.mode).bg}>{modeBadge(log.mode).label}</Badge>
-            <Badge bg={statusVariant(log.statusCode)}>{log.statusCode ?? '-'}</Badge>
+            <span className={`badge ${modeClass(log.mode)}`}>{modeBadge(log.mode).label}</span>
+            <span className={`badge ${statusClass(log.statusCode)}`}>{log.statusCode ?? '-'}</span>
             <span>{log.durationMs} ms</span>
             {log.mockName && <span>Mock: {log.mockName}</span>}
             {log.error && <Badge bg="danger">{log.error}</Badge>}
@@ -249,18 +250,3 @@ function parseHeaders(raw?: string | null): Record<string, string> {
   return { Raw: raw }
 }
 
-function statusVariant(status?: number | null) {
-  if (!status) {
-    return 'secondary'
-  }
-  if (status < 300) {
-    return 'success'
-  }
-  if (status < 400) {
-    return 'info'
-  }
-  if (status < 500) {
-    return 'warning'
-  }
-  return 'danger'
-}

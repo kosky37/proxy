@@ -99,21 +99,32 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 
         var span = to - from;
         var bucketTicks = Math.Max(span.Ticks / bucketCount, TimeSpan.TicksPerSecond);
-        var times = await logs
+        var rows = await logs
             .Where(item => item.TimestampUtc >= from && item.TimestampUtc <= to)
-            .Select(item => item.TimestampUtc)
+            .Select(item => new TimelineRow
+            {
+                TimestampUtc = item.TimestampUtc,
+                Mode = item.Mode,
+                StatusCode = item.StatusCode
+            })
             .ToListAsync(cancellationToken);
 
-        var counts = new int[bucketCount];
-        foreach (var timestamp in times)
+        var series = Enumerable.Range(0, bucketCount)
+            .Select(index => new LogTimelineBucket
+            {
+                StartUtc = new DateTimeOffset(DateTime.SpecifyKind(from.AddTicks(index * bucketTicks), DateTimeKind.Utc))
+            })
+            .ToArray();
+
+        foreach (var row in rows)
         {
-            var index = (int)Math.Min((timestamp - from).Ticks / bucketTicks, bucketCount - 1);
+            var index = (int)Math.Min((row.TimestampUtc - from).Ticks / bucketTicks, bucketCount - 1);
             if (index < 0)
             {
                 index = 0;
             }
 
-            counts[index]++;
+            AddToBucket(series[index], row);
         }
 
         return new LogTimeline
@@ -121,11 +132,7 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
             FromUtc = new DateTimeOffset(DateTime.SpecifyKind(from, DateTimeKind.Utc)),
             ToUtc = new DateTimeOffset(DateTime.SpecifyKind(to, DateTimeKind.Utc)),
             BucketSeconds = (int)Math.Max(1, bucketTicks / TimeSpan.TicksPerSecond),
-            Buckets = counts.Select((count, index) => new LogTimelineBucket
-            {
-                StartUtc = new DateTimeOffset(DateTime.SpecifyKind(from.AddTicks(index * bucketTicks), DateTimeKind.Utc)),
-                Count = count
-            }).ToList()
+            Buckets = series
         };
     }
 
@@ -312,6 +319,48 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 
     private static string ConnectionString(string path) =>
         $"Data Source={path};Cache=Shared;Pooling=False;Mode=ReadWriteCreate";
+
+    private static void AddToBucket(LogTimelineBucket bucket, TimelineRow row)
+    {
+        bucket.Count++;
+        if (string.Equals(row.Mode, nameof(RequestMode.Mock), StringComparison.OrdinalIgnoreCase))
+        {
+            bucket.MockCount++;
+            return;
+        }
+
+        if (string.Equals(row.Mode, nameof(RequestMode.Manual), StringComparison.OrdinalIgnoreCase))
+        {
+            bucket.ManualCount++;
+            return;
+        }
+
+        switch (row.StatusCode)
+        {
+            case >= 200 and < 300:
+                bucket.Status2xx++;
+                break;
+            case >= 300 and < 400:
+                bucket.Status3xx++;
+                break;
+            case >= 400 and < 500:
+                bucket.Status4xx++;
+                break;
+            case >= 500 and < 600:
+                bucket.Status5xx++;
+                break;
+            default:
+                bucket.OtherCount++;
+                break;
+        }
+    }
+
+    private sealed class TimelineRow
+    {
+        public DateTime TimestampUtc { get; set; }
+        public string Mode { get; set; } = "";
+        public int? StatusCode { get; set; }
+    }
 
     private sealed class ConcurrentSet
     {

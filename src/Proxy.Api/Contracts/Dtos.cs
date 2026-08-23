@@ -177,6 +177,13 @@ public sealed class LogTimelineBucketDto
 {
     public DateTimeOffset StartUtc { get; set; }
     public int Count { get; set; }
+    public int MockCount { get; set; }
+    public int ManualCount { get; set; }
+    public int Status2xx { get; set; }
+    public int Status3xx { get; set; }
+    public int Status4xx { get; set; }
+    public int Status5xx { get; set; }
+    public int OtherCount { get; set; }
 }
 
 public sealed class LogClearResultDto
@@ -332,7 +339,14 @@ public static class DtoMapper
         Buckets = timeline.Buckets.Select(item => new LogTimelineBucketDto
         {
             StartUtc = item.StartUtc,
-            Count = item.Count
+            Count = item.Count,
+            MockCount = item.MockCount,
+            ManualCount = item.ManualCount,
+            Status2xx = item.Status2xx,
+            Status3xx = item.Status3xx,
+            Status4xx = item.Status4xx,
+            Status5xx = item.Status5xx,
+            OtherCount = item.OtherCount
         }).ToList()
     };
 

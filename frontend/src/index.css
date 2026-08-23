@@ -1,6 +1,16 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
 @import 'bootstrap-icons/font/bootstrap-icons.css';
 
+:root {
+  --log-status-2xx: #198754;
+  --log-status-3xx: #ffc107;
+  --log-status-4xx: #fd7e14;
+  --log-status-5xx: #dc3545;
+  --log-status-other: #6c757d;
+  --log-mode-mock: #0d6efd;
+  --log-mode-manual: #7c3aed;
+}
+
 body {
   min-height: 100vh;
 }
@@ -197,4 +207,62 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+}
+
+.badge-status-2xx,
+.badge-status-4xx,
+.badge-status-5xx,
+.badge-status-none,
+.badge-mode-passthrough,
+.badge-mode-mock,
+.badge-mode-manual {
+  color: #fff;
+}
+
+.badge-status-2xx {
+  background-color: var(--log-status-2xx);
+}
+
+.badge-status-3xx {
+  background-color: var(--log-status-3xx);
+  color: #212529;
+}
+
+.badge-status-4xx {
+  background-color: var(--log-status-4xx);
+}
+
+.badge-status-5xx {
+  background-color: var(--log-status-5xx);
+}
+
+.badge-status-none,
+.badge-mode-passthrough {
+  background-color: var(--log-status-other);
+}
+
+.badge-mode-mock {
+  background-color: var(--log-mode-mock);
+}
+
+.badge-mode-manual {
+  background-color: var(--log-mode-manual);
+}
+
+.log-timeline-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
+.log-timeline-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.15rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.1rem;
 }

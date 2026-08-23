@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
 import { formatBytes } from '../format'
+import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
 import { protocolBadge } from '../protocolBadge'
 import {
@@ -336,7 +337,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                 {item.protocol === 'soap' && <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>}
               </td>
               <td>
-                <Badge bg={modeBadge(item.mode).bg}>{modeBadge(item.mode).label}</Badge>
+                <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
                 {item.mockName && (
                   <div>
                     {mocks.some((mock) => mock.name.toLowerCase() === item.mockName?.toLowerCase()) ? (
@@ -373,7 +374,9 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   {formatBytes(item.responseBytes, item.responseBodyTruncated)}
                 </div>
               </td>
-              <td>{item.statusCode ?? '-'}</td>
+              <td>
+                <span className={`badge ${statusClass(item.statusCode)}`}>{item.statusCode ?? '-'}</span>
+              </td>
             </tr>
           ))}
           {logs.data?.items.length === 0 && (

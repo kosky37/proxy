@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { timelineSeries, type TimelineSeriesKey } from '../logColors'
 import type { LogTimelineBucketDto } from '../store/types'
 
 interface Props {
@@ -99,58 +100,92 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
       : null
 
   return (
-    <svg
-      ref={svgRef}
-      className="log-timeline"
-      height={HEIGHT}
-      width="100%"
-      role="img"
-      aria-label="Log timeline"
-      onMouseDown={(event) => {
-        event.preventDefault()
-        const x = clientX(event)
-        setDrag({ start: x, current: x })
-      }}
-    >
-      <rect
-        x={PADDING.left}
-        y={PADDING.top}
-        width={plotWidth}
-        height={plotHeight}
-        className="log-timeline-plot"
-      />
-      {buckets.map((bucket, index) => {
-        const height = (bucket.count / max) * plotHeight
-        return (
-          <rect
-            key={`${bucket.startUtc}-${index}`}
-            className="log-timeline-bar"
-            x={PADDING.left + index * barWidth + 0.5}
-            y={PADDING.top + plotHeight - height}
-            width={Math.max(barWidth - 1, 0.5)}
-            height={height}
-          >
-            <title>
-              {bucket.count} at {new Date(bucket.startUtc).toLocaleString()}
-            </title>
-          </rect>
-        )
-      })}
-      {overlay && (
+    <div>
+      <svg
+        ref={svgRef}
+        className="log-timeline"
+        height={HEIGHT}
+        width="100%"
+        role="img"
+        aria-label="Log timeline"
+        onMouseDown={(event) => {
+          event.preventDefault()
+          const x = clientX(event)
+          setDrag({ start: x, current: x })
+        }}
+      >
         <rect
-          className="log-timeline-selection"
-          x={overlay.left}
+          x={PADDING.left}
           y={PADDING.top}
-          width={Math.max(overlay.right - overlay.left, 1)}
+          width={plotWidth}
           height={plotHeight}
+          className="log-timeline-plot"
         />
-      )}
-      <text className="log-timeline-axis" x={PADDING.left} y={HEIGHT - 6}>
-        {new Date(fromUtc).toLocaleString()}
-      </text>
-      <text className="log-timeline-axis" x={width - PADDING.right} y={HEIGHT - 6} textAnchor="end">
-        {new Date(toUtc).toLocaleString()}
-      </text>
-    </svg>
+        {buckets.map((bucket, index) => {
+          const x = PADDING.left + index * barWidth + 0.5
+          const width = Math.max(barWidth - 1, 0.5)
+          let y = PADDING.top + plotHeight
+          return (
+            <g key={`${bucket.startUtc}-${index}`}>
+              {timelineSeries.map((series) => {
+                const value = bucket[series.key as TimelineSeriesKey] ?? 0
+                const height = (value / max) * plotHeight
+                if (height <= 0) {
+                  return null
+                }
+
+                y -= height
+                return (
+                  <rect
+                    key={series.key}
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    fill={series.color}
+                  />
+                )
+              })}
+              <title>
+                {tooltip(bucket)} at {new Date(bucket.startUtc).toLocaleString()}
+              </title>
+            </g>
+          )
+        })}
+        {overlay && (
+          <rect
+            className="log-timeline-selection"
+            x={overlay.left}
+            y={PADDING.top}
+            width={Math.max(overlay.right - overlay.left, 1)}
+            height={plotHeight}
+          />
+        )}
+        <text className="log-timeline-axis" x={PADDING.left} y={HEIGHT - 6}>
+          {new Date(fromUtc).toLocaleString()}
+        </text>
+        <text className="log-timeline-axis" x={width - PADDING.right} y={HEIGHT - 6} textAnchor="end">
+          {new Date(toUtc).toLocaleString()}
+        </text>
+      </svg>
+      <div className="log-timeline-legend">
+        {timelineSeries.map((series) => (
+          <span key={series.key}>
+            <span className="log-timeline-swatch" style={{ background: series.color }} />
+            {series.label}
+          </span>
+        ))}
+      </div>
+    </div>
   )
+}
+
+function tooltip(bucket: LogTimelineBucketDto): string {
+  const parts = timelineSeries
+    .map((series) => {
+      const value = bucket[series.key as TimelineSeriesKey] ?? 0
+      return value > 0 ? `${series.label} ${value}` : null
+    })
+    .filter(Boolean)
+  return parts.length > 0 ? parts.join(', ') : '0'
 }

@@ -164,6 +164,13 @@ export interface LogStorageDto {
 export interface LogTimelineBucketDto {
   startUtc: string
   count: number
+  mockCount: number
+  manualCount: number
+  status2xx: number
+  status3xx: number
+  status4xx: number
+  status5xx: number
+  otherCount: number
 }
 
 export interface LogTimelineDto {
