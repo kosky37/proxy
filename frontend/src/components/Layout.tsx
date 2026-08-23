@@ -1,8 +1,8 @@
+import { useState } from 'react'
 import { Badge, Button, Container, Nav, Navbar } from 'react-bootstrap'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useGetHealthQuery } from '../store/proxyApi'
 import { applyTheme, readTheme, type Theme } from '../theme'
-import { useState } from 'react'
 
 export function Layout() {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -22,7 +22,8 @@ export function Layout() {
     <>
       <Navbar expand bg="body-tertiary" className="border-bottom">
         <Container fluid>
-          <Navbar.Brand as={Link} to="/">
+          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
+            <img src="/favicon.svg" alt="" className="app-logo" />
             Proxy
           </Navbar.Brand>
           <Nav className="me-auto">
