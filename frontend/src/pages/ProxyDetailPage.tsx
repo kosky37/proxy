@@ -12,12 +12,17 @@ import {
   Table,
 } from 'react-bootstrap'
 import { Link, useParams } from 'react-router-dom'
+import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { MockEditor } from '../components/MockEditor'
+import { mockFromLog } from '../mockFromLog'
 import {
+  useCreateIgnoreMutation,
   useCreateMockMutation,
+  useDeleteIgnoreMutation,
   useDeleteMockMutation,
   useGetCertificatesQuery,
+  useGetIgnoresQuery,
   useGetLogQuery,
   useGetLogsQuery,
   useGetMocksQuery,
@@ -25,22 +30,26 @@ import {
   useGetStatsQuery,
   useSetMocksEnabledMutation,
   useToggleMockMutation,
+  useUpdateIgnoreMutation,
   useUpdateMockMutation,
   useUpdateProxyMutation,
 } from '../store/proxyApi'
-import type { MockDto, UpsertProxyRequest } from '../store/types'
+import type { IgnoredPathDto, LogDetailDto, MockDto, UpsertProxyRequest } from '../store/types'
 
-type Tab = 'settings' | 'rest' | 'soap' | 'logs'
+type Tab = 'settings' | 'rest' | 'soap' | 'ignores' | 'logs'
 
 export function ProxyDetailPage() {
   const { id = '' } = useParams()
   const proxy = useGetProxyQuery(id)
   const mocks = useGetMocksQuery(id)
+  const ignores = useGetIgnoresQuery(id)
   const certificates = useGetCertificatesQuery()
   const stats = useGetStatsQuery(id)
   const [tab, setTab] = useState<Tab>('settings')
   const [form, setForm] = useState<UpsertProxyRequest | null>(null)
   const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
+  const [editingExisting, setEditingExisting] = useState(false)
+  const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined)
   const [logId, setLogId] = useState<number | null>(null)
   const [logFilter, setLogFilter] = useState({ path: '', mode: '', protocol: '' })
   const logs = useGetLogsQuery(
@@ -54,6 +63,9 @@ export function ProxyDetailPage() {
   const [updateMock] = useUpdateMockMutation()
   const [deleteMock] = useDeleteMockMutation()
   const [toggleMock] = useToggleMockMutation()
+  const [createIgnore] = useCreateIgnoreMutation()
+  const [updateIgnore] = useUpdateIgnoreMutation()
+  const [deleteIgnore] = useDeleteIgnoreMutation()
   useEffect(() => {
     if (proxy.data) {
       setForm({
@@ -80,13 +92,40 @@ export function ProxyDetailPage() {
   }
 
   const saveMock = async (mock: MockDto) => {
-    if (editing && editing.name) {
+    if (editingExisting && editing?.name) {
       await updateMock({ proxyId: id, name: editing.name, body: mock }).unwrap()
     } else {
       await createMock({ proxyId: id, body: mock }).unwrap()
     }
     setEditing(undefined)
   }
+
+  const saveIgnore = async (ignore: IgnoredPathDto) => {
+    if (editingIgnore?.name) {
+      await updateIgnore({ proxyId: id, name: editingIgnore.name, body: ignore }).unwrap()
+    } else {
+      await createIgnore({ proxyId: id, body: ignore }).unwrap()
+    }
+    setEditingIgnore(undefined)
+  }
+
+  const openExistingMock = (mock: MockDto) => {
+    setEditingExisting(true)
+    setEditing(mock)
+    setTab(mock.type === 'soap' ? 'soap' : 'rest')
+    setLogId(null)
+  }
+
+  const createMockFromLog = (log: LogDetailDto) => {
+    setEditingExisting(false)
+    setEditing(mockFromLog(log))
+    setTab(log.protocol === 'soap' ? 'soap' : 'rest')
+    setLogId(null)
+  }
+
+  const existingLogMock = logDetail.data?.mockName
+    ? mocks.data?.find((item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase())
+    : undefined
 
   const restMocks = mocks.data?.filter((item) => item.type === 'rest') ?? []
   const soapMocks = mocks.data?.filter((item) => item.type === 'soap') ?? []
@@ -127,6 +166,9 @@ export function ProxyDetailPage() {
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="soap">SOAP mocks</Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link eventKey="ignores">Ignores</Nav.Link>
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="logs">Logs</Nav.Link>
@@ -268,21 +310,80 @@ export function ProxyDetailPage() {
 
       {(tab === 'rest' || tab === 'soap') && (
         <>
-          <Button className="mb-3" onClick={() => setEditing(null)}>
+          <Button
+            className="mb-3"
+            onClick={() => {
+              setEditingExisting(false)
+              setEditing(null)
+            }}
+          >
             Add {tab === 'soap' ? 'SOAP' : 'REST'} mock
           </Button>
           <MockTable
             items={tab === 'rest' ? restMocks : soapMocks}
-            onEdit={setEditing}
+            onEdit={(mock) => {
+              setEditingExisting(true)
+              setEditing(mock)
+            }}
             onToggle={(name) => toggleMock({ proxyId: id, name })}
             onDelete={(name) => deleteMock({ proxyId: id, name })}
           />
-          <MockEditor
-            show={editing !== undefined}
-            initial={editing}
-            defaultType={tab === 'soap' ? 'soap' : 'rest'}
-            onSave={saveMock}
-            onCancel={() => setEditing(undefined)}
+        </>
+      )}
+
+      {tab === 'ignores' && (
+        <>
+          <p>Matching requests are still proxied or mocked, but they are not written to logs.</p>
+          <Button className="mb-3" onClick={() => setEditingIgnore(null)}>
+            Add ignore
+          </Button>
+          <Table striped responsive className="align-middle">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Path</th>
+                <th>Mode</th>
+                <th>Methods</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {ignores.data?.map((ignore) => (
+                <tr key={ignore.name}>
+                  <td>{ignore.name}</td>
+                  <td>
+                    <code>{ignore.path}</code>
+                  </td>
+                  <td>{ignore.pathMode}</td>
+                  <td>{ignore.methods?.length ? ignore.methods.join(', ') : 'any'}</td>
+                  <td className="text-end">
+                    <Stack direction="horizontal" gap={1} className="justify-content-end">
+                      <Button variant="outline-primary" size="sm" onClick={() => setEditingIgnore(ignore)}>
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => deleteIgnore({ proxyId: id, name: ignore.name })}
+                      >
+                        Delete
+                      </Button>
+                    </Stack>
+                  </td>
+                </tr>
+              ))}
+              {ignores.data?.length === 0 && (
+                <tr>
+                  <td colSpan={5}>No ignored paths. Add one to keep noisy requests out of the log.</td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+          <IgnoreEditor
+            show={editingIgnore !== undefined}
+            initial={editingIgnore}
+            onSave={saveIgnore}
+            onCancel={() => setEditingIgnore(undefined)}
           />
         </>
       )}
@@ -343,7 +444,30 @@ export function ProxyDetailPage() {
                     <Badge bg={item.mode === 'mock' ? 'info' : 'secondary'}>
                       {item.mode === 'mock' ? 'Mock' : 'Passthrough'}
                     </Badge>
-                    {item.mockName && <div>{item.mockName}</div>}
+                    {item.mockName && (
+                      <div>
+                        {mocks.data?.some((mock) => mock.name.toLowerCase() === item.mockName?.toLowerCase()) ? (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="p-0"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              const mock = mocks.data?.find(
+                                (entry) => entry.name.toLowerCase() === item.mockName?.toLowerCase(),
+                              )
+                              if (mock) {
+                                openExistingMock(mock)
+                              }
+                            }}
+                          >
+                            {item.mockName}
+                          </Button>
+                        ) : (
+                          item.mockName
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td>{item.method}</td>
                   <td>{item.path}</td>
@@ -356,10 +480,22 @@ export function ProxyDetailPage() {
           <LogDetailModal
             show={logId != null}
             log={logDetail.data ?? null}
+            existingMock={existingLogMock}
             onClose={() => setLogId(null)}
+            onOpenMock={openExistingMock}
+            onCreateMock={createMockFromLog}
           />
         </>
       )}
+
+      <MockEditor
+        show={editing !== undefined}
+        initial={editing}
+        isNew={!editingExisting}
+        defaultType={editing?.type ?? (tab === 'soap' ? 'soap' : 'rest')}
+        onSave={saveMock}
+        onCancel={() => setEditing(undefined)}
+      />
     </>
   )
 }
@@ -409,7 +545,7 @@ function MockTable({
             <td>
               <code>{mock.match.path || mock.match.soapAction || mock.match.operation || '*'}</code>
             </td>
-            <td>{mock.response.statusCode}</td>
+            <td>{mock.response.block ? 'Block' : mock.response.statusCode}</td>
             <td>{mock.response.delayMs} ms</td>
             <td className="text-end">
               <Stack direction="horizontal" gap={1} className="justify-content-end">

@@ -15,11 +15,12 @@ interface Props {
   show: boolean
   initial?: MockDto | null
   defaultType: string
+  isNew?: boolean
   onSave: (mock: MockDto) => Promise<void>
   onCancel: () => void
 }
 
-export function MockEditor({ show, initial, defaultType, onSave, onCancel }: Props) {
+export function MockEditor({ show, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType))
   const [saving, setSaving] = useState(false)
 
@@ -45,7 +46,7 @@ export function MockEditor({ show, initial, defaultType, onSave, onCancel }: Pro
     <Modal show={show} onHide={onCancel} size="lg" scrollable>
       <Form onSubmit={submit}>
         <Modal.Header closeButton>
-          <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New mock'}</Modal.Title>
+          <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : 'New mock'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -102,6 +103,20 @@ export function MockEditor({ show, initial, defaultType, onSave, onCancel }: Pro
                 checked={mock.enabled}
                 onChange={(event) => setMock({ ...mock, enabled: event.target.checked })}
               />
+            </Col>
+            <Col xs={12}>
+              <Form.Check
+                type="switch"
+                id="mock-block"
+                label="Block request (do not respond)"
+                checked={mock.response.block ?? false}
+                onChange={(event) =>
+                  setMock({ ...mock, response: { ...mock.response, block: event.target.checked } })
+                }
+              />
+              {mock.response.block && (
+                <Form.Text>The client waits until it times out. Status and body are not sent.</Form.Text>
+              )}
             </Col>
             <Col md={4}>
               <Form.Group>

@@ -104,6 +104,16 @@ public sealed class MockResponseDto
     public string? Body { get; set; }
     public string? BodyFile { get; set; }
     public int DelayMs { get; set; }
+    public bool Block { get; set; }
+}
+
+public sealed class IgnoredPathDto
+{
+    public required string Name { get; set; }
+    public required string FileName { get; set; }
+    public required string Path { get; set; }
+    public string PathMode { get; set; } = "exact";
+    public List<string>? Methods { get; set; }
 }
 
 public sealed class LogListDto
@@ -336,7 +346,8 @@ public static class DtoMapper
         Headers = response.Headers,
         Body = response.Body,
         BodyFile = response.BodyFile,
-        DelayMs = response.DelayMs
+        DelayMs = response.DelayMs,
+        Block = response.Block
     };
 
     private static MockResponse ToModel(MockResponseDto dto) => new()
@@ -346,6 +357,25 @@ public static class DtoMapper
         Headers = dto.Headers,
         Body = dto.Body,
         BodyFile = dto.BodyFile,
-        DelayMs = dto.DelayMs
+        DelayMs = dto.DelayMs,
+        Block = dto.Block
+    };
+
+    public static IgnoredPathDto ToDto(IgnoredPath ignore) => new()
+    {
+        Name = ignore.Name,
+        FileName = ignore.FileName,
+        Path = ignore.Path,
+        PathMode = ignore.PathMode.ToString().ToLowerInvariant(),
+        Methods = ignore.Methods
+    };
+
+    public static IgnoredPath ToModel(IgnoredPathDto dto) => new()
+    {
+        Name = dto.Name,
+        FileName = dto.FileName,
+        Path = dto.Path,
+        PathMode = Enum.TryParse<PathMatchMode>(dto.PathMode, true, out var mode) ? mode : PathMatchMode.Exact,
+        Methods = dto.Methods
     };
 }

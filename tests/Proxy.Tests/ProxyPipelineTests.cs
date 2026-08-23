@@ -80,6 +80,95 @@ public class ProxyPipelineTests
     }
 
     [Fact]
+    public async Task Ignored_path_is_not_logged()
+    {
+        var listenPort = GetFreePort();
+        await using var factory = new ProxyApiFactory();
+        var folder = Path.Combine(factory.DataRoot, "ignored");
+        Directory.CreateDirectory(Path.Combine(folder, "mocks"));
+        Directory.CreateDirectory(Path.Combine(folder, "ignores"));
+        await File.WriteAllTextAsync(Path.Combine(folder, "proxy.json"), $$"""
+            {
+              "name": "Ignored",
+              "enabled": true,
+              "listen": { "url": "http://127.0.0.1:{{listenPort}}" },
+              "destination": { "address": "http://127.0.0.1:9" },
+              "mocksEnabled": true
+            }
+            """);
+        await File.WriteAllTextAsync(Path.Combine(folder, "mocks", "any.json"), """
+            {
+              "type": "rest",
+              "name": "any",
+              "match": { "methods": ["GET"] },
+              "response": { "statusCode": 200, "body": "ok" }
+            }
+            """);
+        await File.WriteAllTextAsync(Path.Combine(folder, "ignores", "metrics.json"), """
+            {
+              "name": "metrics",
+              "path": "/metrics",
+              "pathMode": "prefix"
+            }
+            """);
+
+        using var api = factory.CreateClient();
+        (await api.GetStringAsync("/api/proxies")).Should().Contain("ignored");
+
+        using var proxyClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{listenPort}") };
+        await WaitForListener(proxyClient);
+
+        (await proxyClient.GetStringAsync("/hello")).Should().Be("ok");
+        (await proxyClient.GetStringAsync("/metrics")).Should().Be("ok");
+        (await proxyClient.GetStringAsync("/metrics/cpu")).Should().Be("ok");
+
+        using var logsResponse = await api.GetAsync("/api/proxies/ignored/logs");
+        var logsJson = await logsResponse.Content.ReadAsStringAsync();
+        logsResponse.StatusCode.Should().Be(HttpStatusCode.OK, logsJson);
+        using var logs = JsonDocument.Parse(logsJson);
+        var paths = logs.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("path").GetString()).ToList();
+        paths.Should().Contain("/hello");
+        paths.Should().NotContain("/metrics");
+        paths.Should().NotContain("/metrics/cpu");
+    }
+
+    [Fact]
+    public async Task Blocking_mock_does_not_respond()
+    {
+        var listenPort = GetFreePort();
+        await using var factory = new ProxyApiFactory();
+        var folder = Path.Combine(factory.DataRoot, "blocked");
+        Directory.CreateDirectory(Path.Combine(folder, "mocks"));
+        await File.WriteAllTextAsync(Path.Combine(folder, "proxy.json"), $$"""
+            {
+              "name": "Blocked",
+              "enabled": true,
+              "listen": { "url": "http://127.0.0.1:{{listenPort}}" },
+              "destination": { "address": "http://127.0.0.1:9" },
+              "mocksEnabled": true
+            }
+            """);
+        await File.WriteAllTextAsync(Path.Combine(folder, "mocks", "hang.json"), """
+            {
+              "type": "rest",
+              "name": "hang",
+              "match": { "methods": ["GET"], "path": "/hang", "pathMode": "exact" },
+              "response": { "block": true }
+            }
+            """);
+
+        using var api = factory.CreateClient();
+        (await api.GetStringAsync("/api/proxies")).Should().Contain("blocked");
+
+        using var proxyClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{listenPort}") };
+        await WaitForListener(proxyClient);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(400));
+        var act = async () => await proxyClient.GetAsync("/hang", timeout.Token);
+        await act.Should().ThrowAsync<TaskCanceledException>();
+    }
+
+    [Fact]
     public async Task Api_can_create_proxy_and_toggle_mock()
     {
         await using var factory = new ProxyApiFactory();

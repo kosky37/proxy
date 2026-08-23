@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
-import type { LogDetailDto } from '../store/types'
+import type { LogDetailDto, MockDto } from '../store/types'
 import { CopyButton } from './CopyButton'
 
 interface Props {
   show: boolean
   log: LogDetailDto | null
+  existingMock?: MockDto
   onClose: () => void
+  onOpenMock?: (mock: MockDto) => void
+  onCreateMock?: (log: LogDetailDto) => void
 }
 
-export function LogDetailModal({ show, log, onClose }: Props) {
+export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, onCreateMock }: Props) {
   const [raw, setRaw] = useState(false)
 
   return (
@@ -65,6 +68,16 @@ export function LogDetailModal({ show, log, onClose }: Props) {
         </Modal.Body>
       )}
       <Modal.Footer>
+        {existingMock && onOpenMock && (
+          <Button variant="primary" onClick={() => onOpenMock(existingMock)}>
+            Open mock
+          </Button>
+        )}
+        {!existingMock && log && onCreateMock && (
+          <Button variant="primary" onClick={() => onCreateMock(log)}>
+            Create mock
+          </Button>
+        )}
         <Button variant="secondary" onClick={onClose}>
           Close
         </Button>

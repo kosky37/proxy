@@ -76,6 +76,15 @@ export interface MockResponseDto {
   body?: string | null
   bodyFile?: string | null
   delayMs: number
+  block?: boolean
+}
+
+export interface IgnoredPathDto {
+  name: string
+  fileName: string
+  path: string
+  pathMode: string
+  methods?: string[] | null
 }
 
 export interface MockDto {

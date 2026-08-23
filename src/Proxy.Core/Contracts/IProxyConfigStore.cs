@@ -16,6 +16,9 @@ public interface IProxyConfigStore
     MockDefinition UpdateMock(string proxyId, string name, MockDefinition mock);
     void DeleteMock(string proxyId, string name);
     MockDefinition ToggleMock(string proxyId, string name);
+    IgnoredPath CreateIgnore(string proxyId, IgnoredPath ignore);
+    IgnoredPath UpdateIgnore(string proxyId, string name, IgnoredPath ignore);
+    void DeleteIgnore(string proxyId, string name);
     LoadedProxy SetMocksEnabled(string proxyId, bool enabled);
     IReadOnlyList<CertificateDefinition> GetCertificates();
     CertificateDefinition CreateCertificate(CertificateDefinition certificate);

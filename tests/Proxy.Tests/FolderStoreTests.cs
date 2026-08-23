@@ -82,6 +82,24 @@ public class FolderStoreTests
             });
             store.Get("demo")!.Definition.Destination.ClientCertificateId.Should().Be("gateway-client");
             CertificateResolver.ResolveClient(store.Get("demo")!, store.GetCertificates())!.Password.Should().Be("secret");
+
+            var ignore = store.CreateIgnore("demo", new IgnoredPath
+            {
+                Name = "health",
+                Path = "/health",
+                PathMode = PathMatchMode.Exact
+            });
+            ignore.Name.Should().Be("health");
+            File.Exists(Path.Combine(root, "demo", "ignores", "health.json")).Should().BeTrue();
+            IgnoreMatcher.IsIgnored(
+                store.Get("demo")!,
+                new HttpRequestSnapshot
+                {
+                    Method = "GET",
+                    Path = "/health",
+                    Query = new Dictionary<string, string>(),
+                    Headers = new Dictionary<string, string>()
+                }).Should().BeTrue();
         }
         finally
         {

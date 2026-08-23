@@ -68,6 +68,7 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             var folder = Path.Combine(DataRoot, safeId);
             Directory.CreateDirectory(folder);
             Directory.CreateDirectory(Path.Combine(folder, "mocks"));
+            Directory.CreateDirectory(Path.Combine(folder, "ignores"));
             WriteGeneration++;
             WriteProxyFile(folder, definition);
             ReloadCore();
@@ -187,6 +188,71 @@ public sealed class ProxyFolderStore : IProxyConfigStore
 
         NotifyChanged();
         return toggled;
+    }
+
+    public IgnoredPath CreateIgnore(string proxyId, IgnoredPath ignore)
+    {
+        IgnoredPath created;
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var fileName = $"{MockFileNames.Sanitize(ignore.Name)}.json";
+            var path = Path.Combine(proxy.FolderPath, "ignores", fileName);
+            if (File.Exists(path) || FindIgnoreFile(proxy, ignore.Name) is not null)
+            {
+                throw new InvalidOperationException($"Ignore '{ignore.Name}' already exists.");
+            }
+
+            WriteGeneration++;
+            WriteIgnoreFile(path, ignore);
+            ReloadCore();
+            created = Require(proxyId).Ignores.First(item => item.Name.Equals(ignore.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        NotifyChanged();
+        return created;
+    }
+
+    public IgnoredPath UpdateIgnore(string proxyId, string name, IgnoredPath ignore)
+    {
+        IgnoredPath updated;
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var existing = FindIgnoreFile(proxy, name) ?? throw new KeyNotFoundException($"Ignore '{name}' was not found.");
+            WriteGeneration++;
+            WriteIgnoreFile(existing, ignore);
+            var desiredPath = Path.Combine(proxy.FolderPath, "ignores", $"{MockFileNames.Sanitize(ignore.Name)}.json");
+            if (!existing.Equals(desiredPath, StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(desiredPath))
+                {
+                    throw new InvalidOperationException($"Ignore '{ignore.Name}' already exists.");
+                }
+
+                File.Move(existing, desiredPath);
+            }
+
+            ReloadCore();
+            updated = Require(proxyId).Ignores.First(item => item.Name.Equals(ignore.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        NotifyChanged();
+        return updated;
+    }
+
+    public void DeleteIgnore(string proxyId, string name)
+    {
+        lock (_gate)
+        {
+            var proxy = Require(proxyId);
+            var existing = FindIgnoreFile(proxy, name) ?? throw new KeyNotFoundException($"Ignore '{name}' was not found.");
+            WriteGeneration++;
+            File.Delete(existing);
+            ReloadCore();
+        }
+
+        NotifyChanged();
     }
 
     public LoadedProxy SetMocksEnabled(string proxyId, bool enabled)
@@ -332,11 +398,18 @@ public sealed class ProxyFolderStore : IProxyConfigStore
 
         var mocksDirectory = Path.Combine(folder, "mocks");
         Directory.CreateDirectory(mocksDirectory);
+        Directory.CreateDirectory(Path.Combine(folder, "ignores"));
         var mocks = Directory.GetFiles(mocksDirectory, "*.json")
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .Select(path => LoadMock(path))
             .Where(mock => mock is not null)
             .Cast<MockDefinition>()
+            .ToList();
+        var ignores = Directory.GetFiles(Path.Combine(folder, "ignores"), "*.json")
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .Select(LoadIgnore)
+            .Where(item => item is not null)
+            .Cast<IgnoredPath>()
             .ToList();
 
         return new LoadedProxy
@@ -344,7 +417,8 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             Id = Path.GetFileName(folder),
             FolderPath = folder,
             Definition = definition,
-            Mocks = mocks
+            Mocks = mocks,
+            Ignores = ignores
         };
     }
 
@@ -375,6 +449,29 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         catch (Exception exception)
         {
             _logger.LogError(exception, "Failed to load mock {Path}", path);
+            return null;
+        }
+    }
+
+    private IgnoredPath? LoadIgnore(string path)
+    {
+        try
+        {
+            var json = File.ReadAllText(path);
+            var ignore = JsonSerializer.Deserialize<IgnoredPath>(json, JsonDefaults.Options)
+                         ?? throw new InvalidOperationException("Ignore file was empty.");
+            var fileName = Path.GetFileName(path);
+            ignore.FileName = fileName;
+            if (string.IsNullOrWhiteSpace(ignore.Name))
+            {
+                ignore.Name = Path.GetFileNameWithoutExtension(fileName);
+            }
+
+            return ignore;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Failed to load ignore {Path}", path);
             return null;
         }
     }
@@ -421,6 +518,47 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             .FirstOrDefault(path =>
                 MockFileNames.GetLogicalName(Path.GetFileName(path), DisablePrefix)
                     .Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? FindIgnoreFile(LoadedProxy proxy, string name)
+    {
+        var directory = Path.Combine(proxy.FolderPath, "ignores");
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        return Directory.GetFiles(directory, "*.json")
+            .FirstOrDefault(path =>
+            {
+                if (Path.GetFileNameWithoutExtension(path).Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                try
+                {
+                    var ignore = JsonSerializer.Deserialize<IgnoredPath>(File.ReadAllText(path), JsonDefaults.Options);
+                    return ignore?.Name.Equals(name, StringComparison.OrdinalIgnoreCase) == true;
+                }
+                catch (JsonException)
+                {
+                    return false;
+                }
+            });
+    }
+
+    private static void WriteIgnoreFile(string path, IgnoredPath ignore)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var persisted = new IgnoredPath
+        {
+            Name = ignore.Name,
+            Path = ignore.Path,
+            PathMode = ignore.PathMode,
+            Methods = ignore.Methods
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(persisted, JsonDefaults.Options));
     }
 
     private static void WriteProxyFile(string folder, ProxyDefinition definition)

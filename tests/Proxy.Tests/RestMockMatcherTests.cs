@@ -77,6 +77,7 @@ public class RestMockMatcherTests
             Id = "p",
             FolderPath = "",
             Definition = new ProxyDefinition { MocksEnabled = true },
+            Ignores = [],
             Mocks =
             [
                 new MockDefinition

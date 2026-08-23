@@ -75,6 +75,11 @@ public sealed class ProxyPipelineMiddleware
         {
             if (mock is not null)
             {
+                if (mock.Response.Block)
+                {
+                    error = "blocked";
+                }
+
                 await WriteMockAsync(context, proxy, mock, context.RequestAborted);
             }
             else
@@ -104,20 +109,36 @@ public sealed class ProxyPipelineMiddleware
                 context.Response.Body = originalFeature.Stream;
             }
 
-            await WriteLogAsync(
-                proxy,
-                snapshot,
-                mock,
-                mode,
-                context,
-                capturing?.Capture ?? new MemoryStream(),
-                started.ElapsedMilliseconds,
-                error);
+            if (!IgnoreMatcher.IsIgnored(proxy, snapshot))
+            {
+                await WriteLogAsync(
+                    proxy,
+                    snapshot,
+                    mock,
+                    mode,
+                    context,
+                    capturing?.Capture ?? new MemoryStream(),
+                    started.ElapsedMilliseconds,
+                    error);
+            }
         }
     }
 
     private static async Task WriteMockAsync(HttpContext context, LoadedProxy proxy, MockDefinition mock, CancellationToken cancellationToken)
     {
+        if (mock.Response.Block)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            return;
+        }
+
         context.Response.StatusCode = mock.Response.StatusCode <= 0 ? StatusCodes.Status200OK : mock.Response.StatusCode;
         if (!string.IsNullOrWhiteSpace(mock.Response.ContentType))
         {
@@ -178,7 +199,7 @@ public sealed class ProxyPipelineMiddleware
             RequestHeaders = snapshot.Headers.HeadersToJson(),
             RequestBody = requestBody,
             RequestBodyTruncated = requestTruncated,
-            StatusCode = context.Response.StatusCode,
+            StatusCode = mock?.Response.Block == true && !context.Response.HasStarted ? null : context.Response.StatusCode,
             ResponseHeaders = context.Response.Headers.HeadersToJson(),
             ResponseBody = limitedResponse,
             ResponseBodyTruncated = responseTruncated,

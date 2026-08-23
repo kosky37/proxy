@@ -4,6 +4,7 @@ import type {
   LogListDto,
   LogQueryArgs,
   CertificateDto,
+  IgnoredPathDto,
   MockDto,
   ProxyDetailDto,
   ProxyListItemDto,
@@ -75,6 +76,29 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       }),
       invalidatesTags: ['Mocks', 'Proxies'],
     }),
+    getIgnores: build.query<IgnoredPathDto[], string>({
+      query: (proxyId) => `/api/proxies/${proxyId}/ignores`,
+      providesTags: ['Ignores'],
+    }),
+    createIgnore: build.mutation<IgnoredPathDto, { proxyId: string; body: IgnoredPathDto }>({
+      query: ({ proxyId, body }) => ({ url: `/api/proxies/${proxyId}/ignores`, method: 'POST', body }),
+      invalidatesTags: ['Ignores'],
+    }),
+    updateIgnore: build.mutation<IgnoredPathDto, { proxyId: string; name: string; body: IgnoredPathDto }>({
+      query: ({ proxyId, name, body }) => ({
+        url: `/api/proxies/${proxyId}/ignores/${encodeURIComponent(name)}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Ignores'],
+    }),
+    deleteIgnore: build.mutation<void, { proxyId: string; name: string }>({
+      query: ({ proxyId, name }) => ({
+        url: `/api/proxies/${proxyId}/ignores/${encodeURIComponent(name)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Ignores'],
+    }),
     getCertificates: build.query<CertificateDto[], void>({
       query: () => '/api/certificates',
       providesTags: ['Certificates'],
@@ -136,6 +160,10 @@ export const {
   useUpdateMockMutation,
   useDeleteMockMutation,
   useToggleMockMutation,
+  useGetIgnoresQuery,
+  useCreateIgnoreMutation,
+  useUpdateIgnoreMutation,
+  useDeleteIgnoreMutation,
   useGetCertificatesQuery,
   useCreateCertificateMutation,
   useUpdateCertificateMutation,

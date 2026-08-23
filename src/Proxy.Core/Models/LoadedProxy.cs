@@ -6,4 +6,5 @@ public sealed class LoadedProxy
     public required string FolderPath { get; init; }
     public required ProxyDefinition Definition { get; init; }
     public required IReadOnlyList<MockDefinition> Mocks { get; init; }
+    public required IReadOnlyList<IgnoredPath> Ignores { get; init; }
 }
