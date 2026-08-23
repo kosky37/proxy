@@ -2,12 +2,15 @@
   "name": "test",
   "enabled": true,
   "listen": {
-    "url": "http://127.0.0.1:8083/test"
+    "url": "http://127.0.0.1:8083",
+    "pathPrefix": "/test"
   },
   "destination": {
     "address": "http://127.0.0.1:9090",
     "acceptAnyServerCertificate": false
   },
   "mocksEnabled": true,
-  "passthroughDelayMs": 0
+  "passthroughDelayMs": 0,
+  "logRetentionDays": 7,
+  "bodyLogLimitBytes": 1048576
 }

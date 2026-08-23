@@ -79,7 +79,10 @@ export function ProxiesPage() {
                 )}
               </td>
               <td>
-                <code>{proxy.listenUrl}</code>
+                <div>
+                  <code>{proxy.listenUrl}</code>
+                </div>
+                {proxy.listenPathPrefix && <div className="row-meta">{proxy.listenPathPrefix}</div>}
               </td>
               <td>
                 <code>{proxy.destinationAddress}</code>
@@ -138,7 +141,7 @@ export function ProxiesPage() {
                   />
                 </Form.Group>
               </Col>
-              <Col xs={12}>
+              <Col md={7}>
                 <Form.Group>
                   <Form.Label>Listen URL</Form.Label>
                   <Form.Control
@@ -146,6 +149,20 @@ export function ProxiesPage() {
                     value={form.listen.url}
                     onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
                   />
+                  <Form.Text>Scheme, host, and port this proxy binds.</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={5}>
+                <Form.Group>
+                  <Form.Label>Path prefix</Form.Label>
+                  <Form.Control
+                    value={form.listen.pathPrefix ?? ''}
+                    placeholder="/api"
+                    onChange={(event) =>
+                      setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value || null } })
+                    }
+                  />
+                  <Form.Text>Optional. Use this to share a port with other proxies.</Form.Text>
                 </Form.Group>
               </Col>
               <Col xs={12}>

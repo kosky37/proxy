@@ -6,30 +6,18 @@ public static class ListenPath
 {
     public static string? EffectivePrefix(ListenConfig listen)
     {
-        if (!string.IsNullOrWhiteSpace(listen.PathPrefix))
+        if (string.IsNullOrWhiteSpace(listen.PathPrefix))
         {
-            return NullIfRoot(PathMatcher.Normalize(listen.PathPrefix));
+            return null;
         }
 
-        if (Uri.TryCreate(listen.Url, UriKind.Absolute, out var uri))
-        {
-            return NullIfRoot(PathMatcher.Normalize(uri.AbsolutePath));
-        }
-
-        return null;
+        var prefix = PathMatcher.Normalize(listen.PathPrefix);
+        return prefix == "/" ? null : prefix;
     }
 
     public static ListenConfig Normalize(ListenConfig listen)
     {
-        var prefix = EffectivePrefix(listen);
-        if (Uri.TryCreate(listen.Url, UriKind.Absolute, out var uri))
-        {
-            listen.Url = $"{uri.Scheme}://{uri.Host}:{uri.Port}";
-        }
-
-        listen.PathPrefix = prefix;
+        listen.PathPrefix = EffectivePrefix(listen);
         return listen;
     }
-
-    private static string? NullIfRoot(string prefix) => prefix == "/" ? null : prefix;
 }

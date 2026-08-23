@@ -209,7 +209,7 @@ export function ProxyDetailPage() {
                           value={form.listen.url}
                           onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
                         />
-                        <Form.Text>Scheme, host, and port this proxy binds. Share a port by giving each proxy a different path prefix.</Form.Text>
+                        <Form.Text>Scheme, host, and port this proxy binds.</Form.Text>
                       </Form.Group>
                       <Form.Group>
                         <Form.Label>Path prefix</Form.Label>
@@ -219,7 +219,7 @@ export function ProxyDetailPage() {
                             setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value } })
                           }
                         />
-                        <Form.Text>Incoming path this proxy owns on a shared port, for example /api. Removed before the request is forwarded. A path on the listen URL is treated as this prefix.</Form.Text>
+                        <Form.Text>Optional. Share a port by giving each proxy a different prefix, for example /api. Removed before the request is forwarded.</Form.Text>
                       </Form.Group>
                       <Form.Group>
                         <Form.Label>Server certificate</Form.Label>

@@ -189,7 +189,7 @@ public class ProxyPipelineTests
 
         await using var factory = new ProxyApiFactory();
         await WriteProxy(factory, "api", listenPort, apiPort, pathPrefix: "/api");
-        await WriteProxy(factory, "test", listenPort, testPort, pathInUrl: "/test");
+        await WriteProxy(factory, "test", listenPort, testPort, pathPrefix: "/test");
 
         using var admin = factory.CreateClient();
         (await admin.GetStringAsync("/api/proxies")).Should().Contain("api").And.Contain("test");
@@ -260,14 +260,11 @@ public class ProxyPipelineTests
         string id,
         int listenPort,
         int destinationPort,
-        string? pathPrefix = null,
-        string? pathInUrl = null)
+        string? pathPrefix = null)
     {
         var folder = Path.Combine(factory.DataRoot, id);
         Directory.CreateDirectory(Path.Combine(folder, "mocks"));
-        var url = pathInUrl is null
-            ? $"http://127.0.0.1:{listenPort}"
-            : $"http://127.0.0.1:{listenPort}{pathInUrl}";
+        var url = $"http://127.0.0.1:{listenPort}";
         var prefixLine = pathPrefix is null ? "" : $", \"pathPrefix\": \"{pathPrefix}\"";
         await File.WriteAllTextAsync(Path.Combine(folder, "proxy.json"), $$"""
             {

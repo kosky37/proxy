@@ -9,6 +9,7 @@ public sealed class ProxyListItemDto
     public required string Name { get; set; }
     public bool Enabled { get; set; }
     public required string ListenUrl { get; set; }
+    public string? ListenPathPrefix { get; set; }
     public required string DestinationAddress { get; set; }
     public bool MocksEnabled { get; set; }
     public int MockCount { get; set; }
@@ -212,6 +213,7 @@ public static class DtoMapper
         Name = proxy.Definition.Name,
         Enabled = proxy.Definition.Enabled,
         ListenUrl = proxy.Definition.Listen.Url,
+        ListenPathPrefix = ListenPath.EffectivePrefix(proxy.Definition.Listen),
         DestinationAddress = proxy.Definition.Destination.Address,
         MocksEnabled = proxy.Definition.MocksEnabled,
         MockCount = proxy.Mocks.Count,

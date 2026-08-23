@@ -28,6 +28,7 @@ export interface ProxyListItemDto {
   name: string
   enabled: boolean
   listenUrl: string
+  listenPathPrefix?: string | null
   destinationAddress: string
   mocksEnabled: boolean
   mockCount: number

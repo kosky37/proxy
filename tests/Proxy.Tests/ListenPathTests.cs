@@ -18,12 +18,12 @@ public class ListenPathTests
     }
 
     [Fact]
-    public void Falls_back_to_the_path_on_the_listen_url()
+    public void Ignores_a_path_on_the_listen_url()
     {
         ListenPath.EffectivePrefix(new ListenConfig
         {
             Url = "http://127.0.0.1:8083/test"
-        }).Should().Be("/test");
+        }).Should().BeNull();
     }
 
     [Fact]
@@ -42,11 +42,11 @@ public class ListenPathTests
     }
 
     [Fact]
-    public void Normalize_moves_a_url_path_into_path_prefix()
+    public void Normalize_keeps_the_listen_url_and_clears_a_root_prefix()
     {
-        var listen = ListenPath.Normalize(new ListenConfig { Url = "http://127.0.0.1:8083/api" });
-        listen.Url.Should().Be("http://127.0.0.1:8083");
-        listen.PathPrefix.Should().Be("/api");
+        var listen = ListenPath.Normalize(new ListenConfig { Url = "http://127.0.0.1:8083/api", PathPrefix = "/" });
+        listen.Url.Should().Be("http://127.0.0.1:8083/api");
+        listen.PathPrefix.Should().BeNull();
     }
 
     [Fact]
@@ -62,14 +62,13 @@ public class ListenPathTests
     }
 
     [Fact]
-    public void Resolver_uses_a_path_embedded_in_the_listen_url()
+    public void Resolver_does_not_use_a_path_embedded_in_the_listen_url()
     {
         var api = Proxy("api", "http://127.0.0.1:8083/api");
         var test = Proxy("test", "http://127.0.0.1:8083/test");
 
         ProxyResolver.Resolve([api, test], "http://127.0.0.1:8083", "127.0.0.1", "/api/orders")!.Id.Should().Be("api");
-        ProxyResolver.Resolve([api, test], "http://127.0.0.1:8083", "127.0.0.1", "/test/ping")!.Id.Should().Be("test");
-        ProxyResolver.Resolve([api, test], "http://127.0.0.1:8083", "127.0.0.1", "/other").Should().BeNull();
+        ProxyResolver.Resolve([api, test], "http://127.0.0.1:8083", "127.0.0.1", "/test/ping")!.Id.Should().Be("api");
     }
 
     [Fact]
