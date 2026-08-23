@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Col, Form, Modal, Row } from 'react-bootstrap'
 import type { IgnoredPathDto } from '../store/types'
+import { FieldLabel, pathModeHelp } from './FieldHelp'
 
 const blank = (): IgnoredPathDto => ({
   name: '',
@@ -57,14 +58,14 @@ export function IgnoreEditor({ show, initial, onSave, onCancel }: Props) {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Path mode</Form.Label>
+                <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
                 <Form.Select
                   value={ignore.pathMode}
                   onChange={(event) => setIgnore({ ...ignore, pathMode: event.target.value })}
                 >
-                  <option value="exact">exact</option>
-                  <option value="prefix">prefix</option>
-                  <option value="template">template</option>
+                  <option value="exact">exact — this path only</option>
+                  <option value="prefix">prefix — this path and below</option>
+                  <option value="template">template — {`{placeholders}`}</option>
                 </Form.Select>
               </Form.Group>
             </Col>

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Col, Form, InputGroup, Modal, Row } from 'react-bootstrap'
-import type { MockDto } from '../store/types'
+import type { MockDto, MockMatchDto } from '../store/types'
+import { FieldLabel, pathModeHelp } from './FieldHelp'
 
 const blank = (type: string): MockDto => ({
   name: '',
@@ -22,11 +23,16 @@ interface Props {
 
 export function MockEditor({ show, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType))
+  const [useDelay, setUseDelay] = useState(false)
+  const [useAdvanced, setUseAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (show) {
-      setMock(initial ?? blank(defaultType))
+      const next = initial ?? blank(defaultType)
+      setMock(next)
+      setUseDelay((next.response.delayMs ?? 0) > 0)
+      setUseAdvanced(hasExtraFilters(next.match))
     }
   }, [defaultType, initial, show])
 
@@ -34,7 +40,14 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
     event.preventDefault()
     setSaving(true)
     try {
-      await onSave(mock)
+      await onSave({
+        ...mock,
+        match: useAdvanced ? mock.match : basicMatch(mock.match),
+        response: {
+          ...mock.response,
+          delayMs: useDelay ? mock.response.delayMs : 0,
+        },
+      })
     } finally {
       setSaving(false)
     }
@@ -50,9 +63,11 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
-            <Col md={3}>
+            <Col md={4}>
               <Form.Group>
-                <Form.Label>Type</Form.Label>
+                <FieldLabel help="REST matches HTTP APIs. SOAP matches XML envelope requests, usually with a SOAPAction header.">
+                  Type
+                </FieldLabel>
                 <Form.Select
                   value={mock.type}
                   onChange={(event) => setMock({ ...mock, type: event.target.value })}
@@ -62,9 +77,11 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 </Form.Select>
               </Form.Group>
             </Col>
-            <Col md={3}>
+            <Col md={5}>
               <Form.Group>
-                <Form.Label>Name</Form.Label>
+                <FieldLabel help="Shown in the mock list and in request logs when this mock answers.">
+                  Name
+                </FieldLabel>
                 <Form.Control
                   required
                   value={mock.name}
@@ -72,37 +89,166 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 />
               </Form.Group>
             </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label>Status</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={mock.response.statusCode}
-                  onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, statusCode: Number(event.target.value) } })
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={2}>
-              <Form.Group>
-                <Form.Label>Delay ms</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={mock.response.delayMs}
-                  onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, delayMs: Number(event.target.value) } })
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={2} className="d-flex align-items-end">
+            <Col md={3} className="d-flex align-items-end pb-1">
               <Form.Check
                 type="switch"
+                id="mock-enabled"
                 label="Enabled"
                 checked={mock.enabled}
                 onChange={(event) => setMock({ ...mock, enabled: event.target.checked })}
               />
+            </Col>
+
+            <Col xs={12}>
+              <div className="editor-section-title">Match</div>
+            </Col>
+            <Col md={isSoap ? 4 : 4}>
+              <Form.Group>
+                <FieldLabel help="The URL path after the host. Leave empty to match any path. Example: /accounts">
+                  Path
+                </FieldLabel>
+                <Form.Control
+                  placeholder="/accounts"
+                  value={mock.match.path ?? ''}
+                  onChange={(event) => setMock({ ...mock, match: { ...mock.match, path: event.target.value } })}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
+                <Form.Select
+                  value={mock.match.pathMode}
+                  onChange={(event) => setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })}
+                >
+                  <option value="exact">exact — this path only</option>
+                  <option value="prefix">prefix — this path and below</option>
+                  <option value="template">template — {`{placeholders}`}</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            {isSoap ? (
+              <Col md={4}>
+                <Form.Group>
+                  <FieldLabel help='Value of the SOAPAction header. Clients use it to name the call. Examples: GetAccount or "http://example.com/GetAccount". Leave empty to ignore the header.'>
+                    SOAPAction
+                  </FieldLabel>
+                  <Form.Control
+                    value={mock.match.soapAction ?? ''}
+                    onChange={(event) =>
+                      setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            ) : (
+              <Col md={4}>
+                <Form.Group>
+                  <FieldLabel help="HTTP methods this mock accepts, separated by commas. Empty means any method. Example: GET, POST">
+                    Methods
+                  </FieldLabel>
+                  <Form.Control
+                    placeholder="GET, POST"
+                    value={(mock.match.methods ?? []).join(', ')}
+                    onChange={(event) =>
+                      setMock({
+                        ...mock,
+                        match: {
+                          ...mock.match,
+                          methods: event.target.value
+                            .split(',')
+                            .map((item) => item.trim())
+                            .filter(Boolean),
+                        },
+                      })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            )}
+
+            <Col xs={12}>
+              <Form.Check
+                type="switch"
+                id="mock-advanced"
+                label="Advanced matching"
+                checked={useAdvanced}
+                onChange={(event) => setUseAdvanced(event.target.checked)}
+              />
+              <Form.Text>Match on the request body as well as the path.</Form.Text>
+            </Col>
+            {useAdvanced && !isSoap && (
+              <>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help='The request body must contain this text, ignoring case. Example: "status":"open"'>
+                      Body contains
+                    </FieldLabel>
+                    <Form.Control
+                      value={mock.match.bodyContains ?? ''}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, bodyContains: event.target.value } })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help='JSONPath picks a value out of a JSON body. $.user.id with 42 matches {"user":{"id":42}}. Leave the value empty to only require that the path exists.'>
+                      JSON path equals
+                    </FieldLabel>
+                    <InputGroup>
+                      <Form.Control
+                        placeholder="$.user.id"
+                        value={mock.match.jsonPath ?? ''}
+                        onChange={(event) =>
+                          setMock({ ...mock, match: { ...mock.match, jsonPath: event.target.value } })
+                        }
+                      />
+                      <Form.Control
+                        placeholder="42"
+                        value={mock.match.jsonPathEquals ?? ''}
+                        onChange={(event) =>
+                          setMock({ ...mock, match: { ...mock.match, jsonPathEquals: event.target.value } })
+                        }
+                      />
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+              </>
+            )}
+            {useAdvanced && isSoap && (
+              <>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help="The first child element inside the SOAP Body, i.e. the operation name. Example: GetAccount. Use this when SOAPAction is missing or unreliable.">
+                      Operation
+                    </FieldLabel>
+                    <Form.Control
+                      value={mock.match.operation ?? ''}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, operation: event.target.value } })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <FieldLabel help="XPath is a query into the SOAP XML. The mock matches when the query finds something. Examples: //GetAccount (that element exists), //AccountId[text()='42'] (that element has this text).">
+                      XPath
+                    </FieldLabel>
+                    <Form.Control
+                      placeholder="//GetAccount"
+                      value={mock.match.xpath ?? ''}
+                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })}
+                    />
+                  </Form.Group>
+                </Col>
+              </>
+            )}
+
+            <Col xs={12}>
+              <div className="editor-section-title">Response</div>
             </Col>
             <Col xs={12}>
               <Form.Check
@@ -118,120 +264,25 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 <Form.Text>The client waits until it times out. Status and body are not sent.</Form.Text>
               )}
             </Col>
-            <Col md={4}>
+            <Col md={3}>
               <Form.Group>
-                <Form.Label>Path</Form.Label>
+                <FieldLabel help="HTTP status sent back to the client. Ignored when the request is blocked. Example: 200 or 404.">
+                  Status
+                </FieldLabel>
                 <Form.Control
-                  value={mock.match.path ?? ''}
-                  onChange={(event) => setMock({ ...mock, match: { ...mock.match, path: event.target.value } })}
+                  type="number"
+                  value={mock.response.statusCode}
+                  onChange={(event) =>
+                    setMock({ ...mock, response: { ...mock.response, statusCode: Number(event.target.value) } })
+                  }
                 />
               </Form.Group>
             </Col>
-            {!isSoap && (
-              <>
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label>Methods (comma)</Form.Label>
-                    <Form.Control
-                      value={(mock.match.methods ?? []).join(',')}
-                      onChange={(event) =>
-                        setMock({
-                          ...mock,
-                          match: {
-                            ...mock.match,
-                            methods: event.target.value
-                              .split(',')
-                              .map((item) => item.trim())
-                              .filter(Boolean),
-                          },
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label>Path mode</Form.Label>
-                    <Form.Select
-                      value={mock.match.pathMode}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })}
-                    >
-                      <option value="exact">exact</option>
-                      <option value="prefix">prefix</option>
-                      <option value="template">template</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Body contains</Form.Label>
-                    <Form.Control
-                      value={mock.match.bodyContains ?? ''}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, bodyContains: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>JSON path equals</Form.Label>
-                    <InputGroup>
-                      <Form.Control
-                        placeholder="$.id"
-                        value={mock.match.jsonPath ?? ''}
-                        onChange={(event) => setMock({ ...mock, match: { ...mock.match, jsonPath: event.target.value } })}
-                      />
-                      <Form.Control
-                        placeholder="value"
-                        value={mock.match.jsonPathEquals ?? ''}
-                        onChange={(event) =>
-                          setMock({ ...mock, match: { ...mock.match, jsonPathEquals: event.target.value } })
-                        }
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-              </>
-            )}
-            {isSoap && (
-              <>
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label>SOAPAction</Form.Label>
-                    <Form.Control
-                      value={mock.match.soapAction ?? ''}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label>Operation</Form.Label>
-                    <Form.Control
-                      value={mock.match.operation ?? ''}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, operation: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={12}>
-                  <Form.Group>
-                    <Form.Label>XPath</Form.Label>
-                    <Form.Control
-                      value={mock.match.xpath ?? ''}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })}
-                    />
-                  </Form.Group>
-                </Col>
-              </>
-            )}
-            <Col md={4}>
+            <Col md={5}>
               <Form.Group>
-                <Form.Label>Content type</Form.Label>
+                <FieldLabel help="Content-Type of the mocked response. Example: application/json or text/xml.">
+                  Content type
+                </FieldLabel>
                 <Form.Control
                   value={mock.response.contentType ?? ''}
                   onChange={(event) =>
@@ -240,20 +291,43 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 />
               </Form.Group>
             </Col>
-            <Col md={8}>
-              <Form.Group>
-                <Form.Label>Body file</Form.Label>
-                <Form.Control
-                  value={mock.response.bodyFile ?? ''}
-                  onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, bodyFile: event.target.value } })
+            <Col md={4} className="d-flex align-items-end pb-1">
+              <Form.Check
+                type="switch"
+                id="mock-delay"
+                label="Delay response"
+                checked={useDelay}
+                onChange={(event) => {
+                  const enabled = event.target.checked
+                  setUseDelay(enabled)
+                  if (enabled && (mock.response.delayMs ?? 0) <= 0) {
+                    setMock({ ...mock, response: { ...mock.response, delayMs: 250 } })
                   }
-                />
-              </Form.Group>
+                }}
+              />
             </Col>
+            {useDelay && (
+              <Col md={4}>
+                <Form.Group>
+                  <FieldLabel help="Wait this many milliseconds before sending the response. Use it to simulate a slow service. Example: 250.">
+                    Delay ms
+                  </FieldLabel>
+                  <Form.Control
+                    type="number"
+                    min={0}
+                    value={mock.response.delayMs}
+                    onChange={(event) =>
+                      setMock({ ...mock, response: { ...mock.response, delayMs: Number(event.target.value) } })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            )}
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Response body</Form.Label>
+                <FieldLabel help="The body sent back to the client. For REST this is often JSON; for SOAP it is the XML envelope.">
+                  Response body
+                </FieldLabel>
                 <Form.Control
                   as="textarea"
                   rows={6}
@@ -277,4 +351,30 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
       </Form>
     </Modal>
   )
+}
+
+function hasExtraFilters(match: MockMatchDto): boolean {
+  if (match.query && Object.keys(match.query).length > 0) {
+    return true
+  }
+
+  if (match.headers && Object.keys(match.headers).length > 0) {
+    return true
+  }
+
+  return Boolean(match.bodyContains || match.bodyRegex || match.jsonPath || match.jsonPathEquals || match.operation || match.xpath)
+}
+
+function basicMatch(match: MockMatchDto): MockMatchDto {
+  return {
+    ...match,
+    query: null,
+    headers: null,
+    bodyContains: null,
+    bodyRegex: null,
+    jsonPath: null,
+    jsonPathEquals: null,
+    operation: null,
+    xpath: null,
+  }
 }

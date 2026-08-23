@@ -187,160 +187,190 @@ export function ProxyDetailPage() {
 
       {tab === 'settings' && (
         <Form onSubmit={saveSettings}>
-          <Row className="g-3">
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Name</Form.Label>
-                <Form.Control
-                  value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Listen URL</Form.Label>
-                <Form.Control
-                  value={form.listen.url}
-                  onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Path prefix</Form.Label>
-                <Form.Control
-                  value={form.listen.pathPrefix ?? ''}
-                  onChange={(event) => setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value } })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Destination</Form.Label>
-                <Form.Control
-                  value={form.destination.address}
-                  onChange={(event) =>
-                    setForm({ ...form, destination: { ...form.destination, address: event.target.value } })
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Passthrough delay ms</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={form.passthroughDelayMs}
-                  onChange={(event) => setForm({ ...form, passthroughDelayMs: Number(event.target.value) })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Log retention (days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  min={0}
-                  value={form.logRetentionDays ?? 7}
-                  onChange={(event) => setForm({ ...form, logRetentionDays: Number(event.target.value) })}
-                />
-                <Form.Text>0 keeps logs forever. Older entries are deleted automatically.</Form.Text>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Max logged body (KB)</Form.Label>
-                <Form.Control
-                  type="number"
-                  min={1}
-                  value={Math.round((form.bodyLogLimitBytes ?? 1_048_576) / 1024)}
-                  onChange={(event) =>
-                    setForm({ ...form, bodyLogLimitBytes: Math.max(1, Number(event.target.value)) * 1024 })
-                  }
-                />
-                <Form.Text>Bodies larger than this are not stored; only the original size is logged.</Form.Text>
-              </Form.Group>
-            </Col>
-            <Col md={3} className="d-flex align-items-end">
-              <Form.Check
-                type="switch"
-                id="proxy-enabled"
-                label="Enabled"
-                checked={form.enabled}
-                onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
-              />
-            </Col>
-            <Col md={6}>
-              <Form.Check
-                type="switch"
-                id="accept-any-cert"
-                label="Accept any server certificate"
-                checked={form.destination.acceptAnyServerCertificate}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    destination: { ...form.destination, acceptAnyServerCertificate: event.target.checked },
-                  })
-                }
-              />
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Client certificate</Form.Label>
-                <Form.Select
-                  value={form.destination.clientCertificateId ?? ''}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      destination: { ...form.destination, clientCertificateId: event.target.value || null },
-                    })
-                  }
-                >
-                  <option value="">None</option>
-                  {certificates.data
-                    ?.filter((item) => item.type === 'client')
-                    .map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                </Form.Select>
-                <Form.Text>
-                  Defined on the <Link to="/certificates">Certificates</Link> page.
-                </Form.Text>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Server certificate</Form.Label>
-                <Form.Select
-                  value={form.listen.serverCertificateId ?? ''}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      listen: { ...form.listen, serverCertificateId: event.target.value || null },
-                    })
-                  }
-                >
-                  <option value="">None</option>
-                  {certificates.data
-                    ?.filter((item) => item.type === 'server')
-                    .map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                </Form.Select>
-                <Form.Text>
-                  Defined on the <Link to="/certificates">Certificates</Link> page.
-                </Form.Text>
-              </Form.Group>
-            </Col>
-            <Col xs={12}>
+          <Stack gap={3}>
+            <Card>
+              <Card.Body>
+                <h2 className="h6 mb-3">Proxy</h2>
+                <Row className="g-3 align-items-end">
+                  <Col md={8}>
+                    <Form.Group>
+                      <Form.Label>Name</Form.Label>
+                      <Form.Control
+                        value={form.name}
+                        onChange={(event) => setForm({ ...form, name: event.target.value })}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={4} className="d-flex align-items-end pb-2">
+                    <Form.Check
+                      type="switch"
+                      id="proxy-enabled"
+                      label="Enabled"
+                      checked={form.enabled}
+                      onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
+                    />
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            <Row className="g-3">
+              <Col md={6}>
+                <Card className="h-100">
+                  <Card.Body>
+                    <h2 className="h6 mb-3">Listen</h2>
+                    <Stack gap={3}>
+                      <Form.Group>
+                        <Form.Label>Listen URL</Form.Label>
+                        <Form.Control
+                          value={form.listen.url}
+                          onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
+                        />
+                        <Form.Text>Address this proxy accepts incoming requests on.</Form.Text>
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>Path prefix</Form.Label>
+                        <Form.Control
+                          value={form.listen.pathPrefix ?? ''}
+                          onChange={(event) =>
+                            setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value } })
+                          }
+                        />
+                        <Form.Text>Removed from the path before the request is forwarded.</Form.Text>
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>Server certificate</Form.Label>
+                        <Form.Select
+                          value={form.listen.serverCertificateId ?? ''}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              listen: { ...form.listen, serverCertificateId: event.target.value || null },
+                            })
+                          }
+                        >
+                          <option value="">None</option>
+                          {certificates.data
+                            ?.filter((item) => item.type === 'server')
+                            .map((item) => (
+                              <option key={item.name} value={item.name}>
+                                {item.name}
+                              </option>
+                            ))}
+                        </Form.Select>
+                        <Form.Text>
+                          HTTPS certificate for this listener. Defined on the <Link to="/certificates">Certificates</Link>{' '}
+                          page.
+                        </Form.Text>
+                      </Form.Group>
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={6}>
+                <Card className="h-100">
+                  <Card.Body>
+                    <h2 className="h6 mb-3">Destination</h2>
+                    <Stack gap={3}>
+                      <Form.Group>
+                        <Form.Label>Destination URL</Form.Label>
+                        <Form.Control
+                          value={form.destination.address}
+                          onChange={(event) =>
+                            setForm({ ...form, destination: { ...form.destination, address: event.target.value } })
+                          }
+                        />
+                        <Form.Text>Upstream service used when no mock matches.</Form.Text>
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>Passthrough delay ms</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={form.passthroughDelayMs}
+                          onChange={(event) => setForm({ ...form, passthroughDelayMs: Number(event.target.value) })}
+                        />
+                        <Form.Text>Optional wait before forwarding an unmatched request.</Form.Text>
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>Client certificate</Form.Label>
+                        <Form.Select
+                          value={form.destination.clientCertificateId ?? ''}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              destination: { ...form.destination, clientCertificateId: event.target.value || null },
+                            })
+                          }
+                        >
+                          <option value="">None</option>
+                          {certificates.data
+                            ?.filter((item) => item.type === 'client')
+                            .map((item) => (
+                              <option key={item.name} value={item.name}>
+                                {item.name}
+                              </option>
+                            ))}
+                        </Form.Select>
+                        <Form.Text>
+                          Presented to the destination. Defined on the <Link to="/certificates">Certificates</Link> page.
+                        </Form.Text>
+                      </Form.Group>
+                      <Form.Check
+                        type="switch"
+                        id="accept-any-cert"
+                        label="Accept any server certificate"
+                        checked={form.destination.acceptAnyServerCertificate}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            destination: { ...form.destination, acceptAnyServerCertificate: event.target.checked },
+                          })
+                        }
+                      />
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+
+            <Card>
+              <Card.Body>
+                <h2 className="h6 mb-3">Logs</h2>
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Retention (days)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min={0}
+                        value={form.logRetentionDays ?? 7}
+                        onChange={(event) => setForm({ ...form, logRetentionDays: Number(event.target.value) })}
+                      />
+                      <Form.Text>0 keeps logs forever. Older entries are deleted automatically.</Form.Text>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label>Max logged body (KB)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min={1}
+                        value={Math.round((form.bodyLogLimitBytes ?? 1_048_576) / 1024)}
+                        onChange={(event) =>
+                          setForm({ ...form, bodyLogLimitBytes: Math.max(1, Number(event.target.value)) * 1024 })
+                        }
+                      />
+                      <Form.Text>Bodies larger than this are not stored; only the original size is logged.</Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            <div>
               <Button type="submit">Save settings</Button>
-            </Col>
-          </Row>
+            </div>
+          </Stack>
         </Form>
       )}
 
