@@ -37,20 +37,8 @@ public sealed class MockEngine
             return mock.Type == MockType.Soap ? RequestProtocol.Soap : RequestProtocol.Rest;
         }
 
-        if (SoapEnvelope.GetSoapAction(request.Headers) is not null)
-        {
-            return RequestProtocol.Soap;
-        }
-
-        if (request.Headers.Any(header =>
-                header.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase) &&
-                (header.Value.Contains("xml", StringComparison.OrdinalIgnoreCase) ||
-                 header.Value.Contains("soap", StringComparison.OrdinalIgnoreCase))) &&
-            request.Body.Contains("Envelope", StringComparison.OrdinalIgnoreCase))
-        {
-            return RequestProtocol.Soap;
-        }
-
-        return RequestProtocol.Rest;
+        return SoapEnvelope.LooksLikeSoap(request.Headers, request.Body)
+            ? RequestProtocol.Soap
+            : RequestProtocol.Rest;
     }
 }

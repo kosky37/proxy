@@ -6,6 +6,22 @@ namespace Proxy.Core.Matching;
 
 public static class SoapEnvelope
 {
+    public static bool LooksLikeSoap(IReadOnlyDictionary<string, string> headers, string? body)
+    {
+        if (GetSoapAction(headers) is not null)
+        {
+            return true;
+        }
+
+        if (TryGetHeader(headers, "Content-Type", out var contentType) &&
+            contentType.Contains("application/soap+xml", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return TryParse(body, out _, out _);
+    }
+
     public static string? GetSoapAction(IReadOnlyDictionary<string, string> headers)
     {
         if (TryGetHeader(headers, "SOAPAction", out var soapAction) && !string.IsNullOrWhiteSpace(soapAction))
@@ -37,7 +53,14 @@ public static class SoapEnvelope
         try
         {
             document = XDocument.Parse(body, LoadOptions.PreserveWhitespace);
-            var bodyElement = document.Descendants().FirstOrDefault(e => e.Name.LocalName == "Body");
+            var envelope = document.Descendants().FirstOrDefault(element => element.Name.LocalName == "Envelope");
+            if (envelope is null)
+            {
+                document = null;
+                return false;
+            }
+
+            var bodyElement = envelope.Descendants().FirstOrDefault(element => element.Name.LocalName == "Body");
             operation = bodyElement?.Elements().FirstOrDefault()?.Name.LocalName;
             return true;
         }

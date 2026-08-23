@@ -290,10 +290,11 @@ export function ProxyDetailPage() {
             <thead>
               <tr>
                 <th>Time</th>
+                <th>Type</th>
+                <th>Mode</th>
                 <th>Method</th>
                 <th>Path</th>
                 <th>Status</th>
-                <th>Mode</th>
                 <th>ms</th>
               </tr>
             </thead>
@@ -301,15 +302,20 @@ export function ProxyDetailPage() {
               {logs.data?.items.map((item) => (
                 <tr key={item.id} role="button" onClick={() => setLogId(item.id)}>
                   <td>{new Date(item.timestampUtc).toLocaleString()}</td>
-                  <td>{item.method}</td>
                   <td>
-                    {item.path}
+                    <Badge bg={item.protocol === 'soap' ? 'warning' : 'primary'} text={item.protocol === 'soap' ? 'dark' : undefined}>
+                      {item.protocol === 'soap' ? 'SOAP' : 'REST'}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Badge bg={item.mode === 'mock' ? 'info' : 'secondary'}>
+                      {item.mode === 'mock' ? 'Mock' : 'Passthrough'}
+                    </Badge>
                     {item.mockName && <div>{item.mockName}</div>}
                   </td>
+                  <td>{item.method}</td>
+                  <td>{item.path}</td>
                   <td>{item.statusCode}</td>
-                  <td>
-                    <Badge bg={item.mode === 'mock' ? 'info' : 'secondary'}>{item.mode}</Badge>
-                  </td>
                   <td>{item.durationMs}</td>
                 </tr>
               ))}

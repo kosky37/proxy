@@ -6,6 +6,11 @@ public static class SoapMockMatcher
 {
     public static bool Matches(MockDefinition mock, HttpRequestSnapshot request)
     {
+        if (!SoapEnvelope.LooksLikeSoap(request.Headers, request.Body))
+        {
+            return false;
+        }
+
         var match = mock.Match;
         if (!PathMatcher.Matches(request.Path, match.Path, match.PathMode))
         {

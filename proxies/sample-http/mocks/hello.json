@@ -7,8 +7,8 @@
     ],
     "path": "/hello",
     "pathMode": "exact",
-    "jsonPath": "$.id",
-    "jsonPathEquals": "6"
+    "jsonPath": "",
+    "jsonPathEquals": ""
   },
   "response": {
     "statusCode": 200,

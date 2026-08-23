@@ -22,9 +22,11 @@ export function LogDetailModal({ show, log, onClose }: Props) {
       {log && (
         <Modal.Body>
           <Stack direction="horizontal" gap={2} className="mb-3 flex-wrap">
-            <Badge bg={log.mode === 'mock' ? 'info' : 'secondary'}>{log.mode}</Badge>
-            <Badge bg="light" text="dark">
-              {log.protocol}
+            <Badge bg={log.protocol === 'soap' ? 'warning' : 'primary'} text={log.protocol === 'soap' ? 'dark' : undefined}>
+              {log.protocol === 'soap' ? 'SOAP' : 'REST'}
+            </Badge>
+            <Badge bg={log.mode === 'mock' ? 'info' : 'secondary'}>
+              {log.mode === 'mock' ? 'Mock' : 'Passthrough'}
             </Badge>
             <Badge bg={statusVariant(log.statusCode)}>{log.statusCode ?? '-'}</Badge>
             <span>{log.durationMs} ms</span>

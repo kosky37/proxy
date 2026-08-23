@@ -72,6 +72,37 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
+    public void Rejects_non_soap_requests_even_when_match_is_empty()
+    {
+        var mock = new MockDefinition { Type = MockType.Soap, Match = new MockMatch() };
+
+        SoapMockMatcher.Matches(mock, Snapshot("", new Dictionary<string, string>
+        {
+            ["Content-Type"] = "application/json"
+        })).Should().BeFalse();
+
+        SoapMockMatcher.Matches(mock, new HttpRequestSnapshot
+        {
+            Method = "GET",
+            Path = "/hello",
+            Query = new Dictionary<string, string>(),
+            Headers = new Dictionary<string, string>(),
+            Body = ""
+        }).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Rejects_plain_xml_that_is_not_an_envelope()
+    {
+        var mock = new MockDefinition { Type = MockType.Soap, Match = new MockMatch() };
+
+        SoapMockMatcher.Matches(mock, Snapshot("<root><id>1</id></root>", new Dictionary<string, string>
+        {
+            ["Content-Type"] = "text/xml"
+        })).Should().BeFalse();
+    }
+
+    [Fact]
     public void Detects_soap_protocol_from_envelope()
     {
         var snapshot = Snapshot(Envelope, new Dictionary<string, string>
