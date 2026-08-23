@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Proxy.Core.Contracts;
 using Proxy.Core.Matching;
@@ -171,12 +172,39 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
             .ExecuteDeleteAsync(cancellationToken);
     }
 
+    public void Release(string proxyId, string folderPath)
+    {
+        _initialized.Remove(proxyId);
+        var path = Path.Combine(folderPath, "logs.db");
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var connectionString = ConnectionString(path);
+        using (var db = new RequestLogDbContext(new DbContextOptionsBuilder<RequestLogDbContext>().UseSqlite(connectionString).Options))
+        {
+            try
+            {
+                db.Database.ExecuteSqlRaw("PRAGMA wal_checkpoint(TRUNCATE);");
+                db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE;");
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        using var connection = new SqliteConnection(connectionString);
+        SqliteConnection.ClearPool(connection);
+        SqliteConnection.ClearAllPools();
+    }
+
     private RequestLogDbContext Create(string proxyId, string folderPath)
     {
         Directory.CreateDirectory(folderPath);
         var path = Path.Combine(folderPath, "logs.db");
         var options = new DbContextOptionsBuilder<RequestLogDbContext>()
-            .UseSqlite($"Data Source={path};Cache=Shared")
+            .UseSqlite(ConnectionString(path))
             .Options;
         var db = new RequestLogDbContext(options);
         if (_initialized.TryAdd(proxyId))
@@ -282,6 +310,9 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 
     private static long FileSize(string path) => File.Exists(path) ? new FileInfo(path).Length : 0;
 
+    private static string ConnectionString(string path) =>
+        $"Data Source={path};Cache=Shared;Pooling=False;Mode=ReadWriteCreate";
+
     private sealed class ConcurrentSet
     {
         private readonly HashSet<string> _items = new(StringComparer.OrdinalIgnoreCase);
@@ -292,6 +323,14 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
             lock (_gate)
             {
                 return _items.Add(value);
+            }
+        }
+
+        public void Remove(string value)
+        {
+            lock (_gate)
+            {
+                _items.Remove(value);
             }
         }
     }

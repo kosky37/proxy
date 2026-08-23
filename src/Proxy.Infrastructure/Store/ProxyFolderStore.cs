@@ -82,7 +82,7 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         {
             var existing = Require(id);
             WriteGeneration++;
-            Directory.Delete(existing.FolderPath, recursive: true);
+            DeleteFolder(existing.FolderPath);
             ReloadCore();
         }
 
@@ -702,4 +702,28 @@ public sealed class ProxyFolderStore : IProxyConfigStore
     }
 
     private void NotifyChanged() => Changed?.Invoke(this, EventArgs.Empty);
+
+    private static void DeleteFolder(string path)
+    {
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+
+                return;
+            }
+            catch (IOException) when (attempt < 7)
+            {
+                Thread.Sleep(50 * (attempt + 1));
+            }
+            catch (UnauthorizedAccessException) when (attempt < 7)
+            {
+                Thread.Sleep(50 * (attempt + 1));
+            }
+        }
+    }
 }

@@ -112,6 +112,21 @@ public class RequestLogStoreTests
         }
     }
 
+    [Fact]
+    public async Task Release_closes_the_database_so_the_folder_can_be_deleted()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
+        var store = new SqliteRequestLogStore();
+        await store.WriteAsync("demo", folder, Entry(DateTimeOffset.UtcNow, "/hello", "ok", 2));
+        File.Exists(Path.Combine(folder, "logs.db")).Should().BeTrue();
+
+        store.Release("demo", folder);
+
+        var act = () => Directory.Delete(folder, true);
+        act.Should().NotThrow();
+        Directory.Exists(folder).Should().BeFalse();
+    }
+
     private static void DeleteFolder(string folder)
     {
         SqliteConnection.ClearAllPools();

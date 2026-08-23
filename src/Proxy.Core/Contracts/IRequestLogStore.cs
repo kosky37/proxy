@@ -11,4 +11,5 @@ public interface IRequestLogStore
     Task<LogTimeline> GetTimelineAsync(string proxyId, string folderPath, DateTimeOffset? fromUtc, DateTimeOffset? toUtc, int buckets = 80, CancellationToken cancellationToken = default);
     Task<int> DeleteAsync(string proxyId, string folderPath, DateTimeOffset? fromUtc = null, DateTimeOffset? toUtc = null, CancellationToken cancellationToken = default);
     Task<int> DeleteBeforeAsync(string proxyId, string folderPath, DateTimeOffset cutoffUtc, CancellationToken cancellationToken = default);
+    void Release(string proxyId, string folderPath);
 }

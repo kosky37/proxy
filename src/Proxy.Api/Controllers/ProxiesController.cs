@@ -10,10 +10,12 @@ namespace Proxy.Api.Controllers;
 public sealed class ProxiesController : ControllerBase
 {
     private readonly IProxyConfigStore _store;
+    private readonly IRequestLogStore _logs;
 
-    public ProxiesController(IProxyConfigStore store)
+    public ProxiesController(IProxyConfigStore store, IRequestLogStore logs)
     {
         _store = store;
+        _logs = logs;
     }
 
     [HttpGet]
@@ -69,6 +71,13 @@ public sealed class ProxiesController : ControllerBase
     {
         try
         {
+            var proxy = _store.Get(id);
+            if (proxy is null)
+            {
+                return NotFound();
+            }
+
+            _logs.Release(proxy.Id, proxy.FolderPath);
             _store.Delete(id);
             return NoContent();
         }
