@@ -1,9 +1,0 @@
-{
-  "name": "GET-favicon.ico",
-  "path": "/favicon.ico",
-  "pathMode": "exact",
-  "methods": [
-    "GET"
-  ],
-  "fileName": ""
-}

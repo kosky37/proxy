@@ -1,7 +1,0 @@
-{
-  "name": "test",
-  "type": "client",
-  "pfxPath": "cert.crt",
-  "password": "asdasd",
-  "fileName": ""
-}
