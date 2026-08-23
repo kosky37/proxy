@@ -3,7 +3,14 @@ export interface ParsedField {
   value: string
 }
 
-export function parseBody(raw?: string | null): ParsedField[] | null {
+export interface ParsedNode {
+  id: string
+  name: string
+  value?: string
+  children?: ParsedNode[]
+}
+
+export function parseBody(raw?: string | null): ParsedNode[] | null {
   if (!raw?.trim()) {
     return null
   }
@@ -11,45 +18,64 @@ export function parseBody(raw?: string | null): ParsedField[] | null {
   return tryParseJson(raw) ?? tryParseXml(raw)
 }
 
-function tryParseJson(raw: string): ParsedField[] | null {
+function tryParseJson(raw: string): ParsedNode[] | null {
   const trimmed = raw.trim()
   if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
     return null
   }
 
   try {
-    const rows: ParsedField[] = []
-    flattenJson(JSON.parse(trimmed), '', rows)
-    return rows.length > 0 ? rows : null
+    const parsed: unknown = JSON.parse(trimmed)
+    if (Array.isArray(parsed)) {
+      const nodes = parsed.map((item, index) => toJsonNode(`[${index + 1}]`, item, `[${index}]`))
+      return nodes.length > 0 ? nodes : null
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      const nodes = Object.entries(parsed).map(([key, value]) => toJsonNode(key, value, key))
+      return nodes.length > 0 ? nodes : null
+    }
+
+    return [{ id: 'value', name: 'value', value: String(parsed) }]
   } catch {
     return null
   }
 }
 
-function flattenJson(value: unknown, path: string, rows: ParsedField[]) {
+function toJsonNode(name: string, value: unknown, id: string): ParsedNode {
   if (value === null || value === undefined) {
-    if (path) {
-      rows.push({ name: path, value: '' })
-    }
-    return
+    return { id, name, value: '' }
   }
 
   if (Array.isArray(value)) {
-    value.forEach((item, index) => flattenJson(item, path ? `${path}[${index}]` : `[${index}]`, rows))
-    return
+    if (value.length === 0) {
+      return { id, name, value: '[]' }
+    }
+
+    return {
+      id,
+      name,
+      children: value.map((item, index) => toJsonNode(`[${index + 1}]`, item, `${id}[${index}]`)),
+    }
   }
 
   if (typeof value === 'object') {
-    for (const [key, child] of Object.entries(value)) {
-      flattenJson(child, path ? `${path}.${key}` : key, rows)
+    const entries = Object.entries(value as Record<string, unknown>)
+    if (entries.length === 0) {
+      return { id, name, value: '{}' }
     }
-    return
+
+    return {
+      id,
+      name,
+      children: entries.map(([key, child]) => toJsonNode(key, child, `${id}.${key}`)),
+    }
   }
 
-  rows.push({ name: path || 'value', value: String(value) })
+  return { id, name, value: String(value) }
 }
 
-function tryParseXml(raw: string): ParsedField[] | null {
+function tryParseXml(raw: string): ParsedNode[] | null {
   const trimmed = raw.trim()
   if (!trimmed.startsWith('<')) {
     return null
@@ -60,20 +86,17 @@ function tryParseXml(raw: string): ParsedField[] | null {
     return null
   }
 
-  const rows: ParsedField[] = []
   const soap = soapPayload(document)
   if (soap) {
+    const nodes: ParsedNode[] = []
     if (soap.operation) {
-      rows.push({ name: 'Operation', value: soap.operation })
+      nodes.push({ id: 'Operation', name: 'Operation', value: soap.operation })
     }
-    for (const child of soap.roots) {
-      flattenXml(child, '', rows)
-    }
-    return rows.length > 0 ? rows : null
+    nodes.push(...elementsToNodes(soap.roots, 'soap'))
+    return nodes.length > 0 ? nodes : null
   }
 
-  flattenXml(document.documentElement, '', rows)
-  return rows.length > 0 ? rows : null
+  return [elementToNode(document.documentElement, document.documentElement.localName)]
 }
 
 function soapPayload(document: Document): { operation: string | null; roots: Element[] } | null {
@@ -92,35 +115,52 @@ function soapPayload(document: Document): { operation: string | null; roots: Ele
   return { operation: null, roots: children }
 }
 
-function flattenXml(element: Element, prefix: string, rows: ParsedField[]) {
-  const path = prefix ? `${prefix}.${element.localName}` : element.localName
+function elementsToNodes(elements: Element[], parentId: string): ParsedNode[] {
+  const totals = new Map<string, number>()
+  for (const element of elements) {
+    totals.set(element.localName, (totals.get(element.localName) ?? 0) + 1)
+  }
+
+  const seen = new Map<string, number>()
+  return elements.map((element) => {
+    const total = totals.get(element.localName) ?? 1
+    const index = (seen.get(element.localName) ?? 0) + 1
+    seen.set(element.localName, index)
+    const name = total > 1 ? `${element.localName} [${index}]` : element.localName
+    return elementToNode(element, `${parentId}/${name}`, name)
+  })
+}
+
+function elementToNode(element: Element, id: string, name = element.localName): ParsedNode {
+  const children: ParsedNode[] = []
   for (const attribute of element.attributes) {
     if (attribute.name.startsWith('xmlns')) {
       continue
     }
 
-    rows.push({ name: `${path}@${attribute.localName}`, value: attribute.value })
+    children.push({
+      id: `${id}@${attribute.localName}`,
+      name: `@${attribute.localName}`,
+      value: attribute.value,
+    })
   }
 
-  const children = [...element.children]
-  const text = [...element.childNodes]
+  children.push(...elementsToNodes([...element.children], id))
+  const text = elementText(element)
+
+  if (children.length === 0) {
+    return { id, name, value: text }
+  }
+
+  return { id, name, value: text || undefined, children }
+}
+
+function elementText(element: Element): string {
+  return [...element.childNodes]
     .filter((node) => node.nodeType === Node.TEXT_NODE)
     .map((node) => node.textContent?.trim() ?? '')
     .filter(Boolean)
     .join(' ')
-
-  if (children.length === 0) {
-    rows.push({ name: path, value: text })
-    return
-  }
-
-  if (text) {
-    rows.push({ name: path, value: text })
-  }
-
-  for (const child of children) {
-    flattenXml(child, path, rows)
-  }
 }
 
 function findLocal(root: ParentNode, localName: string): Element | null {

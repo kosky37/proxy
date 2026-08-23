@@ -5,6 +5,7 @@ import { modeBadge } from '../modeBadge'
 import { parseBody, type ParsedField } from '../parseBody'
 import { protocolBadge } from '../protocolBadge'
 import type { LogDetailDto, MockDto } from '../store/types'
+import { BodyTree } from './BodyTree'
 import { CopyButton } from './CopyButton'
 
 interface Props {
@@ -107,7 +108,7 @@ function HttpMessage({
   raw: boolean
 }) {
   const headerFields = Object.entries(parseHeaders(headers)).map(([name, value]) => ({ name, value }))
-  const bodyFields = raw ? null : parseBody(body)
+  const bodyNodes = raw ? null : parseBody(body)
 
   return (
     <Stack gap={3}>
@@ -132,13 +133,13 @@ function HttpMessage({
             <CopyButton value={body ?? ''} label="Copy body" />
           </div>
         </Stack>
-        {raw || !bodyFields ? (
+        {raw || !bodyNodes ? (
           <pre className="border rounded p-2 mb-0">
             {body ||
               (truncated ? `Body not stored. Original size: ${formatBytes(originalBytes)}.` : '(empty)')}
           </pre>
         ) : (
-          <FieldTable fields={bodyFields} empty="(empty)" />
+          <BodyTree nodes={bodyNodes} empty="(empty)" />
         )}
       </div>
     </Stack>
