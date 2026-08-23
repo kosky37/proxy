@@ -10,9 +10,8 @@ obj/
 artifacts/
 
 ## Logs and local proxy data
-proxies/**/logs.db
-proxies/**/logs.db-*
-*.pfx
+proxies
+certificates
 
 ## Node
 frontend/node_modules/
