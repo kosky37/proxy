@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
+import { modeBadge } from '../modeBadge'
 import type { LogDetailDto, MockDto } from '../store/types'
 import { CopyButton } from './CopyButton'
 
@@ -28,9 +29,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
             <Badge bg={log.protocol === 'soap' ? 'warning' : 'primary'} text={log.protocol === 'soap' ? 'dark' : undefined}>
               {log.protocol === 'soap' ? 'SOAP' : 'REST'}
             </Badge>
-            <Badge bg={log.mode === 'mock' ? 'info' : 'secondary'}>
-              {log.mode === 'mock' ? 'Mock' : 'Passthrough'}
-            </Badge>
+            <Badge bg={modeBadge(log.mode).bg}>{modeBadge(log.mode).label}</Badge>
             <Badge bg={statusVariant(log.statusCode)}>{log.statusCode ?? '-'}</Badge>
             <span>{log.durationMs} ms</span>
             {log.mockName && <span>Mock: {log.mockName}</span>}

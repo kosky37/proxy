@@ -8,11 +8,13 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 {
     private readonly ConcurrentSet _initialized = new();
 
-    public async Task WriteAsync(string proxyId, string folderPath, RequestLogEntry entry, CancellationToken cancellationToken = default)
+    public async Task<RequestLogEntry> WriteAsync(string proxyId, string folderPath, RequestLogEntry entry, CancellationToken cancellationToken = default)
     {
         await using var db = Create(proxyId, folderPath);
-        db.Logs.Add(RequestLogRecord.FromEntry(entry));
+        var record = RequestLogRecord.FromEntry(entry);
+        db.Logs.Add(record);
         await db.SaveChangesAsync(cancellationToken);
+        return record.ToEntry();
     }
 
     public async Task<LogListResult> QueryAsync(string proxyId, string folderPath, LogQuery query, CancellationToken cancellationToken = default)
@@ -53,6 +55,7 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         }
 
         var mockRequests = await logs.CountAsync(item => item.Mode == nameof(RequestMode.Mock), cancellationToken);
+        var manualRequests = await logs.CountAsync(item => item.Mode == nameof(RequestMode.Manual), cancellationToken);
         var average = await logs.AverageAsync(item => (double)item.DurationMs, cancellationToken);
         var last = await logs.OrderByDescending(item => item.TimestampUtc).ThenByDescending(item => item.Id).FirstAsync(cancellationToken);
 
@@ -60,7 +63,8 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         {
             TotalRequests = total,
             MockRequests = mockRequests,
-            PassthroughRequests = total - mockRequests,
+            PassthroughRequests = total - mockRequests - manualRequests,
+            ManualRequests = manualRequests,
             AverageDurationMs = average,
             LastStatusCode = last.StatusCode,
             LastRequestUtc = last.TimestampUtc

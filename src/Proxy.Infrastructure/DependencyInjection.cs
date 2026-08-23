@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Proxy.Core.Contracts;
 using Proxy.Core.Matching;
 using Proxy.Core.Options;
+using Proxy.Infrastructure.Http;
 using Proxy.Infrastructure.Listeners;
 using Proxy.Infrastructure.Logging;
 using Proxy.Infrastructure.Store;
@@ -24,6 +25,7 @@ public static class DependencyInjection
         services.AddSingleton<IProxyConfigStore>(sp => sp.GetRequiredService<ProxyFolderStore>());
         services.AddSingleton<IRequestLogStore, SqliteRequestLogStore>();
         services.AddSingleton<MockEngine>();
+        services.AddSingleton<ManualRequestSender>();
         services.AddHostedService<ProxyConfigWatcher>();
         services.AddHostedService<ProxyListenerManager>();
         return services;

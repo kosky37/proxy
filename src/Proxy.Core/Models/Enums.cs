@@ -16,7 +16,8 @@ public enum PathMatchMode
 public enum RequestMode
 {
     Passthrough,
-    Mock
+    Mock,
+    Manual
 }
 
 public enum RequestProtocol

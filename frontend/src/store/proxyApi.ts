@@ -3,6 +3,7 @@ import type {
   LogDetailDto,
   LogListDto,
   LogQueryArgs,
+  ManualSendRequestDto,
   CertificateDto,
   IgnoredPathDto,
   MockDto,
@@ -144,6 +145,10 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       query: (proxyId) => `/api/proxies/${proxyId}/stats`,
       providesTags: ['Stats'],
     }),
+    sendManualRequest: build.mutation<LogDetailDto, { proxyId: string; body: ManualSendRequestDto }>({
+      query: ({ proxyId, body }) => ({ url: `/api/proxies/${proxyId}/send`, method: 'POST', body }),
+      invalidatesTags: ['Logs', 'Stats'],
+    }),
   }),
 })
 
@@ -172,4 +177,5 @@ export const {
   useGetLogsQuery,
   useGetLogQuery,
   useGetStatsQuery,
+  useSendManualRequestMutation,
 } = proxyApi

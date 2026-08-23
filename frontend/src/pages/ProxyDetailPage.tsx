@@ -14,8 +14,10 @@ import {
 import { Link, useParams } from 'react-router-dom'
 import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
+import { ManualSendPanel } from '../components/ManualSendPanel'
 import { MockEditor } from '../components/MockEditor'
 import { mockFromLog } from '../mockFromLog'
+import { modeBadge } from '../modeBadge'
 import {
   useCreateIgnoreMutation,
   useCreateMockMutation,
@@ -36,7 +38,7 @@ import {
 } from '../store/proxyApi'
 import type { IgnoredPathDto, LogDetailDto, MockDto, UpsertProxyRequest } from '../store/types'
 
-type Tab = 'settings' | 'rest' | 'soap' | 'ignores' | 'logs'
+type Tab = 'settings' | 'send' | 'rest' | 'soap' | 'ignores' | 'logs'
 
 export function ProxyDetailPage() {
   const { id = '' } = useParams()
@@ -153,6 +155,7 @@ export function ProxyDetailPage() {
           <Stat label="Requests" value={stats.data.totalRequests} />
           <Stat label="Mocks" value={stats.data.mockRequests} />
           <Stat label="Passthrough" value={stats.data.passthroughRequests} />
+          <Stat label="Manual" value={stats.data.manualRequests} />
           <Stat label="Avg ms" value={Math.round(stats.data.averageDurationMs)} />
         </Row>
       )}
@@ -160,6 +163,9 @@ export function ProxyDetailPage() {
       <Nav variant="tabs" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'settings')} className="mb-3">
         <Nav.Item>
           <Nav.Link eventKey="settings">Settings</Nav.Link>
+        </Nav.Item>
+        <Nav.Item>
+          <Nav.Link eventKey="send">Send</Nav.Link>
         </Nav.Item>
         <Nav.Item>
           <Nav.Link eventKey="rest">REST mocks</Nav.Link>
@@ -308,6 +314,15 @@ export function ProxyDetailPage() {
         </Form>
       )}
 
+      {tab === 'send' && proxy.data && (
+        <ManualSendPanel
+          proxyId={id}
+          destination={proxy.data.destination.address}
+          pathPrefix={proxy.data.listen.pathPrefix}
+          onOpenLog={setLogId}
+        />
+      )}
+
       {(tab === 'rest' || tab === 'soap') && (
         <>
           <Button
@@ -406,6 +421,7 @@ export function ProxyDetailPage() {
                 <option value="">Any mode</option>
                 <option value="mock">mock</option>
                 <option value="passthrough">passthrough</option>
+                <option value="manual">manual</option>
               </Form.Select>
             </Col>
             <Col md={3}>
@@ -441,9 +457,7 @@ export function ProxyDetailPage() {
                     </Badge>
                   </td>
                   <td>
-                    <Badge bg={item.mode === 'mock' ? 'info' : 'secondary'}>
-                      {item.mode === 'mock' ? 'Mock' : 'Passthrough'}
-                    </Badge>
+                    <Badge bg={modeBadge(item.mode).bg}>{modeBadge(item.mode).label}</Badge>
                     {item.mockName && (
                       <div>
                         {mocks.data?.some((mock) => mock.name.toLowerCase() === item.mockName?.toLowerCase()) ? (
@@ -477,16 +491,17 @@ export function ProxyDetailPage() {
               ))}
             </tbody>
           </Table>
-          <LogDetailModal
-            show={logId != null}
-            log={logDetail.data ?? null}
-            existingMock={existingLogMock}
-            onClose={() => setLogId(null)}
-            onOpenMock={openExistingMock}
-            onCreateMock={createMockFromLog}
-          />
         </>
       )}
+
+      <LogDetailModal
+        show={logId != null}
+        log={logDetail.data ?? null}
+        existingMock={existingLogMock}
+        onClose={() => setLogId(null)}
+        onOpenMock={openExistingMock}
+        onCreateMock={createMockFromLog}
+      />
 
       <MockEditor
         show={editing !== undefined}
@@ -502,7 +517,7 @@ export function ProxyDetailPage() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <Col md={3}>
+    <Col md={2}>
       <Card>
         <Card.Body>
           <div>{label}</div>

@@ -152,6 +152,7 @@ public sealed class ProxyStatsDto
     public long TotalRequests { get; set; }
     public long MockRequests { get; set; }
     public long PassthroughRequests { get; set; }
+    public long ManualRequests { get; set; }
     public double AverageDurationMs { get; set; }
     public int? LastStatusCode { get; set; }
     public DateTimeOffset? LastRequestUtc { get; set; }
@@ -160,6 +161,16 @@ public sealed class ProxyStatsDto
 public sealed class HealthDto
 {
     public required string Status { get; set; }
+}
+
+public sealed class ManualSendRequestDto
+{
+    public required string Method { get; set; }
+    public required string Path { get; set; }
+    public string? Query { get; set; }
+    public Dictionary<string, string>? Headers { get; set; }
+    public string? Body { get; set; }
+    public string Protocol { get; set; } = "rest";
 }
 
 public static class DtoMapper
@@ -269,6 +280,7 @@ public static class DtoMapper
         TotalRequests = stats.TotalRequests,
         MockRequests = stats.MockRequests,
         PassthroughRequests = stats.PassthroughRequests,
+        ManualRequests = stats.ManualRequests,
         AverageDurationMs = stats.AverageDurationMs,
         LastStatusCode = stats.LastStatusCode,
         LastRequestUtc = stats.LastRequestUtc

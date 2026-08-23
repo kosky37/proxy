@@ -124,10 +124,20 @@ export interface LogListDto {
   total: number
 }
 
+export interface ManualSendRequestDto {
+  method: string
+  path: string
+  query?: string | null
+  headers?: Record<string, string> | null
+  body?: string | null
+  protocol: string
+}
+
 export interface ProxyStatsDto {
   totalRequests: number
   mockRequests: number
   passthroughRequests: number
+  manualRequests: number
   averageDurationMs: number
   lastStatusCode?: number | null
   lastRequestUtc?: string | null
