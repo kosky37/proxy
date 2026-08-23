@@ -1,3 +1,28 @@
+const polishTime: Intl.DateTimeFormatOptions = {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+}
+
+const polishDate: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+}
+
+export function formatTime(value: string | number | Date) {
+  return new Date(value).toLocaleTimeString('pl-PL', polishTime)
+}
+
+export function formatDate(value: string | number | Date) {
+  return new Date(value).toLocaleDateString('pl-PL', polishDate)
+}
+
+export function formatDateTime(value: string | number | Date) {
+  return `${formatTime(value)}, ${formatDate(value)}`
+}
+
 export function formatBytes(bytes?: number | null, truncated = false): string {
   const value = bytes ?? 0
   const units = ['B', 'KB', 'MB', 'GB']

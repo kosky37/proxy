@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { formatDateTime } from '../format'
 import { timelineSeries, type TimelineSeriesKey } from '../logColors'
 import type { LogTimelineBucketDto } from '../store/types'
 
@@ -147,7 +148,7 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
                 )
               })}
               <title>
-                {tooltip(bucket)} at {new Date(bucket.startUtc).toLocaleString()}
+                {tooltip(bucket)} at {formatDateTime(bucket.startUtc)}
               </title>
             </g>
           )
@@ -162,10 +163,10 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
           />
         )}
         <text className="log-timeline-axis" x={PADDING.left} y={HEIGHT - 6}>
-          {new Date(fromUtc).toLocaleString()}
+          {formatDateTime(fromUtc)}
         </text>
         <text className="log-timeline-axis" x={width - PADDING.right} y={HEIGHT - 6} textAnchor="end">
-          {new Date(toUtc).toLocaleString()}
+          {formatDateTime(toUtc)}
         </text>
       </svg>
       <div className="log-timeline-legend">

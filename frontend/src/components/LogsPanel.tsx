@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
-import { formatBytes } from '../format'
+import { formatBytes, formatDate, formatDateTime, formatTime } from '../format'
 import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
 import { protocolBadge } from '../protocolBadge'
@@ -181,7 +181,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
           )}
           {range && (
             <div className="row-meta mt-2">
-              Showing {new Date(range.from).toLocaleString()} – {new Date(range.to).toLocaleString()}
+              Showing {formatDateTime(range.from)} – {formatDateTime(range.to)}
             </div>
           )}
         </div>
@@ -319,8 +319,10 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
           {logs.data?.items.map((item) => (
             <tr key={item.id} role="button" onClick={() => onOpenLog(item.id)}>
               <td>
-                <div>{new Date(item.timestampUtc).toLocaleString()}</div>
-                <div className="row-meta">{item.durationMs} ms</div>
+                <div>{formatTime(item.timestampUtc)}</div>
+                <div className="row-meta">
+                  {formatDate(item.timestampUtc)} · {item.durationMs} ms
+                </div>
               </td>
               <td>
                 <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
