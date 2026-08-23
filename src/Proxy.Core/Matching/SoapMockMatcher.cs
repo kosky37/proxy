@@ -23,23 +23,24 @@ public static class SoapMockMatcher
             return false;
         }
 
-        var parsed = SoapEnvelope.TryParse(request.Body, out var document, out var operation);
-        if (!string.IsNullOrWhiteSpace(match.Operation))
+        var needsBody = !string.IsNullOrWhiteSpace(match.Operation) || !string.IsNullOrWhiteSpace(match.XPath);
+        if (!needsBody)
         {
-            if (!parsed || !string.Equals(operation, match.Operation, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(match.XPath))
+        if (!SoapEnvelope.TryParse(request.Body, out var document, out var operation))
         {
-            if (!parsed || document is null || !SoapEnvelope.XPathMatches(document, match.XPath))
-            {
-                return false;
-            }
+            return false;
         }
 
-        return true;
+        if (!string.IsNullOrWhiteSpace(match.Operation) &&
+            !string.Equals(operation, match.Operation, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(match.XPath) ||
+               document is not null && SoapEnvelope.XPathMatches(document, match.XPath);
     }
 }

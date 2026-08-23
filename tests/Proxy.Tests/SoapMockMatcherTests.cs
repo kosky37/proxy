@@ -39,6 +39,21 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
+    public void Matches_soap_action_without_reading_the_body()
+    {
+        var mock = new MockDefinition
+        {
+            Type = MockType.Soap,
+            Match = new MockMatch { SoapAction = "GetAccount" }
+        };
+
+        SoapMockMatcher.Matches(mock, Snapshot("not-xml", new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        })).Should().BeTrue();
+    }
+
+    [Fact]
     public void Matches_soap12_action_header()
     {
         var mock = new MockDefinition
