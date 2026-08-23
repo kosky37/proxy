@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge, Button, Col, Form, Modal, OverlayTrigger, Row, Stack, Table, Tooltip } from 'react-bootstrap'
 import { formatBytes } from '../format'
 import { modeClass, statusClass } from '../logColors'
@@ -121,6 +121,7 @@ function HttpMessage({
         raw={raw}
         empty="No headers"
         copyLabel="Copy headers"
+        defaultOpen={false}
       />
       <div>
         <Stack direction="horizontal" className="mb-2">
@@ -154,6 +155,7 @@ function FieldBlock({
   raw,
   empty,
   copyLabel,
+  defaultOpen = true,
 }: {
   title: string
   rawText?: string | null
@@ -161,20 +163,31 @@ function FieldBlock({
   raw: boolean
   empty: string
   copyLabel: string
+  defaultOpen?: boolean
 }) {
+  const [open, setOpen] = useState(defaultOpen)
+  useEffect(() => {
+    setOpen(defaultOpen)
+  }, [rawText, defaultOpen])
+
   return (
     <div>
       <Stack direction="horizontal" className="mb-2">
-        <strong>{title}</strong>
+        <button type="button" className="log-collapse-toggle" onClick={() => setOpen((value) => !value)}>
+          <i className={`bi ${open ? 'bi-chevron-down' : 'bi-chevron-right'}`} aria-hidden />
+          <strong>{title}</strong>
+          <span className="row-meta">{fields.length}</span>
+        </button>
         <div className="ms-auto">
           <CopyButton value={rawText ?? ''} label={copyLabel} />
         </div>
       </Stack>
-      {raw ? (
-        <pre className="border rounded p-2 mb-0">{rawText || '(none)'}</pre>
-      ) : (
-        <FieldTable fields={fields} empty={empty} />
-      )}
+      {open &&
+        (raw ? (
+          <pre className="border rounded p-2 mb-0">{rawText || '(none)'}</pre>
+        ) : (
+          <FieldTable fields={fields} empty={empty} />
+        ))}
     </div>
   )
 }

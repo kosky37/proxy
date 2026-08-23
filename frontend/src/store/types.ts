@@ -155,8 +155,6 @@ export interface LogQueryArgs {
 
 export interface LogStorageDto {
   databaseBytes: number
-  walBytes: number
-  shmBytes: number
   totalBytes: number
   entryCount: number
 }

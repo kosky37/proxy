@@ -122,15 +122,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
     <>
       <Stack direction="horizontal" className="mb-3 flex-wrap gap-2 align-items-center">
         <div>
-          <div className="fw-semibold">
-            Database {formatBytes(storage.data?.totalBytes)}
-            {storage.data && storage.data.walBytes > 0 && (
-              <span className="row-meta">
-                {' '}
-                ({formatBytes(storage.data.databaseBytes)} + {formatBytes(storage.data.walBytes)} WAL)
-              </span>
-            )}
-          </div>
+          <div className="fw-semibold">Database {formatBytes(storage.data?.totalBytes)}</div>
           <div className="row-meta">{storage.data?.entryCount ?? 0} entries on disk</div>
         </div>
         <Badge bg={paused ? 'warning' : 'success'} text={paused ? 'dark' : undefined} className="ms-2">

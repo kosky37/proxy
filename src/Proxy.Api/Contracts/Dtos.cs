@@ -159,8 +159,6 @@ public sealed class LogDetailDto : LogListItemDto
 public sealed class LogStorageDto
 {
     public long DatabaseBytes { get; set; }
-    public long WalBytes { get; set; }
-    public long ShmBytes { get; set; }
     public long TotalBytes { get; set; }
     public int EntryCount { get; set; }
 }
@@ -325,8 +323,6 @@ public static class DtoMapper
     public static LogStorageDto ToDto(LogStorageInfo storage) => new()
     {
         DatabaseBytes = storage.DatabaseBytes,
-        WalBytes = storage.WalBytes,
-        ShmBytes = storage.ShmBytes,
         TotalBytes = storage.TotalBytes,
         EntryCount = storage.EntryCount
     };

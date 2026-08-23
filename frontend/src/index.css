@@ -139,6 +139,21 @@ pre {
   width: 1.5rem;
 }
 
+.log-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.log-collapse-toggle .bi {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
 .body-tree {
   overflow: hidden;
 }

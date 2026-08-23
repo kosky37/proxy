@@ -53,14 +53,10 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         var path = Path.Combine(folderPath, "logs.db");
         var count = await db.Logs.CountAsync(cancellationToken);
         var databaseBytes = FileSize(path);
-        var walBytes = FileSize(path + "-wal");
-        var shmBytes = FileSize(path + "-shm");
         return new LogStorageInfo
         {
             DatabaseBytes = databaseBytes,
-            WalBytes = walBytes,
-            ShmBytes = shmBytes,
-            TotalBytes = databaseBytes + walBytes + shmBytes,
+            TotalBytes = databaseBytes,
             EntryCount = count
         };
     }
@@ -315,7 +311,17 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         return logs;
     }
 
-    private static long FileSize(string path) => File.Exists(path) ? new FileInfo(path).Length : 0;
+    private static long FileSize(string path)
+    {
+        try
+        {
+            return new FileInfo(path).Length;
+        }
+        catch (IOException)
+        {
+            return 0;
+        }
+    }
 
     private static string ConnectionString(string path) =>
         $"Data Source={path};Cache=Shared;Pooling=False;Mode=ReadWriteCreate";
