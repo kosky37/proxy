@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
 import { formatBytes } from '../format'
 import { modeBadge } from '../modeBadge'
@@ -22,12 +22,11 @@ interface Props {
   mocks: MockDto[]
   onOpenLog: (id: number) => void
   onOpenMock: (mock: MockDto) => void
-  onPausedChange?: (paused: boolean) => void
 }
 
 const frozenQuery = { refetchOnFocus: false, refetchOnReconnect: false } as const
 
-export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPausedChange }: Props) {
+export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Props) {
   const [paused, setPaused] = useState(false)
   const [pausedAt, setPausedAt] = useState<number | null>(null)
   const [page, setPage] = useState(0)
@@ -49,15 +48,10 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
     [windowPreset, pausedAt],
   )
 
-  const liveStorage = useGetLogStorageQuery(proxyId, {
-    skip: !active || !proxyId || paused,
-    pollingInterval: 2000,
+  const storage = useGetLogStorageQuery(proxyId, {
+    skip: !active || !proxyId,
+    pollingInterval: 60_000,
   })
-  const pausedStorage = useGetLogStorageQuery(proxyId, {
-    skip: !active || !proxyId || !paused,
-    ...frozenQuery,
-  })
-  const storage = paused ? pausedStorage : liveStorage
 
   const timeline = useGetLogTimelineQuery(
     { proxyId, ...windowRange, buckets: 80 },
@@ -81,11 +75,6 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
   const logs = paused ? pausedLogs : liveLogs
   const [clearLogs, clearState] = useClearLogsMutation()
 
-  useEffect(() => {
-    onPausedChange?.(paused)
-    return () => onPausedChange?.(false)
-  }, [paused, onPausedChange])
-
   const total = logs.data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const showingFrom = total === 0 ? 0 : (paused ? page * PAGE_SIZE : 0) + 1
@@ -95,7 +84,6 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
     setPaused(true)
     setPausedAt(Date.now())
     setPage(0)
-    onPausedChange?.(true)
   }
 
   const selectRange = (from: string, to: string) => {
@@ -111,7 +99,6 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
     setPausedAt(null)
     setRange(null)
     setPage(0)
-    onPausedChange?.(false)
   }
 
   const clear = async (selected: boolean) => {

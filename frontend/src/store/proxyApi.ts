@@ -12,7 +12,6 @@ import type {
   MockDto,
   ProxyDetailDto,
   ProxyListItemDto,
-  ProxyStatsDto,
   UploadedCertificateFileDto,
   UpsertProxyRequest,
 } from './types'
@@ -36,7 +35,7 @@ export const proxyApi = emptySplitApi.injectEndpoints({
     }),
     updateProxy: build.mutation<ProxyDetailDto, { id: string; body: UpsertProxyRequest }>({
       query: ({ id, body }) => ({ url: `/api/proxies/${id}`, method: 'PUT', body }),
-      invalidatesTags: ['Proxies', 'Stats'],
+      invalidatesTags: ['Proxies'],
     }),
     deleteProxy: build.mutation<void, string>({
       query: (id) => ({ url: `/api/proxies/${id}`, method: 'DELETE' }),
@@ -167,15 +166,11 @@ export const proxyApi = emptySplitApi.injectEndpoints({
         method: 'DELETE',
         params,
       }),
-      invalidatesTags: ['Logs', 'Stats'],
-    }),
-    getStats: build.query<ProxyStatsDto, string>({
-      query: (proxyId) => `/api/proxies/${proxyId}/stats`,
-      providesTags: ['Stats'],
+      invalidatesTags: ['Logs'],
     }),
     sendManualRequest: build.mutation<LogDetailDto, { proxyId: string; body: ManualSendRequestDto }>({
       query: ({ proxyId, body }) => ({ url: `/api/proxies/${proxyId}/send`, method: 'POST', body }),
-      invalidatesTags: ['Logs', 'Stats'],
+      invalidatesTags: ['Logs'],
     }),
   }),
 })
@@ -207,6 +202,5 @@ export const {
   useGetLogStorageQuery,
   useGetLogTimelineQuery,
   useClearLogsMutation,
-  useGetStatsQuery,
   useSendManualRequestMutation,
 } = proxyApi

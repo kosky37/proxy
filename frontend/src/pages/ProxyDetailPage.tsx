@@ -31,7 +31,6 @@ import {
   useGetLogQuery,
   useGetMocksQuery,
   useGetProxyQuery,
-  useGetStatsQuery,
   useSetMocksEnabledMutation,
   useToggleMockMutation,
   useUpdateIgnoreMutation,
@@ -49,12 +48,6 @@ export function ProxyDetailPage() {
   const ignores = useGetIgnoresQuery(id)
   const certificates = useGetCertificatesQuery()
   const [tab, setTab] = useState<Tab>('settings')
-  const [logsPaused, setLogsPaused] = useState(false)
-  const stats = useGetStatsQuery(id)
-  useGetStatsQuery(id, {
-    skip: tab !== 'logs' || logsPaused,
-    pollingInterval: 2000,
-  })
   const [form, setForm] = useState<UpsertProxyRequest | null>(null)
   const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
   const [editingExisting, setEditingExisting] = useState(false)
@@ -153,16 +146,6 @@ export function ProxyDetailPage() {
           onChange={(event) => setMocksEnabled({ id, mocksEnabled: event.target.checked })}
         />
       </Stack>
-
-      {stats.data && (
-        <Row className="g-3 mb-3">
-          <Stat label="Requests" value={stats.data.totalRequests} />
-          <Stat label="Mocks" value={stats.data.mockRequests} />
-          <Stat label="Passthrough" value={stats.data.passthroughRequests} />
-          <Stat label="Manual" value={stats.data.manualRequests} />
-          <Stat label="Avg ms" value={Math.round(stats.data.averageDurationMs)} />
-        </Row>
-      )}
 
       <Nav variant="tabs" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'settings')} className="mb-3">
         <Nav.Item>
@@ -470,7 +453,6 @@ export function ProxyDetailPage() {
           mocks={mocks.data ?? []}
           onOpenLog={setLogId}
           onOpenMock={openExistingMock}
-          onPausedChange={setLogsPaused}
         />
       )}
 
@@ -510,19 +492,6 @@ function MockIcon({
     <OverlayTrigger overlay={<Tooltip>{title}</Tooltip>}>
       <i className={`bi ${icon} ${on ? activeClass : 'is-off'}`} aria-label={title} />
     </OverlayTrigger>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <Col md={2}>
-      <Card>
-        <Card.Body>
-          <div>{label}</div>
-          <Card.Title className="mb-0">{value}</Card.Title>
-        </Card.Body>
-      </Card>
-    </Col>
   )
 }
 

@@ -141,16 +141,6 @@ export interface ManualSendRequestDto {
   protocol: string
 }
 
-export interface ProxyStatsDto {
-  totalRequests: number
-  mockRequests: number
-  passthroughRequests: number
-  manualRequests: number
-  averageDurationMs: number
-  lastStatusCode?: number | null
-  lastRequestUtc?: string | null
-}
-
 export interface LogQueryArgs {
   proxyId: string
   path?: string

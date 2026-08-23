@@ -156,17 +156,6 @@ public sealed class LogDetailDto : LogListItemDto
     public string? ResponseBody { get; set; }
 }
 
-public sealed class ProxyStatsDto
-{
-    public long TotalRequests { get; set; }
-    public long MockRequests { get; set; }
-    public long PassthroughRequests { get; set; }
-    public long ManualRequests { get; set; }
-    public double AverageDurationMs { get; set; }
-    public int? LastStatusCode { get; set; }
-    public DateTimeOffset? LastRequestUtc { get; set; }
-}
-
 public sealed class LogStorageDto
 {
     public long DatabaseBytes { get; set; }
@@ -345,17 +334,6 @@ public static class DtoMapper
             StartUtc = item.StartUtc,
             Count = item.Count
         }).ToList()
-    };
-
-    public static ProxyStatsDto ToDto(ProxyStats stats) => new()
-    {
-        TotalRequests = stats.TotalRequests,
-        MockRequests = stats.MockRequests,
-        PassthroughRequests = stats.PassthroughRequests,
-        ManualRequests = stats.ManualRequests,
-        AverageDurationMs = stats.AverageDurationMs,
-        LastStatusCode = stats.LastStatusCode,
-        LastRequestUtc = stats.LastRequestUtc
     };
 
     private static ListenDto ToDto(ListenConfig listen) => new()

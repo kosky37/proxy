@@ -71,10 +71,6 @@ public class ManualRequestTests
         using var logs = JsonDocument.Parse(logsJson);
         logs.RootElement.GetProperty("total").GetInt32().Should().BeGreaterThanOrEqualTo(1);
 
-        using var statsResponse = await api.GetAsync("/api/proxies/manual/stats");
-        using var stats = JsonDocument.Parse(await statsResponse.Content.ReadAsStringAsync());
-        stats.RootElement.GetProperty("manualRequests").GetInt32().Should().BeGreaterThanOrEqualTo(1);
-
         await downstream.StopAsync();
         await downstream.DisposeAsync();
     }

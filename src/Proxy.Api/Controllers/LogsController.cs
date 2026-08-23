@@ -128,21 +128,6 @@ public sealed class LogsController : ControllerBase
         return entry is null ? NotFound() : Ok(DtoMapper.ToDetail(entry));
     }
 
-    [HttpGet("stats")]
-    [ProducesResponseType(typeof(ProxyStatsDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ProxyStatsDto>> Stats(string proxyId, CancellationToken cancellationToken)
-    {
-        var proxy = _store.Get(proxyId);
-        if (proxy is null)
-        {
-            return NotFound();
-        }
-
-        var stats = await _logs.GetStatsAsync(proxyId, proxy.FolderPath, cancellationToken);
-        return Ok(DtoMapper.ToDto(stats));
-    }
-
     private static RequestProtocol? ParseProtocol(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

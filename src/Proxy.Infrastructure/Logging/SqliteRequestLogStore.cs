@@ -46,33 +46,6 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         return record?.ToEntry();
     }
 
-    public async Task<ProxyStats> GetStatsAsync(string proxyId, string folderPath, CancellationToken cancellationToken = default)
-    {
-        await using var db = Create(proxyId, folderPath);
-        var logs = db.Logs.AsNoTracking();
-        var total = await logs.CountAsync(cancellationToken);
-        if (total == 0)
-        {
-            return new ProxyStats();
-        }
-
-        var mockRequests = await logs.CountAsync(item => item.Mode == nameof(RequestMode.Mock), cancellationToken);
-        var manualRequests = await logs.CountAsync(item => item.Mode == nameof(RequestMode.Manual), cancellationToken);
-        var average = await logs.AverageAsync(item => (double)item.DurationMs, cancellationToken);
-        var last = await logs.OrderByDescending(item => item.TimestampUtc).ThenByDescending(item => item.Id).FirstAsync(cancellationToken);
-
-        return new ProxyStats
-        {
-            TotalRequests = total,
-            MockRequests = mockRequests,
-            PassthroughRequests = total - mockRequests - manualRequests,
-            ManualRequests = manualRequests,
-            AverageDurationMs = average,
-            LastStatusCode = last.StatusCode,
-            LastRequestUtc = last.TimestampUtc
-        };
-    }
-
     public async Task<LogStorageInfo> GetStorageAsync(string proxyId, string folderPath, CancellationToken cancellationToken = default)
     {
         await using var db = Create(proxyId, folderPath);
