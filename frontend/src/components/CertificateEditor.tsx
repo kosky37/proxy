@@ -35,7 +35,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
       return
     }
 
-    const uploaded = await upload(file).unwrap()
+    const uploaded = await upload({ file, name: certificate.name }).unwrap()
     setCertificate((current) => ({ ...current, pfxPath: uploaded.pfxPath ?? '' }))
   }
 
@@ -85,7 +85,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                 <InputGroup>
                   <Form.Control
                     required
-                    placeholder="certs/client.pfx"
+                    placeholder="client.pfx"
                     value={certificate.pfxPath ?? ''}
                     onChange={(event) => setCertificate({ ...certificate, pfxPath: event.target.value })}
                   />

@@ -13,10 +13,18 @@ public class FolderStoreTests
     [Fact]
     public void Create_update_toggle_and_reload_from_disk()
     {
-        var root = Directory.CreateTempSubdirectory("proxy-store-").FullName;
+        var workspace = Directory.CreateTempSubdirectory("proxy-store-").FullName;
+        var root = Path.Combine(workspace, "proxies");
+        var certificatesRoot = Path.Combine(workspace, "certificates");
+        Directory.CreateDirectory(root);
         try
         {
-            var options = Options.Create(new AppOptions { DataRoot = root, MockDisablePrefix = "_" });
+            var options = Options.Create(new AppOptions
+            {
+                DataRoot = root,
+                CertificatesRoot = certificatesRoot,
+                MockDisablePrefix = "_"
+            });
             var store = new ProxyFolderStore(options, NullLogger<ProxyFolderStore>.Instance);
 
             var created = store.Create("demo", new ProxyDefinition
@@ -68,7 +76,9 @@ public class FolderStoreTests
                 Password = "secret"
             });
             certificate.Name.Should().Be("gateway-client");
-            File.Exists(Path.Combine(root, "certificates", "gateway-client.json")).Should().BeTrue();
+            certificate.PfxPath.Should().Be("client.pfx");
+            File.Exists(Path.Combine(certificatesRoot, "gateway-client.json")).Should().BeTrue();
+            File.Exists(Path.Combine(root, "certificates", "gateway-client.json")).Should().BeFalse();
 
             store.Update("demo", new ProxyDefinition
             {
@@ -103,7 +113,7 @@ public class FolderStoreTests
         }
         finally
         {
-            Directory.Delete(root, recursive: true);
+            Directory.Delete(workspace, recursive: true);
         }
     }
 }

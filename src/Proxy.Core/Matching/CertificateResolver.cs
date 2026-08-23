@@ -12,16 +12,25 @@ public static class CertificateResolver
         Resolve(catalog, proxy.Definition.Listen.ServerCertificateId, CertificateUsage.Server)
         ?? FromLegacy(proxy.Definition.Listen.ServerCertificate, CertificateUsage.Server);
 
-    public static string? ResolveFilePath(string dataRoot, CertificateDefinition? certificate)
+    public static string? ResolveFilePath(string certificatesRoot, CertificateDefinition? certificate)
     {
         if (string.IsNullOrWhiteSpace(certificate?.PfxPath))
         {
             return null;
         }
 
-        return Path.IsPathRooted(certificate.PfxPath)
-            ? certificate.PfxPath
-            : Path.GetFullPath(Path.Combine(dataRoot, certificate.PfxPath));
+        if (Path.IsPathRooted(certificate.PfxPath))
+        {
+            return certificate.PfxPath;
+        }
+
+        var relative = certificate.PfxPath.Replace('\\', '/');
+        if (relative.StartsWith("certs/", StringComparison.OrdinalIgnoreCase))
+        {
+            relative = relative["certs/".Length..];
+        }
+
+        return Path.GetFullPath(Path.Combine(certificatesRoot, relative));
     }
 
     private static CertificateDefinition? Resolve(IEnumerable<CertificateDefinition> catalog, string? id, CertificateUsage type)

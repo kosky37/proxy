@@ -21,51 +21,70 @@ public sealed class ProxyConfigWatcher : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Directory.CreateDirectory(_options.Value.DataRoot);
-        using var watcher = new FileSystemWatcher(_options.Value.DataRoot)
-        {
-            IncludeSubdirectories = true,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
-            EnableRaisingEvents = true
-        };
+        var roots = new[] { _options.Value.DataRoot, _options.Value.CertificatesRoot }
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        var reloadRequested = new CancellationTokenSource();
-        watcher.Changed += (_, args) => OnChange(args.FullPath, reloadRequested);
-        watcher.Created += (_, args) => OnChange(args.FullPath, reloadRequested);
-        watcher.Deleted += (_, args) => OnChange(args.FullPath, reloadRequested);
-        watcher.Renamed += (_, args) => OnChange(args.FullPath, reloadRequested);
+        var watchers = new List<FileSystemWatcher>();
+        foreach (var root in roots)
+        {
+            Directory.CreateDirectory(root);
+            var watcher = new FileSystemWatcher(root)
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
+                EnableRaisingEvents = true
+            };
+            watcher.Changed += (_, args) => OnChange(args.FullPath);
+            watcher.Created += (_, args) => OnChange(args.FullPath);
+            watcher.Deleted += (_, args) => OnChange(args.FullPath);
+            watcher.Renamed += (_, args) => OnChange(args.FullPath);
+            watchers.Add(watcher);
+        }
 
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
         var pendingUntil = DateTime.MinValue;
         var generationAtRequest = _store.WriteGeneration;
 
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        try
         {
-            if (pendingUntil == DateTime.MinValue || DateTime.UtcNow < pendingUntil)
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                continue;
-            }
+                if (pendingUntil == DateTime.MinValue || DateTime.UtcNow < pendingUntil)
+                {
+                    continue;
+                }
 
-            pendingUntil = DateTime.MinValue;
-            if (generationAtRequest != _store.WriteGeneration)
-            {
-                continue;
-            }
+                pendingUntil = DateTime.MinValue;
+                if (generationAtRequest != _store.WriteGeneration)
+                {
+                    continue;
+                }
 
-            try
-            {
-                _store.Reload();
-                _logger.LogInformation("Reloaded proxy configuration from {DataRoot}", _options.Value.DataRoot);
+                try
+                {
+                    _store.Reload();
+                    _logger.LogInformation("Reloaded proxy configuration from {DataRoot}", _options.Value.DataRoot);
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogError(exception, "Failed to reload proxy configuration");
+                }
             }
-            catch (Exception exception)
+        }
+        finally
+        {
+            foreach (var watcher in watchers)
             {
-                _logger.LogError(exception, "Failed to reload proxy configuration");
+                watcher.Dispose();
             }
         }
 
         return;
 
-        void OnChange(string path, CancellationTokenSource _)
+        void OnChange(string path)
         {
             if (ShouldIgnore(path))
             {

@@ -19,6 +19,7 @@ public static class DependencyInjection
             .PostConfigure(options =>
             {
                 options.DataRoot = DataRootResolver.Resolve(options.DataRoot, contentRoot);
+                options.CertificatesRoot = DataRootResolver.ResolveSibling(options.DataRoot, options.CertificatesRoot);
             });
 
         services.AddSingleton<ProxyFolderStore>();

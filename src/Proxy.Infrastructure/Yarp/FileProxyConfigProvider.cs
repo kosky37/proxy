@@ -16,7 +16,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
     {
         _store = store;
         _listenUrl = listenUrl;
-        _config = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.DataRoot);
+        _config = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.CertificatesRoot);
         _store.Changed += OnStoreChanged;
     }
 
@@ -28,7 +28,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
 
     public void Update()
     {
-        var next = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.DataRoot);
+        var next = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.CertificatesRoot);
         var previous = _config;
         _config = next;
         previous.SignalChange();
@@ -38,7 +38,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
         IReadOnlyList<LoadedProxy> proxies,
         string? listenUrl,
         IReadOnlyList<CertificateDefinition> certificates,
-        string dataRoot)
+        string certificatesRoot)
     {
         var routes = new List<RouteConfig>();
         var clusters = new List<ClusterConfig>();
@@ -58,7 +58,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
             };
 
             var clientCert = CertificateResolver.ResolveClient(proxy, certificates);
-            var clientPath = CertificateResolver.ResolveFilePath(dataRoot, clientCert);
+            var clientPath = CertificateResolver.ResolveFilePath(certificatesRoot, clientCert);
             if (!string.IsNullOrWhiteSpace(clientPath) && File.Exists(clientPath))
             {
                 metadata["clientCertPath"] = clientPath;

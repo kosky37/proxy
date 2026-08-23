@@ -6,15 +6,22 @@ namespace Proxy.Tests;
 
 public sealed class ProxyApiFactory : WebApplicationFactory<Program>
 {
-    public string DataRoot { get; } = Directory.CreateTempSubdirectory("proxy-tests-").FullName;
+    public string Workspace { get; } = Directory.CreateTempSubdirectory("proxy-tests-").FullName;
+
+    public string DataRoot => Path.Combine(Workspace, "proxies");
+
+    public string CertificatesRoot => Path.Combine(Workspace, "certificates");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        Directory.CreateDirectory(DataRoot);
+        Directory.CreateDirectory(CertificatesRoot);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["App:DataRoot"] = DataRoot
+                ["App:DataRoot"] = DataRoot,
+                ["App:CertificatesRoot"] = CertificatesRoot
             });
         });
         builder.UseEnvironment("Development");
@@ -25,7 +32,7 @@ public sealed class ProxyApiFactory : WebApplicationFactory<Program>
         base.Dispose(disposing);
         try
         {
-            Directory.Delete(DataRoot, recursive: true);
+            Directory.Delete(Workspace, recursive: true);
         }
         catch (IOException)
         {

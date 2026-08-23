@@ -7,6 +7,7 @@ public interface IProxyConfigStore
     event EventHandler? Changed;
 
     string DataRoot { get; }
+    string CertificatesRoot { get; }
     IReadOnlyList<LoadedProxy> GetAll();
     LoadedProxy? Get(string id);
     LoadedProxy Create(string id, ProxyDefinition definition);

@@ -60,7 +60,7 @@ public sealed class ManualRequestSender
             request.Query);
 
         using var handler = new SocketsHttpHandler();
-        DestinationTls.Configure(handler, proxy, _store.GetCertificates(), _store.DataRoot);
+        DestinationTls.Configure(handler, proxy, _store.GetCertificates(), _store.CertificatesRoot);
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(2) };
 
         using var message = new HttpRequestMessage(new HttpMethod(method), url);

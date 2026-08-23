@@ -13,7 +13,7 @@ public static class DataRootResolver
         while (directory is not null)
         {
             var candidate = Path.Combine(directory.FullName, configured);
-            if (Directory.Exists(candidate) || File.Exists(Path.Combine(directory.FullName, "Proxy.sln")))
+            if (Directory.Exists(candidate) || File.Exists(Path.Combine(directory.FullName, "Proxy.slnx")))
             {
                 return Path.GetFullPath(Path.Combine(directory.FullName, configured));
             }
@@ -22,5 +22,18 @@ public static class DataRootResolver
         }
 
         return Path.GetFullPath(Path.Combine(contentRoot, configured));
+    }
+
+    public static string ResolveSibling(string dataRoot, string configured)
+    {
+        if (Path.IsPathRooted(configured))
+        {
+            return Path.GetFullPath(configured);
+        }
+
+        var parent = Path.GetDirectoryName(Path.GetFullPath(dataRoot));
+        return string.IsNullOrEmpty(parent)
+            ? Path.GetFullPath(configured)
+            : Path.GetFullPath(Path.Combine(parent, configured));
     }
 }

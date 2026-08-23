@@ -10,7 +10,7 @@ public static class DestinationTls
         SocketsHttpHandler handler,
         LoadedProxy proxy,
         IReadOnlyList<CertificateDefinition> catalog,
-        string dataRoot)
+        string certificatesRoot)
     {
         if (proxy.Definition.Destination.AcceptAnyServerCertificate)
         {
@@ -18,7 +18,7 @@ public static class DestinationTls
         }
 
         var cert = CertificateResolver.ResolveClient(proxy, catalog);
-        var path = CertificateResolver.ResolveFilePath(dataRoot, cert);
+        var path = CertificateResolver.ResolveFilePath(certificatesRoot, cert);
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
             return;

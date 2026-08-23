@@ -92,7 +92,7 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
 
             foreach (var (listenUrl, proxies) in desired)
             {
-                var certKey = ServerCertKey(proxies, _store.GetCertificates(), _store.DataRoot);
+                var certKey = ServerCertKey(proxies, _store.GetCertificates(), _store.CertificatesRoot);
                 if (_hosts.TryGetValue(listenUrl, out var host))
                 {
                     if (host.ServerCertKey == certKey)
@@ -129,7 +129,7 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
         builder.Logging.AddProvider(new ForwardingLoggerProvider(_loggerFactory));
         builder.WebHost.SuppressStatusMessages(true);
         builder.WebHost.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
-        builder.WebHost.ConfigureKestrel(options => ConfigureKestrel(options, uri, LoadServerCertificate(proxies, _store.GetCertificates(), _store.DataRoot)));
+        builder.WebHost.ConfigureKestrel(options => ConfigureKestrel(options, uri, LoadServerCertificate(proxies, _store.GetCertificates(), _store.CertificatesRoot)));
 
         builder.Services.AddSingleton(_store);
         builder.Services.AddSingleton(_logs);

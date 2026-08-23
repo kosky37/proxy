@@ -123,10 +123,13 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       }),
       invalidatesTags: ['Certificates', 'Proxies'],
     }),
-    uploadCertificate: build.mutation<UploadedCertificateFileDto, File>({
-      query: (file) => {
+    uploadCertificate: build.mutation<UploadedCertificateFileDto, { file: File; name?: string }>({
+      query: ({ file, name }) => {
         const body = new FormData()
         body.append('file', file)
+        if (name?.trim()) {
+          body.append('name', name.trim())
+        }
         return { url: '/api/certificates/file', method: 'POST', body }
       },
     }),

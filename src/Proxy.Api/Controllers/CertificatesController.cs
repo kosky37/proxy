@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Proxy.Api.Contracts;
 using Proxy.Core.Contracts;
 using Proxy.Core.Storage;
-using Proxy.Infrastructure.Store;
 
 namespace Proxy.Api.Controllers;
 
@@ -26,28 +25,22 @@ public sealed class CertificatesController : ControllerBase
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadedCertificateFileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<UploadedCertificateFileDto>> UploadFile(IFormFile file, CancellationToken cancellationToken)
+    public async Task<ActionResult<UploadedCertificateFileDto>> UploadFile(IFormFile file, [FromForm] string? name, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
         {
             return BadRequest(new { message = "Select a certificate file." });
         }
 
-        var fileName = MockFileNames.Sanitize(Path.GetFileName(file.FileName));
-        if (!Path.HasExtension(fileName))
-        {
-            fileName += ".pfx";
-        }
-
-        var certsFolder = Path.Combine(_store.DataRoot, ProxyFolderStore.CertsFolderName);
-        Directory.CreateDirectory(certsFolder);
-        var fullPath = Path.Combine(certsFolder, fileName);
+        Directory.CreateDirectory(_store.CertificatesRoot);
+        var fileName = UniqueFileName(_store.CertificatesRoot, name, file.FileName);
+        var fullPath = Path.Combine(_store.CertificatesRoot, fileName);
         await using (var stream = System.IO.File.Create(fullPath))
         {
             await file.CopyToAsync(stream, cancellationToken);
         }
 
-        return Ok(new UploadedCertificateFileDto { PfxPath = Path.Combine(ProxyFolderStore.CertsFolderName, fileName).Replace('\\', '/') });
+        return Ok(new UploadedCertificateFileDto { PfxPath = fileName });
     }
 
     [HttpPost]
@@ -94,6 +87,44 @@ public sealed class CertificatesController : ControllerBase
         catch (KeyNotFoundException)
         {
             return NotFound();
+        }
+    }
+
+    private static string UniqueFileName(string directory, string? certificateName, string originalFileName)
+    {
+        var extension = Path.GetExtension(originalFileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            extension = ".pfx";
+        }
+
+        var stem = SafeStem(certificateName) ?? SafeStem(Path.GetFileNameWithoutExtension(originalFileName)) ?? "certificate";
+
+        string fileName;
+        do
+        {
+            fileName = $"{stem}-{Guid.NewGuid().ToString("N")[..8]}{extension}";
+        }
+        while (System.IO.File.Exists(Path.Combine(directory, fileName)));
+
+        return fileName;
+    }
+
+    private static string? SafeStem(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            var stem = MockFileNames.Sanitize(value);
+            return string.IsNullOrWhiteSpace(stem) ? null : stem;
+        }
+        catch (ArgumentException)
+        {
+            return null;
         }
     }
 }
