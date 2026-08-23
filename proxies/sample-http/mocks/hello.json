@@ -14,7 +14,8 @@
     "statusCode": 200,
     "contentType": "application/json",
     "body": "{ \u0022message\u0022: \u0022mocked hello\u0022 }",
-    "delayMs": 0
+    "delayMs": 0,
+    "block": false
   },
   "fileName": "",
   "enabled": true

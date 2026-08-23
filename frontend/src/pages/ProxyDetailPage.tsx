@@ -7,15 +7,18 @@ import {
   Col,
   Form,
   Nav,
+  OverlayTrigger,
   Row,
   Stack,
   Table,
+  Tooltip,
 } from 'react-bootstrap'
 import { Link, useParams } from 'react-router-dom'
 import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { ManualSendPanel } from '../components/ManualSendPanel'
 import { MockEditor } from '../components/MockEditor'
+import { formatBytes, hasAdvancedMatch } from '../format'
 import { mockFromLog } from '../mockFromLog'
 import { modeBadge } from '../modeBadge'
 import {
@@ -441,20 +444,24 @@ export function ProxyDetailPage() {
                 <th>Time</th>
                 <th>Type</th>
                 <th>Mode</th>
-                <th>Method</th>
-                <th>Path</th>
+                <th>Request</th>
                 <th>Status</th>
-                <th>ms</th>
               </tr>
             </thead>
             <tbody>
               {logs.data?.items.map((item) => (
                 <tr key={item.id} role="button" onClick={() => setLogId(item.id)}>
-                  <td>{new Date(item.timestampUtc).toLocaleString()}</td>
+                  <td>
+                    <div>{new Date(item.timestampUtc).toLocaleString()}</div>
+                    <div className="row-meta">{item.durationMs} ms</div>
+                  </td>
                   <td>
                     <Badge bg={item.protocol === 'soap' ? 'warning' : 'primary'} text={item.protocol === 'soap' ? 'dark' : undefined}>
                       {item.protocol === 'soap' ? 'SOAP' : 'REST'}
                     </Badge>
+                    {item.protocol === 'soap' && (
+                      <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>
+                    )}
                   </td>
                   <td>
                     <Badge bg={modeBadge(item.mode).bg}>{modeBadge(item.mode).label}</Badge>
@@ -478,15 +485,25 @@ export function ProxyDetailPage() {
                             {item.mockName}
                           </Button>
                         ) : (
-                          item.mockName
+                          <span className="row-meta">{item.mockName}</span>
                         )}
                       </div>
                     )}
                   </td>
-                  <td>{item.method}</td>
-                  <td>{item.path}</td>
-                  <td>{item.statusCode}</td>
-                  <td>{item.durationMs}</td>
+                  <td>
+                    <div>
+                      <strong>{item.method}</strong> {item.path}
+                      {item.query && <span className="text-secondary">?{item.query}</span>}
+                    </div>
+                    <div className="row-meta">
+                      {item.contentType || 'no content-type'}
+                      {' · '}
+                      {formatBytes(item.requestBytes, item.requestBodyTruncated)}
+                      {' → '}
+                      {formatBytes(item.responseBytes, item.responseBodyTruncated)}
+                    </div>
+                  </td>
+                  <td>{item.statusCode ?? '-'}</td>
                 </tr>
               ))}
             </tbody>
@@ -512,6 +529,24 @@ export function ProxyDetailPage() {
         onCancel={() => setEditing(undefined)}
       />
     </>
+  )
+}
+
+function MockIcon({
+  on,
+  icon,
+  activeClass,
+  title,
+}: {
+  on: boolean
+  icon: string
+  activeClass: string
+  title: string
+}) {
+  return (
+    <OverlayTrigger overlay={<Tooltip>{title}</Tooltip>}>
+      <i className={`bi ${icon} ${on ? activeClass : 'is-off'}`} aria-label={title} />
+    </OverlayTrigger>
   )
 }
 
@@ -544,42 +579,92 @@ function MockTable({
       <thead>
         <tr>
           <th>Name</th>
+          <th>Methods</th>
           <th>Match</th>
+          <th>Flags</th>
           <th>Status</th>
-          <th>Delay</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {items.map((mock) => (
-          <tr key={mock.name}>
-            <td>
-              {mock.name}
-              <div>{mock.fileName}</div>
-            </td>
-            <td>
-              <code>{mock.match.path || mock.match.soapAction || mock.match.operation || '*'}</code>
-            </td>
-            <td>{mock.response.block ? 'Block' : mock.response.statusCode}</td>
-            <td>{mock.response.delayMs} ms</td>
-            <td className="text-end">
-              <Stack direction="horizontal" gap={1} className="justify-content-end">
-                <Button variant="outline-secondary" size="sm" onClick={() => onToggle(mock.name)}>
-                  {mock.enabled ? 'Disable' : 'Enable'}
-                </Button>
-                <Button variant="outline-primary" size="sm" onClick={() => onEdit(mock)}>
-                  Edit
-                </Button>
-                <Button variant="outline-danger" size="sm" onClick={() => onDelete(mock.name)}>
-                  Delete
-                </Button>
-              </Stack>
-            </td>
-          </tr>
-        ))}
+        {items.map((mock) => {
+          const delayed = (mock.response.delayMs ?? 0) > 0
+          const blocked = mock.response.block === true
+          const advanced = hasAdvancedMatch(mock.match)
+          const methods = mock.match.methods?.filter(Boolean) ?? []
+          return (
+            <tr key={mock.name} className={mock.enabled ? undefined : 'text-secondary'}>
+              <td>
+                {mock.name}
+                <div className="row-meta">{mock.fileName}</div>
+              </td>
+              <td>
+                {methods.length > 0 ? (
+                  <Stack direction="horizontal" gap={1} className="flex-wrap">
+                    {methods.map((method) => (
+                      <Badge key={method} bg="secondary">
+                        {method}
+                      </Badge>
+                    ))}
+                  </Stack>
+                ) : (
+                  <span className="row-meta">any</span>
+                )}
+              </td>
+              <td>
+                <code>{mock.match.path || mock.match.soapAction || mock.match.operation || '*'}</code>
+                {mock.match.pathMode && mock.match.pathMode !== 'exact' && (
+                  <div className="row-meta">{mock.match.pathMode}</div>
+                )}
+              </td>
+              <td>
+                <div className="mock-icons">
+                  <MockIcon
+                    on={mock.enabled}
+                    icon={mock.enabled ? 'bi-check-circle-fill' : 'bi-pause-circle'}
+                    activeClass={mock.enabled ? 'text-success' : 'text-secondary'}
+                    title={mock.enabled ? 'Enabled' : 'Disabled'}
+                  />
+                  <MockIcon
+                    on={delayed}
+                    icon="bi-hourglass-split"
+                    activeClass="text-warning"
+                    title={delayed ? `Delayed ${mock.response.delayMs} ms` : 'No delay'}
+                  />
+                  <MockIcon
+                    on={blocked}
+                    icon="bi-slash-circle"
+                    activeClass="text-danger"
+                    title={blocked ? 'Blocks the request' : 'Responds normally'}
+                  />
+                  <MockIcon
+                    on={advanced}
+                    icon="bi-sliders"
+                    activeClass="text-info"
+                    title={advanced ? 'Uses extra match rules' : 'Path matching only'}
+                  />
+                </div>
+              </td>
+              <td>{blocked ? 'Block' : mock.response.statusCode}</td>
+              <td className="text-end">
+                <Stack direction="horizontal" gap={1} className="justify-content-end">
+                  <Button variant="outline-secondary" size="sm" onClick={() => onToggle(mock.name)}>
+                    {mock.enabled ? 'Disable' : 'Enable'}
+                  </Button>
+                  <Button variant="outline-primary" size="sm" onClick={() => onEdit(mock)}>
+                    Edit
+                  </Button>
+                  <Button variant="outline-danger" size="sm" onClick={() => onDelete(mock.name)}>
+                    Delete
+                  </Button>
+                </Stack>
+              </td>
+            </tr>
+          )
+        })}
         {items.length === 0 && (
           <tr>
-            <td colSpan={5}>No mocks in this group.</td>
+            <td colSpan={6}>No mocks in this group.</td>
           </tr>
         )}
       </tbody>

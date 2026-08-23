@@ -108,15 +108,19 @@ export interface LogListItemDto {
   mode: string
   mockName?: string | null
   error?: string | null
+  contentType?: string | null
+  soapAction?: string | null
+  requestBytes?: number
+  responseBytes?: number
+  requestBodyTruncated?: boolean
+  responseBodyTruncated?: boolean
 }
 
 export interface LogDetailDto extends LogListItemDto {
   requestHeaders?: string | null
   requestBody?: string | null
-  requestBodyTruncated: boolean
   responseHeaders?: string | null
   responseBody?: string | null
-  responseBodyTruncated: boolean
 }
 
 export interface LogListDto {

@@ -1,4 +1,5 @@
 @import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
 
 body {
   min-height: 100vh;
@@ -7,4 +8,20 @@ body {
 pre {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.row-meta {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.mock-icons {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.mock-icons .is-off {
+  opacity: 0.28;
 }

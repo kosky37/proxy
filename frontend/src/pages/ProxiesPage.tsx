@@ -1,15 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  Col,
-  Form,
-  Row,
-  Stack,
-  Table,
-} from 'react-bootstrap'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 import {
   useCreateProxyMutation,
@@ -34,7 +24,14 @@ export function ProxiesPage() {
   const [createProxy, createState] = useCreateProxyMutation()
   const [deleteProxy] = useDeleteProxyMutation()
   const [setMocksEnabled] = useSetMocksEnabledMutation()
+  const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(emptyForm)
+
+  useEffect(() => {
+    if (showCreate) {
+      setForm(emptyForm)
+    }
+  }, [showCreate])
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -42,22 +39,25 @@ export function ProxiesPage() {
       ...form,
       id: form.id || undefined,
     }).unwrap()
-    setForm(emptyForm)
+    setShowCreate(false)
   }
 
   return (
     <>
       <Stack direction="horizontal" className="mb-3">
         <h1 className="h3 mb-0">Proxies</h1>
-        <Button variant="outline-secondary" size="sm" className="ms-auto" onClick={() => refetch()}>
-          Refresh
-        </Button>
+        <div className="ms-auto d-flex gap-2">
+          <Button variant="outline-secondary" size="sm" onClick={() => refetch()}>
+            Refresh
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>New proxy</Button>
+        </div>
       </Stack>
 
       {isLoading && <Alert variant="secondary">Loading…</Alert>}
       {error && <Alert variant="danger">Could not load proxies. Is the API running on port 5050?</Alert>}
 
-      <Table striped hover responsive className="align-middle mb-4">
+      <Table striped hover responsive className="align-middle">
         <thead>
           <tr>
             <th>Name</th>
@@ -110,12 +110,14 @@ export function ProxiesPage() {
         </tbody>
       </Table>
 
-      <Card>
-        <Card.Header>New proxy</Card.Header>
-        <Card.Body>
-          <Form onSubmit={onCreate}>
+      <Modal show={showCreate} onHide={() => setShowCreate(false)}>
+        <Form onSubmit={onCreate}>
+          <Modal.Header closeButton>
+            <Modal.Title>New proxy</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
             <Row className="g-3">
-              <Col md={3}>
+              <Col md={6}>
                 <Form.Group>
                   <Form.Label>Id</Form.Label>
                   <Form.Control
@@ -123,9 +125,10 @@ export function ProxiesPage() {
                     placeholder="folder-name"
                     onChange={(event) => setForm({ ...form, id: event.target.value })}
                   />
+                  <Form.Text>Leave empty to derive it from the name.</Form.Text>
                 </Form.Group>
               </Col>
-              <Col md={3}>
+              <Col md={6}>
                 <Form.Group>
                   <Form.Label>Name</Form.Label>
                   <Form.Control
@@ -135,7 +138,7 @@ export function ProxiesPage() {
                   />
                 </Form.Group>
               </Col>
-              <Col md={3}>
+              <Col xs={12}>
                 <Form.Group>
                   <Form.Label>Listen URL</Form.Label>
                   <Form.Control
@@ -145,7 +148,7 @@ export function ProxiesPage() {
                   />
                 </Form.Group>
               </Col>
-              <Col md={3}>
+              <Col xs={12}>
                 <Form.Group>
                   <Form.Label>Destination</Form.Label>
                   <Form.Control
@@ -157,15 +160,18 @@ export function ProxiesPage() {
                   />
                 </Form.Group>
               </Col>
-              <Col xs={12}>
-                <Button type="submit" disabled={createState.isLoading}>
-                  Create
-                </Button>
-              </Col>
             </Row>
-          </Form>
-        </Card.Body>
-      </Card>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createState.isLoading}>
+              Create
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </>
   )
 }

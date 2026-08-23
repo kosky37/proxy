@@ -135,16 +135,20 @@ public class LogListItemDto
     public required string Mode { get; set; }
     public string? MockName { get; set; }
     public string? Error { get; set; }
+    public string? ContentType { get; set; }
+    public string? SoapAction { get; set; }
+    public int RequestBytes { get; set; }
+    public int ResponseBytes { get; set; }
+    public bool RequestBodyTruncated { get; set; }
+    public bool ResponseBodyTruncated { get; set; }
 }
 
 public sealed class LogDetailDto : LogListItemDto
 {
     public string? RequestHeaders { get; set; }
     public string? RequestBody { get; set; }
-    public bool RequestBodyTruncated { get; set; }
     public string? ResponseHeaders { get; set; }
     public string? ResponseBody { get; set; }
-    public bool ResponseBodyTruncated { get; set; }
 }
 
 public sealed class ProxyStatsDto
@@ -251,7 +255,13 @@ public static class DtoMapper
         DurationMs = entry.DurationMs,
         Mode = entry.Mode.ToString().ToLowerInvariant(),
         MockName = entry.MockName,
-        Error = entry.Error
+        Error = entry.Error,
+        ContentType = LogSummary.ContentType(entry),
+        SoapAction = LogSummary.SoapAction(entry),
+        RequestBytes = LogSummary.RequestBytes(entry),
+        ResponseBytes = LogSummary.ResponseBytes(entry),
+        RequestBodyTruncated = entry.RequestBodyTruncated,
+        ResponseBodyTruncated = entry.ResponseBodyTruncated
     };
 
     public static LogDetailDto ToDetail(RequestLogEntry entry) => new()
@@ -267,6 +277,10 @@ public static class DtoMapper
         Mode = entry.Mode.ToString().ToLowerInvariant(),
         MockName = entry.MockName,
         Error = entry.Error,
+        ContentType = LogSummary.ContentType(entry),
+        SoapAction = LogSummary.SoapAction(entry),
+        RequestBytes = LogSummary.RequestBytes(entry),
+        ResponseBytes = LogSummary.ResponseBytes(entry),
         RequestHeaders = entry.RequestHeaders,
         RequestBody = entry.RequestBody,
         RequestBodyTruncated = entry.RequestBodyTruncated,

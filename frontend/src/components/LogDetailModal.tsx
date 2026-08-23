@@ -50,7 +50,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
                 title="Request"
                 headers={log.requestHeaders}
                 body={log.requestBody}
-                truncated={log.requestBodyTruncated}
+                truncated={log.requestBodyTruncated ?? false}
                 raw={raw}
               />
             </Col>
@@ -59,7 +59,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
                 title="Response"
                 headers={log.responseHeaders}
                 body={log.responseBody}
-                truncated={log.responseBodyTruncated}
+                truncated={log.responseBodyTruncated ?? false}
                 raw={raw}
               />
             </Col>
