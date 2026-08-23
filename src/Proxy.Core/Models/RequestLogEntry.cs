@@ -7,7 +7,7 @@ public sealed class RequestLogEntry
     public string Method { get; set; } = "";
     public string Path { get; set; } = "";
     public string? Query { get; set; }
-    public RequestProtocol Protocol { get; set; } = RequestProtocol.Rest;
+    public RequestProtocol Protocol { get; set; } = RequestProtocol.Other;
     public string? RequestHeaders { get; set; }
     public string? RequestBody { get; set; }
     public bool RequestBodyTruncated { get; set; }

@@ -196,7 +196,11 @@ public sealed class ProxyPipelineMiddleware
             Method = snapshot.Method,
             Path = snapshot.Path,
             Query = snapshot.Query.Count == 0 ? null : string.Join("&", snapshot.Query.Select(item => $"{item.Key}={item.Value}")),
-            Protocol = MockEngine.DetectProtocol(snapshot, mock),
+            Protocol = MockEngine.DetectProtocol(
+                snapshot,
+                mock,
+                responseBody,
+                context.Response.Headers.ToDictionary(item => item.Key, item => item.Value.ToString(), StringComparer.OrdinalIgnoreCase)),
             RequestHeaders = snapshot.Headers.HeadersToJson(),
             RequestBody = requestLimit.Text,
             RequestBodyTruncated = requestLimit.Exceeded,

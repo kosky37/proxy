@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Proxy.Api.Contracts;
 using Proxy.Core.Contracts;
+using Proxy.Core.Matching;
 using Proxy.Core.Models;
 
 namespace Proxy.Api.Controllers;
@@ -46,7 +47,7 @@ public sealed class LogsController : ControllerBase
             Path = path,
             Mode = Enum.TryParse<RequestMode>(mode, true, out var parsedMode) ? parsedMode : null,
             StatusCode = statusCode,
-            Protocol = Enum.TryParse<RequestProtocol>(protocol, true, out var parsedProtocol) ? parsedProtocol : null,
+            Protocol = ParseProtocol(protocol),
             Skip = skip,
             Take = take
         }, cancellationToken);
@@ -140,5 +141,20 @@ public sealed class LogsController : ControllerBase
 
         var stats = await _logs.GetStatsAsync(proxyId, proxy.FolderPath, cancellationToken);
         return Ok(DtoMapper.ToDto(stats));
+    }
+
+    private static RequestProtocol? ParseProtocol(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (value.Equals("rest", StringComparison.OrdinalIgnoreCase))
+        {
+            return RequestProtocol.Other;
+        }
+
+        return Enum.TryParse<RequestProtocol>(value, true, out var parsed) ? ContentKind.Normalize(parsed) : null;
     }
 }

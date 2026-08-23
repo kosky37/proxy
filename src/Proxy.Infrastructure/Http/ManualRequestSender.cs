@@ -48,10 +48,6 @@ public sealed class ManualRequestSender
         var method = string.IsNullOrWhiteSpace(request.Method) ? "GET" : request.Method.Trim().ToUpperInvariant();
         var path = string.IsNullOrWhiteSpace(request.Path) ? "/" : request.Path.Trim();
         var headers = new Dictionary<string, string>(request.Headers ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
-        var protocol = request.Protocol == RequestProtocol.Soap ||
-                       SoapEnvelope.LooksLikeSoap(headers, request.Body)
-            ? RequestProtocol.Soap
-            : RequestProtocol.Rest;
 
         var url = DestinationUrl.Build(
             proxy.Definition.Destination.Address,
@@ -103,7 +99,7 @@ public sealed class ManualRequestSender
             Method = method,
             Path = PathMatcher.Normalize(path),
             Query = string.IsNullOrWhiteSpace(request.Query) ? null : request.Query.Trim().TrimStart('?'),
-            Protocol = protocol,
+            Protocol = ContentKind.Detect(headers, request.Body, responseHeaders, responseBody),
             RequestHeaders = headers.HeadersToJson(),
             RequestBody = requestLimit.Text,
             RequestBodyTruncated = requestLimit.Exceeded,

@@ -85,6 +85,33 @@ public class RequestLogStoreTests
         }
     }
 
+    [Fact]
+    public async Task Filters_logs_by_classified_protocol()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
+        var store = new SqliteRequestLogStore();
+        try
+        {
+            await store.WriteAsync("demo", folder, Entry(DateTimeOffset.UtcNow, "/plain", "hello world"));
+            await store.WriteAsync("demo", folder, new RequestLogEntry
+            {
+                TimestampUtc = DateTimeOffset.UtcNow,
+                Method = "POST",
+                Path = "/json",
+                RequestBody = """{"user":{"id":42}}""",
+                RequestHeaders = """{"Content-Type":"application/json"}""",
+                Protocol = RequestProtocol.Json
+            });
+
+            var json = await store.QueryAsync("demo", folder, new LogQuery { Protocol = RequestProtocol.Json, Take = 50 });
+            json.Items.Should().ContainSingle(item => item.Path == "/json");
+        }
+        finally
+        {
+            DeleteFolder(folder);
+        }
+    }
+
     private static void DeleteFolder(string folder)
     {
         SqliteConnection.ClearAllPools();

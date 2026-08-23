@@ -22,8 +22,11 @@ public enum RequestMode
 
 public enum RequestProtocol
 {
-    Rest,
-    Soap
+    Other,
+    Soap,
+    Json,
+    Xml,
+    Rest
 }
 
 public enum CertificateUsage

@@ -1,6 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Proxy.Core.Contracts;
+using Proxy.Core.Matching;
 using Proxy.Core.Models;
 
 namespace Proxy.Infrastructure.Logging;
@@ -290,8 +291,17 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 
         if (query.Protocol is { } protocol)
         {
-            var value = protocol.ToString();
-            logs = logs.Where(item => item.Protocol == value);
+            var kind = ContentKind.Normalize(protocol);
+            if (kind == RequestProtocol.Other)
+            {
+                logs = logs.Where(item =>
+                    item.Protocol == nameof(RequestProtocol.Other) || item.Protocol == nameof(RequestProtocol.Rest));
+            }
+            else
+            {
+                var value = kind.ToString();
+                logs = logs.Where(item => item.Protocol == value);
+            }
         }
 
         return logs;

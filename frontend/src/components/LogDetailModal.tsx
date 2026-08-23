@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
+import { Badge, Button, Col, Form, Modal, OverlayTrigger, Row, Stack, Table, Tooltip } from 'react-bootstrap'
 import { formatBytes } from '../format'
 import { modeBadge } from '../modeBadge'
+import { parseBody, type ParsedField } from '../parseBody'
+import { protocolBadge } from '../protocolBadge'
 import type { LogDetailDto, MockDto } from '../store/types'
 import { CopyButton } from './CopyButton'
 
@@ -16,9 +18,10 @@ interface Props {
 
 export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, onCreateMock }: Props) {
   const [raw, setRaw] = useState(false)
+  const kind = protocolBadge(log?.protocol ?? '')
 
   return (
-    <Modal show={show} onHide={onClose} size="xl" scrollable onExited={() => setRaw(false)}>
+    <Modal show={show} onHide={onClose} dialogClassName="log-detail-modal" scrollable onExited={() => setRaw(false)}>
       <Modal.Header closeButton>
         <Modal.Title>
           {log?.method} {log?.path}
@@ -27,8 +30,8 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
       {log && (
         <Modal.Body>
           <Stack direction="horizontal" gap={2} className="mb-3 flex-wrap">
-            <Badge bg={log.protocol === 'soap' ? 'warning' : 'primary'} text={log.protocol === 'soap' ? 'dark' : undefined}>
-              {log.protocol === 'soap' ? 'SOAP' : 'REST'}
+            <Badge bg={kind.bg} text={kind.text}>
+              {kind.label}
             </Badge>
             <Badge bg={modeBadge(log.mode).bg}>{modeBadge(log.mode).label}</Badge>
             <Badge bg={statusVariant(log.statusCode)}>{log.statusCode ?? '-'}</Badge>
@@ -103,50 +106,20 @@ function HttpMessage({
   originalBytes?: number
   raw: boolean
 }) {
-  const parsed = parseHeaders(headers)
+  const headerFields = Object.entries(parseHeaders(headers)).map(([name, value]) => ({ name, value }))
+  const bodyFields = raw ? null : parseBody(body)
 
   return (
     <Stack gap={3}>
       <h2 className="h5 mb-0">{title}</h2>
-      <div>
-        <Stack direction="horizontal" className="mb-2">
-          <strong>Headers</strong>
-          <div className="ms-auto">
-            <CopyButton value={headers ?? ''} label="Copy headers" />
-          </div>
-        </Stack>
-        {raw ? (
-          <pre className="border rounded p-2 mb-0">{headers || '(none)'}</pre>
-        ) : (
-          <Table bordered size="sm" responsive>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(parsed).map(([name, value]) => (
-                <tr key={name}>
-                  <td>{name}</td>
-                  <td>
-                    <code>{value}</code>
-                  </td>
-                  <td>
-                    <CopyButton value={value} />
-                  </td>
-                </tr>
-              ))}
-              {Object.keys(parsed).length === 0 && (
-                <tr>
-                  <td colSpan={3}>No headers</td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        )}
-      </div>
+      <FieldBlock
+        title="Headers"
+        rawText={headers}
+        fields={headerFields}
+        raw={raw}
+        empty="No headers"
+        copyLabel="Copy headers"
+      />
       <div>
         <Stack direction="horizontal" className="mb-2">
           <strong>Body</strong>
@@ -159,14 +132,100 @@ function HttpMessage({
             <CopyButton value={body ?? ''} label="Copy body" />
           </div>
         </Stack>
-        <pre className="border rounded p-2 mb-0">
-          {body ||
-            (truncated
-              ? `Body not stored. Original size: ${formatBytes(originalBytes)}.`
-              : '(empty)')}
-        </pre>
+        {raw || !bodyFields ? (
+          <pre className="border rounded p-2 mb-0">
+            {body ||
+              (truncated ? `Body not stored. Original size: ${formatBytes(originalBytes)}.` : '(empty)')}
+          </pre>
+        ) : (
+          <FieldTable fields={bodyFields} empty="(empty)" />
+        )}
       </div>
     </Stack>
+  )
+}
+
+function FieldBlock({
+  title,
+  rawText,
+  fields,
+  raw,
+  empty,
+  copyLabel,
+}: {
+  title: string
+  rawText?: string | null
+  fields: ParsedField[]
+  raw: boolean
+  empty: string
+  copyLabel: string
+}) {
+  return (
+    <div>
+      <Stack direction="horizontal" className="mb-2">
+        <strong>{title}</strong>
+        <div className="ms-auto">
+          <CopyButton value={rawText ?? ''} label={copyLabel} />
+        </div>
+      </Stack>
+      {raw ? (
+        <pre className="border rounded p-2 mb-0">{rawText || '(none)'}</pre>
+      ) : (
+        <FieldTable fields={fields} empty={empty} />
+      )}
+    </div>
+  )
+}
+
+function FieldTable({ fields, empty }: { fields: ParsedField[]; empty: string }) {
+  return (
+    <Table bordered size="sm" className="log-headers-table mb-0">
+      <colgroup>
+        <col className="log-headers-name" />
+        <col />
+        <col className="log-headers-copy" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {fields.map((field) => (
+          <tr key={`${field.name}:${field.value}`}>
+            <td className="log-headers-value">
+              <TruncatedText value={field.name} />
+            </td>
+            <td className="log-headers-value">
+              <TruncatedText value={field.value} code />
+            </td>
+            <td className="text-center">
+              <CopyButton value={field.value} label={`Copy ${field.name}`} />
+            </td>
+          </tr>
+        ))}
+        {fields.length === 0 && (
+          <tr>
+            <td colSpan={3}>{empty}</td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
+  )
+}
+
+function TruncatedText({ value, code = false }: { value: string; code?: boolean }) {
+  const content = code ? <code>{value}</code> : value
+  if (!value) {
+    return content
+  }
+
+  return (
+    <OverlayTrigger overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}>
+      <span className="log-headers-text">{content}</span>
+    </OverlayTrigger>
   )
 }
 

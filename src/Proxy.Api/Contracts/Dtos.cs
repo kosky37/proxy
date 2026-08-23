@@ -1,3 +1,4 @@
+using Proxy.Core.Matching;
 using Proxy.Core.Models;
 
 namespace Proxy.Api.Contracts;
@@ -286,7 +287,7 @@ public static class DtoMapper
         Method = entry.Method,
         Path = entry.Path,
         Query = entry.Query,
-        Protocol = entry.Protocol.ToString().ToLowerInvariant(),
+        Protocol = ContentKind.Normalize(entry.Protocol).ToString().ToLowerInvariant(),
         StatusCode = entry.StatusCode,
         DurationMs = entry.DurationMs,
         Mode = entry.Mode.ToString().ToLowerInvariant(),
@@ -307,7 +308,7 @@ public static class DtoMapper
         Method = entry.Method,
         Path = entry.Path,
         Query = entry.Query,
-        Protocol = entry.Protocol.ToString().ToLowerInvariant(),
+        Protocol = ContentKind.Normalize(entry.Protocol).ToString().ToLowerInvariant(),
         StatusCode = entry.StatusCode,
         DurationMs = entry.DurationMs,
         Mode = entry.Mode.ToString().ToLowerInvariant(),

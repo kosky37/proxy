@@ -30,15 +30,17 @@ public sealed class MockEngine
         return null;
     }
 
-    public static RequestProtocol DetectProtocol(HttpRequestSnapshot request, MockDefinition? mock)
+    public static RequestProtocol DetectProtocol(
+        HttpRequestSnapshot request,
+        MockDefinition? mock,
+        string? responseBody = null,
+        IReadOnlyDictionary<string, string>? responseHeaders = null)
     {
-        if (mock is not null)
+        if (mock?.Type == MockType.Soap)
         {
-            return mock.Type == MockType.Soap ? RequestProtocol.Soap : RequestProtocol.Rest;
+            return RequestProtocol.Soap;
         }
 
-        return SoapEnvelope.LooksLikeSoap(request.Headers, request.Body)
-            ? RequestProtocol.Soap
-            : RequestProtocol.Rest;
+        return ContentKind.Detect(request.Headers, request.Body, responseHeaders, responseBody);
     }
 }

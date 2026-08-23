@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Badge, Button, Col, Form, Row, Stack, Table } from 'react-bootstrap'
+import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
 import { formatBytes } from '../format'
 import { modeBadge } from '../modeBadge'
+import { protocolBadge } from '../protocolBadge'
 import {
   useClearLogsMutation,
   useGetLogStorageQuery,
@@ -32,7 +33,17 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
   const [page, setPage] = useState(0)
   const [windowPreset, setWindowPreset] = useState<WindowPreset>('24h')
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
   const [filter, setFilter] = useState({ path: '', mode: '', protocol: '' })
+  const queryFilter = useMemo(
+    () => ({
+      path: filter.path || undefined,
+      mode: filter.mode || undefined,
+      protocol: filter.protocol || undefined,
+    }),
+    [filter],
+  )
+  const activeFilterCount = Object.values(queryFilter).filter(Boolean).length
   const windowRange = useMemo(
     () => timelineWindow(windowPreset, pausedAt ?? Date.now()),
     [windowPreset, pausedAt],
@@ -53,13 +64,13 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
     { skip: !active || !paused || !proxyId, ...frozenQuery },
   )
   const liveLogs = useGetLogsQuery(
-    { proxyId, ...filter, take: PAGE_SIZE },
+    { proxyId, ...queryFilter, take: PAGE_SIZE },
     { skip: !active || !proxyId || paused, pollingInterval: 2000 },
   )
   const pausedLogs = useGetLogsQuery(
     {
       proxyId,
-      ...filter,
+      ...queryFilter,
       from: range?.from,
       to: range?.to,
       skip: page * PAGE_SIZE,
@@ -202,45 +213,86 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
         </Alert>
       )}
 
-      <Row className="g-2 mb-3">
-        <Col md={4}>
-          <Form.Control
-            placeholder="Path contains"
-            value={filter.path}
-            onChange={(event) => {
-              setFilter({ ...filter, path: event.target.value })
-              setPage(0)
-            }}
-          />
-        </Col>
-        <Col md={3}>
-          <Form.Select
-            value={filter.mode}
-            onChange={(event) => {
-              setFilter({ ...filter, mode: event.target.value })
-              setPage(0)
-            }}
-          >
-            <option value="">Any mode</option>
-            <option value="mock">mock</option>
-            <option value="passthrough">passthrough</option>
-            <option value="manual">manual</option>
-          </Form.Select>
-        </Col>
-        <Col md={3}>
-          <Form.Select
-            value={filter.protocol}
-            onChange={(event) => {
-              setFilter({ ...filter, protocol: event.target.value })
+      <div className="mb-3">
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          onClick={() => setShowFilters((open) => !open)}
+          aria-expanded={showFilters}
+        >
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge bg="primary" className="ms-2">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
+        {activeFilterCount > 0 && (
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => {
+              setFilter({ path: '', mode: '', protocol: '' })
               setPage(0)
             }}
           >
-            <option value="">Any protocol</option>
-            <option value="rest">rest</option>
-            <option value="soap">soap</option>
-          </Form.Select>
-        </Col>
-      </Row>
+            Clear
+          </Button>
+        )}
+        <Collapse in={showFilters}>
+          <div className="log-filters mt-3">
+            <Row className="g-3">
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Path contains</Form.Label>
+                  <Form.Control
+                    value={filter.path}
+                    onChange={(event) => {
+                      setFilter({ ...filter, path: event.target.value })
+                      setPage(0)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Mode</Form.Label>
+                  <Form.Select
+                    value={filter.mode}
+                    onChange={(event) => {
+                      setFilter({ ...filter, mode: event.target.value })
+                      setPage(0)
+                    }}
+                  >
+                    <option value="">Any mode</option>
+                    <option value="mock">mock</option>
+                    <option value="passthrough">passthrough</option>
+                    <option value="manual">manual</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Type</Form.Label>
+                  <Form.Select
+                    value={filter.protocol}
+                    onChange={(event) => {
+                      setFilter({ ...filter, protocol: event.target.value })
+                      setPage(0)
+                    }}
+                  >
+                    <option value="">Any type</option>
+                    <option value="json">JSON</option>
+                    <option value="xml">XML</option>
+                    <option value="soap">SOAP</option>
+                    <option value="other">Other</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+          </div>
+        </Collapse>
+      </div>
 
       <Stack direction="horizontal" className="mb-2 flex-wrap gap-2 align-items-center">
         <div className="row-meta">
@@ -291,8 +343,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock, onPau
                 <div className="row-meta">{item.durationMs} ms</div>
               </td>
               <td>
-                <Badge bg={item.protocol === 'soap' ? 'warning' : 'primary'} text={item.protocol === 'soap' ? 'dark' : undefined}>
-                  {item.protocol === 'soap' ? 'SOAP' : 'REST'}
+                <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
+                  {protocolBadge(item.protocol).label}
                 </Badge>
                 {item.protocol === 'soap' && <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>}
               </td>

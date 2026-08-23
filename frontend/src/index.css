@@ -87,3 +87,44 @@ pre {
   opacity: 0.7;
   margin-top: 0.35rem;
 }
+
+.log-filters {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.log-detail-modal {
+  max-width: min(1400px, 96vw);
+  width: 96vw;
+}
+
+.log-headers-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.log-headers-name {
+  width: 28%;
+}
+
+.log-headers-copy {
+  width: 2.25rem;
+}
+
+.log-headers-value {
+  overflow: hidden;
+}
+
+.log-headers-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.copy-icon-button {
+  line-height: 1;
+  width: 1.5rem;
+}

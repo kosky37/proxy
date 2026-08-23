@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Alert, Badge, Button, Card, Col, Form, InputGroup, Nav, Row, Stack } from 'react-bootstrap'
+import { protocolBadge } from '../protocolBadge'
 import { useSendManualRequestMutation } from '../store/proxyApi'
 import type { LogDetailDto } from '../store/types'
 import { CopyButton } from './CopyButton'
@@ -283,8 +284,8 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
         <Card className="mt-4">
           <Card.Header>
             <Stack direction="horizontal" gap={2} className="flex-wrap">
-              <Badge bg={result.protocol === 'soap' ? 'warning' : 'primary'} text={result.protocol === 'soap' ? 'dark' : undefined}>
-                {result.protocol === 'soap' ? 'SOAP' : 'REST'}
+              <Badge bg={protocolBadge(result.protocol).bg} text={protocolBadge(result.protocol).text}>
+                {protocolBadge(result.protocol).label}
               </Badge>
               <Badge bg="success">Manual</Badge>
               <Badge bg={result.statusCode && result.statusCode < 400 ? 'success' : 'danger'}>

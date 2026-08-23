@@ -9,7 +9,7 @@ public sealed class RequestLogRecord
     public string Method { get; set; } = "";
     public string Path { get; set; } = "";
     public string? Query { get; set; }
-    public string Protocol { get; set; } = nameof(RequestProtocol.Rest);
+    public string Protocol { get; set; } = nameof(RequestProtocol.Other);
     public string? RequestHeaders { get; set; }
     public string? RequestBody { get; set; }
     public bool RequestBodyTruncated { get; set; }
@@ -31,7 +31,9 @@ public sealed class RequestLogRecord
         Method = Method,
         Path = Path,
         Query = Query,
-        Protocol = Enum.TryParse<RequestProtocol>(Protocol, true, out var protocol) ? protocol : RequestProtocol.Rest,
+        Protocol = Enum.TryParse<RequestProtocol>(Protocol, true, out var protocol)
+            ? (protocol == RequestProtocol.Rest ? RequestProtocol.Other : protocol)
+            : RequestProtocol.Other,
         RequestHeaders = RequestHeaders,
         RequestBody = RequestBody,
         RequestBodyTruncated = RequestBodyTruncated,
