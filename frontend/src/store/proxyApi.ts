@@ -3,11 +3,12 @@ import type {
   LogDetailDto,
   LogListDto,
   LogQueryArgs,
+  CertificateDto,
   MockDto,
   ProxyDetailDto,
   ProxyListItemDto,
   ProxyStatsDto,
-  UploadedCertificateDto,
+  UploadedCertificateFileDto,
   UpsertProxyRequest,
 } from './types'
 
@@ -74,11 +75,34 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       }),
       invalidatesTags: ['Mocks', 'Proxies'],
     }),
-    uploadCertificate: build.mutation<UploadedCertificateDto, { proxyId: string; file: File }>({
-      query: ({ proxyId, file }) => {
+    getCertificates: build.query<CertificateDto[], void>({
+      query: () => '/api/certificates',
+      providesTags: ['Certificates'],
+    }),
+    createCertificate: build.mutation<CertificateDto, CertificateDto>({
+      query: (body) => ({ url: '/api/certificates', method: 'POST', body }),
+      invalidatesTags: ['Certificates', 'Proxies'],
+    }),
+    updateCertificate: build.mutation<CertificateDto, { name: string; body: CertificateDto }>({
+      query: ({ name, body }) => ({
+        url: `/api/certificates/${encodeURIComponent(name)}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Certificates', 'Proxies'],
+    }),
+    deleteCertificate: build.mutation<void, string>({
+      query: (name) => ({
+        url: `/api/certificates/${encodeURIComponent(name)}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Certificates', 'Proxies'],
+    }),
+    uploadCertificate: build.mutation<UploadedCertificateFileDto, File>({
+      query: (file) => {
         const body = new FormData()
         body.append('file', file)
-        return { url: `/api/proxies/${proxyId}/certificates`, method: 'POST', body }
+        return { url: '/api/certificates/file', method: 'POST', body }
       },
     }),
     getLogs: build.query<LogListDto, LogQueryArgs>({
@@ -112,6 +136,10 @@ export const {
   useUpdateMockMutation,
   useDeleteMockMutation,
   useToggleMockMutation,
+  useGetCertificatesQuery,
+  useCreateCertificateMutation,
+  useUpdateCertificateMutation,
+  useDeleteCertificateMutation,
   useUploadCertificateMutation,
   useGetLogsQuery,
   useGetLogQuery,

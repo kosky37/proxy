@@ -1,23 +1,25 @@
 export interface CertificateDto {
+  name: string
+  fileName: string
+  type: string
   pfxPath?: string | null
   password?: string | null
 }
 
-export interface UploadedCertificateDto {
+export interface UploadedCertificateFileDto {
   pfxPath?: string | null
-  password?: string | null
 }
 
 export interface ListenDto {
   url: string
   pathPrefix?: string | null
   hosts?: string[] | null
-  serverCertificate?: CertificateDto | null
+  serverCertificateId?: string | null
 }
 
 export interface DestinationDto {
   address: string
-  clientCertificate?: CertificateDto | null
+  clientCertificateId?: string | null
   acceptAnyServerCertificate: boolean
 }
 

@@ -24,3 +24,9 @@ public enum RequestProtocol
     Rest,
     Soap
 }
+
+public enum CertificateUsage
+{
+    Client,
+    Server
+}

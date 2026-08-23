@@ -12,12 +12,12 @@ import {
   Table,
 } from 'react-bootstrap'
 import { Link, useParams } from 'react-router-dom'
-import { CertPathField } from '../components/CertPathField'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { MockEditor } from '../components/MockEditor'
 import {
   useCreateMockMutation,
   useDeleteMockMutation,
+  useGetCertificatesQuery,
   useGetLogQuery,
   useGetLogsQuery,
   useGetMocksQuery,
@@ -36,6 +36,7 @@ export function ProxyDetailPage() {
   const { id = '' } = useParams()
   const proxy = useGetProxyQuery(id)
   const mocks = useGetMocksQuery(id)
+  const certificates = useGetCertificatesQuery()
   const stats = useGetStatsQuery(id)
   const [tab, setTab] = useState<Tab>('settings')
   const [form, setForm] = useState<UpsertProxyRequest | null>(null)
@@ -53,7 +54,6 @@ export function ProxyDetailPage() {
   const [updateMock] = useUpdateMockMutation()
   const [deleteMock] = useDeleteMockMutation()
   const [toggleMock] = useToggleMockMutation()
-
   useEffect(() => {
     if (proxy.data) {
       setForm({
@@ -208,24 +208,56 @@ export function ProxyDetailPage() {
               />
             </Col>
             <Col md={6}>
-              <CertPathField
-                label="Client certificate"
-                proxyId={id}
-                value={form.destination.clientCertificate}
-                onChange={(clientCertificate) =>
-                  setForm({ ...form, destination: { ...form.destination, clientCertificate } })
-                }
-              />
+              <Form.Group>
+                <Form.Label>Client certificate</Form.Label>
+                <Form.Select
+                  value={form.destination.clientCertificateId ?? ''}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      destination: { ...form.destination, clientCertificateId: event.target.value || null },
+                    })
+                  }
+                >
+                  <option value="">None</option>
+                  {certificates.data
+                    ?.filter((item) => item.type === 'client')
+                    .map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                </Form.Select>
+                <Form.Text>
+                  Defined on the <Link to="/certificates">Certificates</Link> page.
+                </Form.Text>
+              </Form.Group>
             </Col>
             <Col md={6}>
-              <CertPathField
-                label="Server certificate"
-                proxyId={id}
-                value={form.listen.serverCertificate}
-                onChange={(serverCertificate) =>
-                  setForm({ ...form, listen: { ...form.listen, serverCertificate } })
-                }
-              />
+              <Form.Group>
+                <Form.Label>Server certificate</Form.Label>
+                <Form.Select
+                  value={form.listen.serverCertificateId ?? ''}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      listen: { ...form.listen, serverCertificateId: event.target.value || null },
+                    })
+                  }
+                >
+                  <option value="">None</option>
+                  {certificates.data
+                    ?.filter((item) => item.type === 'server')
+                    .map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name}
+                      </option>
+                    ))}
+                </Form.Select>
+                <Form.Text>
+                  Defined on the <Link to="/certificates">Certificates</Link> page.
+                </Form.Text>
+              </Form.Group>
             </Col>
             <Col xs={12}>
               <Button type="submit">Save settings</Button>

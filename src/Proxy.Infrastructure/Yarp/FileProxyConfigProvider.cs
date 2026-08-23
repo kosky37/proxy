@@ -16,7 +16,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
     {
         _store = store;
         _listenUrl = listenUrl;
-        _config = Build(_store.GetAll(), _listenUrl);
+        _config = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.DataRoot);
         _store.Changed += OnStoreChanged;
     }
 
@@ -28,13 +28,17 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
 
     public void Update()
     {
-        var next = Build(_store.GetAll(), _listenUrl);
+        var next = Build(_store.GetAll(), _listenUrl, _store.GetCertificates(), _store.DataRoot);
         var previous = _config;
         _config = next;
         previous.SignalChange();
     }
 
-    public static InMemoryProxyConfig Build(IReadOnlyList<LoadedProxy> proxies, string? listenUrl)
+    public static InMemoryProxyConfig Build(
+        IReadOnlyList<LoadedProxy> proxies,
+        string? listenUrl,
+        IReadOnlyList<CertificateDefinition> certificates,
+        string dataRoot)
     {
         var routes = new List<RouteConfig>();
         var clusters = new List<ClusterConfig>();
@@ -53,11 +57,12 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
                 ["acceptAnyServerCertificate"] = proxy.Definition.Destination.AcceptAnyServerCertificate ? "true" : "false"
             };
 
-            if (proxy.Definition.Destination.ClientCertificate?.PfxPath is { } relative &&
-                !string.IsNullOrWhiteSpace(relative))
+            var clientCert = CertificateResolver.ResolveClient(proxy, certificates);
+            var clientPath = CertificateResolver.ResolveFilePath(dataRoot, clientCert);
+            if (!string.IsNullOrWhiteSpace(clientPath) && File.Exists(clientPath))
             {
-                metadata["clientCertPath"] = Path.GetFullPath(Path.Combine(proxy.FolderPath, relative));
-                metadata["clientCertPassword"] = proxy.Definition.Destination.ClientCertificate.Password ?? "";
+                metadata["clientCertPath"] = clientPath;
+                metadata["clientCertPassword"] = clientCert?.Password ?? "";
             }
 
             clusters.Add(new ClusterConfig

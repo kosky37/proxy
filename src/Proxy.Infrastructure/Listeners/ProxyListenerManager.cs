@@ -92,7 +92,7 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
 
             foreach (var (listenUrl, proxies) in desired)
             {
-                var certKey = ServerCertKey(proxies);
+                var certKey = ServerCertKey(proxies, _store.GetCertificates(), _store.DataRoot);
                 if (_hosts.TryGetValue(listenUrl, out var host))
                 {
                     if (host.ServerCertKey == certKey)
@@ -129,7 +129,7 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
         builder.Logging.AddProvider(new ForwardingLoggerProvider(_loggerFactory));
         builder.WebHost.SuppressStatusMessages(true);
         builder.WebHost.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
-        builder.WebHost.ConfigureKestrel(options => ConfigureKestrel(options, uri, LoadServerCertificate(proxies)));
+        builder.WebHost.ConfigureKestrel(options => ConfigureKestrel(options, uri, LoadServerCertificate(proxies, _store.GetCertificates(), _store.DataRoot)));
 
         builder.Services.AddSingleton(_store);
         builder.Services.AddSingleton(_logs);
@@ -211,32 +211,42 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
         });
     }
 
-    private static X509Certificate2? LoadServerCertificate(IEnumerable<LoadedProxy> proxies)
+    private static X509Certificate2? LoadServerCertificate(
+        IEnumerable<LoadedProxy> proxies,
+        IReadOnlyList<CertificateDefinition> catalog,
+        string dataRoot)
     {
         foreach (var proxy in proxies)
         {
-            var cert = proxy.Definition.Listen.ServerCertificate;
-            if (string.IsNullOrWhiteSpace(cert?.PfxPath))
+            var cert = CertificateResolver.ResolveServer(proxy, catalog);
+            var path = CertificateResolver.ResolveFilePath(dataRoot, cert);
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 continue;
             }
 
-            var path = Path.GetFullPath(Path.Combine(proxy.FolderPath, cert.PfxPath));
-            if (File.Exists(path))
-            {
-                return X509CertificateLoader.LoadPkcs12FromFile(path, cert.Password ?? "", X509KeyStorageFlags.EphemeralKeySet);
-            }
+            return X509CertificateLoader.LoadPkcs12FromFile(path, cert?.Password ?? "", X509KeyStorageFlags.EphemeralKeySet);
         }
 
         return null;
     }
 
-    private static string ServerCertKey(IEnumerable<LoadedProxy> proxies)
+    private static string ServerCertKey(
+        IEnumerable<LoadedProxy> proxies,
+        IReadOnlyList<CertificateDefinition> catalog,
+        string dataRoot)
     {
-        var cert = proxies
-            .Select(proxy => proxy.Definition.Listen.ServerCertificate)
-            .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item?.PfxPath));
-        return cert?.PfxPath + "|" + cert?.Password;
+        foreach (var proxy in proxies)
+        {
+            var cert = CertificateResolver.ResolveServer(proxy, catalog);
+            var path = CertificateResolver.ResolveFilePath(dataRoot, cert);
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                return path + "|" + cert?.Password;
+            }
+        }
+
+        return "";
     }
 
     private sealed record ListenerHost(WebApplication App, string ServerCertKey);

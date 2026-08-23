@@ -6,6 +6,7 @@ public interface IProxyConfigStore
 {
     event EventHandler? Changed;
 
+    string DataRoot { get; }
     IReadOnlyList<LoadedProxy> GetAll();
     LoadedProxy? Get(string id);
     LoadedProxy Create(string id, ProxyDefinition definition);
@@ -16,5 +17,9 @@ public interface IProxyConfigStore
     void DeleteMock(string proxyId, string name);
     MockDefinition ToggleMock(string proxyId, string name);
     LoadedProxy SetMocksEnabled(string proxyId, bool enabled);
+    IReadOnlyList<CertificateDefinition> GetCertificates();
+    CertificateDefinition CreateCertificate(CertificateDefinition certificate);
+    CertificateDefinition UpdateCertificate(string name, CertificateDefinition certificate);
+    void DeleteCertificate(string name);
     void Reload();
 }

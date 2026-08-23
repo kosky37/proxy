@@ -30,20 +30,28 @@ public sealed class ListenDto
     public required string Url { get; set; }
     public string? PathPrefix { get; set; }
     public List<string>? Hosts { get; set; }
-    public CertificateDto? ServerCertificate { get; set; }
+    public string? ServerCertificateId { get; set; }
 }
 
 public sealed class DestinationDto
 {
     public required string Address { get; set; }
-    public CertificateDto? ClientCertificate { get; set; }
+    public string? ClientCertificateId { get; set; }
     public bool AcceptAnyServerCertificate { get; set; }
 }
 
 public sealed class CertificateDto
 {
+    public required string Name { get; set; }
+    public required string FileName { get; set; }
+    public required string Type { get; set; }
     public string? PfxPath { get; set; }
     public string? Password { get; set; }
+}
+
+public sealed class UploadedCertificateFileDto
+{
+    public string? PfxPath { get; set; }
 }
 
 public sealed class UpsertProxyRequest
@@ -178,12 +186,12 @@ public static class DtoMapper
             Url = request.Listen.Url,
             PathPrefix = request.Listen.PathPrefix,
             Hosts = request.Listen.Hosts,
-            ServerCertificate = ToModel(request.Listen.ServerCertificate)
+            ServerCertificateId = request.Listen.ServerCertificateId
         },
         Destination = new DestinationConfig
         {
             Address = request.Destination.Address,
-            ClientCertificate = ToModel(request.Destination.ClientCertificate),
+            ClientCertificateId = request.Destination.ClientCertificateId,
             AcceptAnyServerCertificate = request.Destination.AcceptAnyServerCertificate
         },
         MocksEnabled = request.MocksEnabled,
@@ -261,21 +269,33 @@ public static class DtoMapper
         Url = listen.Url,
         PathPrefix = listen.PathPrefix,
         Hosts = listen.Hosts,
-        ServerCertificate = ToDto(listen.ServerCertificate)
+        ServerCertificateId = listen.ServerCertificateId
     };
 
     private static DestinationDto ToDto(DestinationConfig destination) => new()
     {
         Address = destination.Address,
-        ClientCertificate = ToDto(destination.ClientCertificate),
+        ClientCertificateId = destination.ClientCertificateId,
         AcceptAnyServerCertificate = destination.AcceptAnyServerCertificate
     };
 
-    private static CertificateDto? ToDto(CertificateConfig? certificate) =>
-        certificate is null ? null : new CertificateDto { PfxPath = certificate.PfxPath, Password = certificate.Password };
+    public static CertificateDto ToDto(CertificateDefinition certificate) => new()
+    {
+        Name = certificate.Name,
+        FileName = certificate.FileName,
+        Type = certificate.Type.ToString().ToLowerInvariant(),
+        PfxPath = certificate.PfxPath,
+        Password = certificate.Password
+    };
 
-    private static CertificateConfig? ToModel(CertificateDto? certificate) =>
-        certificate is null ? null : new CertificateConfig { PfxPath = certificate.PfxPath, Password = certificate.Password };
+    public static CertificateDefinition ToModel(CertificateDto dto) => new()
+    {
+        Name = dto.Name,
+        FileName = dto.FileName,
+        Type = Enum.TryParse<CertificateUsage>(dto.Type, true, out var type) ? type : CertificateUsage.Client,
+        PfxPath = dto.PfxPath,
+        Password = dto.Password
+    };
 
     private static MockMatchDto ToDto(MockMatch match) => new()
     {

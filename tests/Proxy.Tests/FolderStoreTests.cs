@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Proxy.Core.Matching;
 using Proxy.Core.Models;
 using Proxy.Core.Options;
 using Proxy.Infrastructure.Store;
@@ -58,6 +59,29 @@ public class FolderStoreTests
             store.Get("demo")!.Definition.Name.Should().Be("Demo edited");
             store.Get("demo")!.Definition.MocksEnabled.Should().BeFalse();
             store.Get("demo")!.Definition.PassthroughDelayMs.Should().Be(25);
+
+            var certificate = store.CreateCertificate(new CertificateDefinition
+            {
+                Name = "gateway-client",
+                Type = CertificateUsage.Client,
+                PfxPath = "certs/client.pfx",
+                Password = "secret"
+            });
+            certificate.Name.Should().Be("gateway-client");
+            File.Exists(Path.Combine(root, "certificates", "gateway-client.json")).Should().BeTrue();
+
+            store.Update("demo", new ProxyDefinition
+            {
+                Name = "Demo edited",
+                Listen = new ListenConfig { Url = "http://127.0.0.1:18081" },
+                Destination = new DestinationConfig
+                {
+                    Address = "http://127.0.0.1:18090",
+                    ClientCertificateId = "gateway-client"
+                }
+            });
+            store.Get("demo")!.Definition.Destination.ClientCertificateId.Should().Be("gateway-client");
+            CertificateResolver.ResolveClient(store.Get("demo")!, store.GetCertificates())!.Password.Should().Be("secret");
         }
         finally
         {

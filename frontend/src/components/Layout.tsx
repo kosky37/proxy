@@ -26,8 +26,11 @@ export function Layout() {
             Proxy
           </Navbar.Brand>
           <Nav className="me-auto">
-            <Nav.Link as={NavLink} to="/">
+            <Nav.Link as={NavLink} to="/" end>
               Proxies
+            </Nav.Link>
+            <Nav.Link as={NavLink} to="/certificates">
+              Certificates
             </Nav.Link>
           </Nav>
           <Badge bg={health.data?.status === 'ok' ? 'success' : 'secondary'} className="me-3">

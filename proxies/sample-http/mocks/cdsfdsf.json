@@ -1,0 +1,17 @@
+{
+  "type": "soap",
+  "name": "cdsfdsf",
+  "match": {
+    "methods": [
+      "GET"
+    ],
+    "pathMode": "exact"
+  },
+  "response": {
+    "statusCode": 200,
+    "contentType": "application/json",
+    "delayMs": 0
+  },
+  "fileName": "",
+  "enabled": true
+}
