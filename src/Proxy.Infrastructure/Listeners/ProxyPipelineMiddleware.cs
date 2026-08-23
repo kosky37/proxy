@@ -14,6 +14,7 @@ namespace Proxy.Infrastructure.Listeners;
 public sealed class ProxyPipelineMiddleware
 {
     public const string ListenUrlItem = "ProxyListenUrl";
+    public const string ResolvedProxyIdItem = "ProxyResolvedId";
 
     private readonly RequestDelegate _next;
     private readonly IProxyConfigStore _store;
@@ -50,6 +51,9 @@ public sealed class ProxyPipelineMiddleware
             await context.Response.WriteAsync("No proxy configuration matched this request.");
             return;
         }
+
+        context.Items[ResolvedProxyIdItem] = proxy.Id;
+        context.Request.Path = PathMatcher.StripPrefix(path, ListenPath.EffectivePrefix(proxy.Definition.Listen));
 
         var started = Stopwatch.StartNew();
         var snapshot = await context.Request.ToSnapshotAsync(context.RequestAborted);

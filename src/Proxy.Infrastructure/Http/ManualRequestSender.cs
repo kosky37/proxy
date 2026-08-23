@@ -46,13 +46,15 @@ public sealed class ManualRequestSender
     {
         var proxy = _store.Get(proxyId) ?? throw new KeyNotFoundException($"Proxy '{proxyId}' was not found.");
         var method = string.IsNullOrWhiteSpace(request.Method) ? "GET" : request.Method.Trim().ToUpperInvariant();
-        var path = string.IsNullOrWhiteSpace(request.Path) ? "/" : request.Path.Trim();
+        var path = PathMatcher.StripPrefix(
+            string.IsNullOrWhiteSpace(request.Path) ? "/" : request.Path.Trim(),
+            ListenPath.EffectivePrefix(proxy.Definition.Listen));
         var headers = new Dictionary<string, string>(request.Headers ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
 
         var url = DestinationUrl.Build(
             proxy.Definition.Destination.Address,
             path,
-            proxy.Definition.Listen.PathPrefix,
+            pathPrefix: null,
             request.Query);
 
         using var handler = new SocketsHttpHandler();

@@ -9,5 +9,7 @@
     "acceptAnyServerCertificate": false
   },
   "mocksEnabled": true,
-  "passthroughDelayMs": 0
+  "passthroughDelayMs": 0,
+  "logRetentionDays": 7,
+  "bodyLogLimitBytes": 1048576
 }

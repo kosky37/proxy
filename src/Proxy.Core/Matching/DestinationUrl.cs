@@ -20,23 +20,7 @@ public static class DestinationUrl
             dest += "/";
         }
 
-        var relative = PathMatcher.Normalize(string.IsNullOrWhiteSpace(path) ? "/" : path);
-        if (!string.IsNullOrWhiteSpace(pathPrefix))
-        {
-            var prefix = PathMatcher.Normalize(pathPrefix);
-            if (relative.Equals(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                relative = "/";
-            }
-            else if (relative.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
-            {
-                relative = relative[prefix.Length..];
-                if (string.IsNullOrEmpty(relative))
-                {
-                    relative = "/";
-                }
-            }
-        }
+        var relative = PathMatcher.StripPrefix(path, pathPrefix);
 
         var uri = new Uri(new Uri(dest, UriKind.Absolute), relative.TrimStart('/'));
         if (string.IsNullOrWhiteSpace(query))

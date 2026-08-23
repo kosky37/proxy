@@ -169,6 +169,53 @@ public class ProxyPipelineTests
     }
 
     [Fact]
+    public async Task Shared_port_routes_by_path_prefix()
+    {
+        var apiPort = GetFreePort();
+        var testPort = GetFreePort();
+        var listenPort = GetFreePort();
+
+        var apiDown = WebApplication.Create();
+        apiDown.Urls.Clear();
+        apiDown.Urls.Add($"http://127.0.0.1:{apiPort}");
+        apiDown.MapGet("/orders", () => "from-api");
+        await apiDown.StartAsync();
+
+        var testDown = WebApplication.Create();
+        testDown.Urls.Clear();
+        testDown.Urls.Add($"http://127.0.0.1:{testPort}");
+        testDown.MapGet("/ping", () => "from-test");
+        await testDown.StartAsync();
+
+        await using var factory = new ProxyApiFactory();
+        await WriteProxy(factory, "api", listenPort, apiPort, pathPrefix: "/api");
+        await WriteProxy(factory, "test", listenPort, testPort, pathInUrl: "/test");
+
+        using var admin = factory.CreateClient();
+        (await admin.GetStringAsync("/api/proxies")).Should().Contain("api").And.Contain("test");
+
+        using var proxyClient = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{listenPort}") };
+        await WaitForListener(proxyClient);
+
+        (await proxyClient.GetStringAsync("/api/orders")).Should().Be("from-api");
+        (await proxyClient.GetStringAsync("/test/ping")).Should().Be("from-test");
+
+        using var miss = await proxyClient.GetAsync("/other");
+        miss.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var apiPaths = await WaitForLogPaths(admin, "api");
+        apiPaths.Should().Contain("/orders").And.NotContain("/api/orders");
+
+        var testPaths = await WaitForLogPaths(admin, "test");
+        testPaths.Should().Contain("/ping").And.NotContain("/test/ping");
+
+        await apiDown.StopAsync();
+        await testDown.StopAsync();
+        await apiDown.DisposeAsync();
+        await testDown.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Api_can_create_proxy_and_toggle_mock()
     {
         await using var factory = new ProxyApiFactory();
@@ -206,6 +253,53 @@ public class ProxyPipelineTests
         var toggled = await toggle.Content.ReadAsStringAsync();
         toggled.Should().Contain("\"enabled\":false");
         File.Exists(Path.Combine(factory.DataRoot, "created", "mocks", "_ping.json")).Should().BeTrue();
+    }
+
+    private static async Task WriteProxy(
+        ProxyApiFactory factory,
+        string id,
+        int listenPort,
+        int destinationPort,
+        string? pathPrefix = null,
+        string? pathInUrl = null)
+    {
+        var folder = Path.Combine(factory.DataRoot, id);
+        Directory.CreateDirectory(Path.Combine(folder, "mocks"));
+        var url = pathInUrl is null
+            ? $"http://127.0.0.1:{listenPort}"
+            : $"http://127.0.0.1:{listenPort}{pathInUrl}";
+        var prefixLine = pathPrefix is null ? "" : $", \"pathPrefix\": \"{pathPrefix}\"";
+        await File.WriteAllTextAsync(Path.Combine(folder, "proxy.json"), $$"""
+            {
+              "name": "{{id}}",
+              "enabled": true,
+              "listen": { "url": "{{url}}"{{prefixLine}} },
+              "destination": { "address": "http://127.0.0.1:{{destinationPort}}" },
+              "mocksEnabled": false
+            }
+            """);
+    }
+
+    private static async Task<List<string?>> WaitForLogPaths(HttpClient admin, string proxyId)
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            using var response = await admin.GetAsync($"/api/proxies/{proxyId}/logs");
+            var json = await response.Content.ReadAsStringAsync();
+            response.StatusCode.Should().Be(HttpStatusCode.OK, json);
+            using var document = JsonDocument.Parse(json);
+            var paths = document.RootElement.GetProperty("items").EnumerateArray()
+                .Select(item => item.GetProperty("path").GetString())
+                .ToList();
+            if (paths.Count > 0)
+            {
+                return paths;
+            }
+
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"No logs were written for proxy '{proxyId}'.");
     }
 
     private static async Task WaitForListener(HttpClient client)

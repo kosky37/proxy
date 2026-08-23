@@ -230,13 +230,13 @@ public static class DtoMapper
     {
         Name = request.Name,
         Enabled = request.Enabled,
-        Listen = new ListenConfig
+        Listen = ListenPath.Normalize(new ListenConfig
         {
             Url = request.Listen.Url,
             PathPrefix = request.Listen.PathPrefix,
             Hosts = request.Listen.Hosts,
             ServerCertificateId = request.Listen.ServerCertificateId
-        },
+        }),
         Destination = new DestinationConfig
         {
             Address = request.Destination.Address,

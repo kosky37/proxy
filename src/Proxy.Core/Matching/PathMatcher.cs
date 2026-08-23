@@ -44,6 +44,29 @@ public static class PathMatcher
         return value;
     }
 
+    public static string StripPrefix(string path, string? prefix)
+    {
+        var relative = Normalize(string.IsNullOrWhiteSpace(path) ? "/" : path);
+        if (string.IsNullOrWhiteSpace(prefix))
+        {
+            return relative;
+        }
+
+        var expected = Normalize(prefix);
+        if (relative.Equals(expected, StringComparison.OrdinalIgnoreCase))
+        {
+            return "/";
+        }
+
+        if (relative.StartsWith(expected + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            var remainder = relative[expected.Length..];
+            return string.IsNullOrEmpty(remainder) ? "/" : remainder;
+        }
+
+        return relative;
+    }
+
     private static bool MatchesTemplate(string path, string template)
     {
         var pathParts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);

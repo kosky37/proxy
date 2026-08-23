@@ -79,11 +79,7 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
                 }
             });
 
-            var prefix = proxy.Definition.Listen.PathPrefix?.Trim();
-            var path = string.IsNullOrWhiteSpace(prefix)
-                ? "/{**catch-all}"
-                : $"{PathMatcher.Normalize(prefix)}/{{**catch-all}}";
-
+            var prefix = ListenPath.EffectivePrefix(proxy.Definition.Listen);
             var transforms = new List<IReadOnlyDictionary<string, string>>();
             if (!string.IsNullOrWhiteSpace(prefix))
             {
@@ -93,22 +89,38 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
                 });
             }
 
+            // Host-gated so these routes never compete with each other during endpoint matching.
+            // ProxyPipelineMiddleware picks the proxy, then MapReverseProxy reassigns to this route.
             routes.Add(new RouteConfig
             {
                 RouteId = $"route-{proxy.Id}",
                 ClusterId = clusterId,
                 Match = new RouteMatch
                 {
-                    Path = path,
-                    Hosts = proxy.Definition.Listen.Hosts is { Count: > 0 } hosts ? hosts : null
+                    Path = "/{**catch-all}",
+                    Hosts = [InternalHost(proxy.Id)]
                 },
                 Transforms = transforms.Count == 0 ? null : transforms,
                 Metadata = new Dictionary<string, string> { ["proxyId"] = proxy.Id }
             });
         }
 
+        if (clusters.Count > 0)
+        {
+            routes.Insert(0, new RouteConfig
+            {
+                RouteId = SharedRouteId,
+                ClusterId = clusters[0].ClusterId,
+                Match = new RouteMatch { Path = "/{**catch-all}" }
+            });
+        }
+
         return new InMemoryProxyConfig(routes, clusters);
     }
+
+    public const string SharedRouteId = "route-shared";
+
+    public static string InternalHost(string proxyId) => $"__proxy.{proxyId}.internal";
 
     private static string EnsureTrailingSlash(string address) =>
         address.EndsWith('/') ? address : address + "/";

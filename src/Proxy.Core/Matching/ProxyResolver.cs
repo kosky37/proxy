@@ -10,8 +10,8 @@ public static class ProxyResolver
             .Where(proxy => proxy.Definition.Enabled)
             .Where(proxy => ListenUrlsEqual(proxy.Definition.Listen.Url, listenUrl))
             .Where(proxy => HostMatches(proxy.Definition.Listen.Hosts, host))
-            .Where(proxy => PathMatches(proxy.Definition.Listen.PathPrefix, path))
-            .OrderByDescending(proxy => PathMatcher.Normalize(proxy.Definition.Listen.PathPrefix ?? "/").Length)
+            .Where(proxy => PathMatches(ListenPath.EffectivePrefix(proxy.Definition.Listen), path))
+            .OrderByDescending(proxy => PathMatcher.Normalize(ListenPath.EffectivePrefix(proxy.Definition.Listen) ?? "/").Length)
             .ThenBy(proxy => proxy.Id, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
     }

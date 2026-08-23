@@ -1,0 +1,13 @@
+{
+  "name": "api",
+  "enabled": true,
+  "listen": {
+    "url": "http://127.0.0.1:8083/api"
+  },
+  "destination": {
+    "address": "http://127.0.0.1:9090",
+    "acceptAnyServerCertificate": false
+  },
+  "mocksEnabled": true,
+  "passthroughDelayMs": 0
+}

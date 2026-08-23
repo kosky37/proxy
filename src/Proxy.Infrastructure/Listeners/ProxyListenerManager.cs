@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -13,6 +14,7 @@ using Proxy.Core.Matching;
 using Proxy.Core.Models;
 using Proxy.Core.Options;
 using Proxy.Infrastructure.Yarp;
+using Yarp.ReverseProxy;
 using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Forwarder;
 
@@ -146,7 +148,24 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
             await next();
         });
         app.UseMiddleware<ProxyPipelineMiddleware>();
-        app.MapReverseProxy();
+        app.MapReverseProxy(proxy =>
+        {
+            proxy.Use((context, next) =>
+            {
+                if (context.Items.TryGetValue(ProxyPipelineMiddleware.ResolvedProxyIdItem, out var value) &&
+                    value is string proxyId)
+                {
+                    var lookup = context.RequestServices.GetRequiredService<IProxyStateLookup>();
+                    if (lookup.TryGetCluster($"cluster-{proxyId}", out var cluster) &&
+                        lookup.TryGetRoute($"route-{proxyId}", out var route))
+                    {
+                        context.ReassignProxyRequest(route, cluster);
+                    }
+                }
+
+                return next();
+            });
+        });
 
         try
         {
