@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
-import { formatBytes, formatDate, formatDateTime, formatTime } from '../format'
+import { formatBytes, formatDate, formatDateTime, formatTime, logWindow, type LogWindowPreset } from '../format'
 import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
 import { protocolBadge } from '../protocolBadge'
@@ -15,7 +15,7 @@ import { LogTimeline } from './LogTimeline'
 
 const PAGE_SIZE = 50
 
-type WindowPreset = '1h' | '6h' | '24h' | '7d' | 'all'
+type WindowPreset = LogWindowPreset
 
 interface Props {
   proxyId: string
@@ -45,7 +45,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
   )
   const activeFilterCount = Object.values(queryFilter).filter(Boolean).length
   const windowRange = useMemo(
-    () => timelineWindow(windowPreset, pausedAt ?? Date.now()),
+    () => logWindow(windowPreset, pausedAt ?? Date.now()),
     [windowPreset, pausedAt],
   )
 
@@ -384,22 +384,3 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
   )
 }
 
-function timelineWindow(preset: WindowPreset, nowMs: number): { from?: string; to?: string } {
-  if (preset === 'all') {
-    return {}
-  }
-
-  const to = new Date(nowMs)
-  const from = new Date(to)
-  if (preset === '1h') {
-    from.setHours(from.getHours() - 1)
-  } else if (preset === '6h') {
-    from.setHours(from.getHours() - 6)
-  } else if (preset === '7d') {
-    from.setDate(from.getDate() - 7)
-  } else {
-    from.setDate(from.getDate() - 1)
-  }
-
-  return { from: from.toISOString(), to: to.toISOString() }
-}

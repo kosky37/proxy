@@ -23,6 +23,28 @@ export function formatDateTime(value: string | number | Date) {
   return `${formatTime(value)}, ${formatDate(value)}`
 }
 
+export type LogWindowPreset = '1h' | '6h' | '24h' | '7d' | 'all'
+
+export function logWindow(preset: LogWindowPreset, nowMs: number): { from?: string; to?: string } {
+  if (preset === 'all') {
+    return {}
+  }
+
+  const to = new Date(nowMs)
+  const from = new Date(to)
+  if (preset === '1h') {
+    from.setHours(from.getHours() - 1)
+  } else if (preset === '6h') {
+    from.setHours(from.getHours() - 6)
+  } else if (preset === '7d') {
+    from.setDate(from.getDate() - 7)
+  } else {
+    from.setDate(from.getDate() - 1)
+  }
+
+  return { from: from.toISOString(), to: to.toISOString() }
+}
+
 export function formatBytes(bytes?: number | null, truncated = false): string {
   const value = bytes ?? 0
   const units = ['B', 'KB', 'MB', 'GB']

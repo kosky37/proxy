@@ -54,7 +54,7 @@ public sealed class LogsController : ControllerBase
 
         return Ok(new LogListDto
         {
-            Items = result.Items.Select(DtoMapper.ToListItem).ToList(),
+            Items = result.Items.Select(item => DtoMapper.ToListItem(item)).ToList(),
             Total = result.Total
         });
     }

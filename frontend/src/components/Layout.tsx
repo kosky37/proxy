@@ -33,6 +33,9 @@ export function Layout() {
             <Nav.Link as={NavLink} to="/certificates">
               Certificates
             </Nav.Link>
+            <Nav.Link as={NavLink} to="/logs">
+              Logs
+            </Nav.Link>
           </Nav>
           <Badge bg={health.data?.status === 'ok' ? 'success' : 'secondary'} className="me-3">
             API {health.data?.status ?? 'offline'}

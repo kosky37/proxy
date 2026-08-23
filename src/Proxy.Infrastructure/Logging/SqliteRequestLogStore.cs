@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace Proxy.Infrastructure.Logging;
 public sealed class SqliteRequestLogStore : IRequestLogStore
 {
     private readonly ConcurrentSet _initialized = new();
+    private readonly ConcurrentDictionary<string, object> _initLocks = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<RequestLogEntry> WriteAsync(string proxyId, string folderPath, RequestLogEntry entry, CancellationToken cancellationToken = default)
     {
@@ -25,7 +27,7 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         await using var db = Create(proxyId, folderPath);
         var items = Filter(db.Logs.AsNoTracking(), query);
         var total = await items.CountAsync(cancellationToken);
-        var take = query.Take <= 0 ? 50 : Math.Min(query.Take, 500);
+        var take = query.Take <= 0 ? 50 : Math.Min(query.Take, 2000);
         var page = await items
             .OrderByDescending(item => item.TimestampUtc)
             .ThenByDescending(item => item.Id)
@@ -178,6 +180,7 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
     public void Release(string proxyId, string folderPath)
     {
         _initialized.Remove(proxyId);
+        _initLocks.TryRemove(proxyId, out _);
         var path = Path.Combine(folderPath, "logs.db");
         if (!File.Exists(path))
         {
@@ -210,14 +213,29 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
             .UseSqlite(ConnectionString(path))
             .Options;
         var db = new RequestLogDbContext(options);
-        if (_initialized.TryAdd(proxyId))
+        EnsureInitialized(proxyId, db);
+        return db;
+    }
+
+    private void EnsureInitialized(string proxyId, RequestLogDbContext db)
+    {
+        if (_initialized.Contains(proxyId))
         {
+            return;
+        }
+
+        lock (_initLocks.GetOrAdd(proxyId, static _ => new object()))
+        {
+            if (_initialized.Contains(proxyId))
+            {
+                return;
+            }
+
             db.Database.EnsureCreated();
             db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
             MigrateColumns(db);
+            _initialized.Add(proxyId);
         }
-
-        return db;
     }
 
     private static void MigrateColumns(RequestLogDbContext db)
@@ -373,11 +391,19 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         private readonly HashSet<string> _items = new(StringComparer.OrdinalIgnoreCase);
         private readonly object _gate = new();
 
-        public bool TryAdd(string value)
+        public bool Contains(string value)
         {
             lock (_gate)
             {
-                return _items.Add(value);
+                return _items.Contains(value);
+            }
+        }
+
+        public void Add(string value)
+        {
+            lock (_gate)
+            {
+                _items.Add(value);
             }
         }
 

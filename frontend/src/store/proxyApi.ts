@@ -3,6 +3,7 @@ import type {
   LogClearResultDto,
   LogDetailDto,
   LogListDto,
+  GlobalLogQueryArgs,
   LogQueryArgs,
   LogStorageDto,
   LogTimelineDto,
@@ -166,6 +167,23 @@ export const proxyApi = emptySplitApi.injectEndpoints({
         return { url: '/api/certificates/file', method: 'POST', body }
       },
     }),
+    getGlobalLogs: build.query<LogListDto, GlobalLogQueryArgs>({
+      query: ({ proxyIds, ...params }) => ({
+        url: '/api/logs',
+        params: { ...params, proxyIds },
+      }),
+      providesTags: ['Logs'],
+    }),
+    getGlobalLogTimeline: build.query<
+      LogTimelineDto,
+      { proxyIds: string[]; from?: string; to?: string; buckets?: number }
+    >({
+      query: ({ proxyIds, ...params }) => ({
+        url: '/api/logs/timeline',
+        params: { ...params, proxyIds },
+      }),
+      providesTags: ['Logs'],
+    }),
     getLogs: build.query<LogListDto, LogQueryArgs>({
       query: ({ proxyId, ...params }) => ({
         url: `/api/proxies/${proxyId}/logs`,
@@ -233,6 +251,8 @@ export const {
   useUpdateCertificateMutation,
   useDeleteCertificateMutation,
   useUploadCertificateMutation,
+  useGetGlobalLogsQuery,
+  useGetGlobalLogTimelineQuery,
   useGetLogsQuery,
   useGetLogQuery,
   useGetLogStorageQuery,

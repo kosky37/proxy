@@ -19,6 +19,7 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
   const svgRef = useRef<SVGSVGElement>(null)
   const [width, setWidth] = useState(640)
   const [drag, setDrag] = useState<{ start: number; current: number } | null>(null)
+  const [hoverX, setHoverX] = useState<number | null>(null)
 
   useEffect(() => {
     const element = svgRef.current
@@ -79,7 +80,9 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
     }
 
     const onMove = (event: MouseEvent) => {
-      setDrag((current) => (current ? { ...current, current: clientX(event) } : current))
+      const x = clientX(event)
+      setHoverX(x)
+      setDrag((current) => (current ? { ...current, current: x } : current))
     }
     const onUp = (event: MouseEvent) => {
       finishSelection(drag.start, clientX(event))
@@ -99,9 +102,17 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
     : selection
       ? { left: timeToX(selection.from), right: timeToX(selection.to) }
       : null
+  const markerX = hoverX == null ? null : Math.min(PADDING.left + plotWidth, Math.max(PADDING.left, hoverX))
+  const hoverTime = markerX == null ? null : xToTime(markerX)
+  const labelLeft = markerX == null ? 0 : Math.min(width - 8, Math.max(8, markerX))
 
   return (
-    <div>
+    <div className="log-timeline-wrap">
+      {hoverTime && (
+        <div className="log-timeline-hover-label" style={{ left: labelLeft }}>
+          {formatDateTime(hoverTime)}
+        </div>
+      )}
       <svg
         ref={svgRef}
         className="log-timeline"
@@ -112,7 +123,18 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
         onMouseDown={(event) => {
           event.preventDefault()
           const x = clientX(event)
+          setHoverX(x)
           setDrag({ start: x, current: x })
+        }}
+        onMouseMove={(event) => {
+          if (!drag) {
+            setHoverX(clientX(event))
+          }
+        }}
+        onMouseLeave={() => {
+          if (!drag) {
+            setHoverX(null)
+          }
         }}
       >
         <rect
@@ -160,6 +182,15 @@ export function LogTimeline({ fromUtc, toUtc, bucketSeconds, buckets, selection,
             y={PADDING.top}
             width={Math.max(overlay.right - overlay.left, 1)}
             height={plotHeight}
+          />
+        )}
+        {markerX != null && (
+          <line
+            className="log-timeline-hover"
+            x1={markerX}
+            x2={markerX}
+            y1={PADDING.top}
+            y2={PADDING.top + plotHeight}
           />
         )}
         <text className="log-timeline-axis" x={PADDING.left} y={HEIGHT - 6}>

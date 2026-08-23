@@ -48,11 +48,37 @@ pre {
   padding: 0.75rem 1rem;
 }
 
+.log-timeline-wrap {
+  position: relative;
+  padding-top: 1.35rem;
+}
+
 .log-timeline {
   display: block;
   width: 100%;
   cursor: crosshair;
   user-select: none;
+}
+
+.log-timeline-hover {
+  stroke: var(--bs-body-color);
+  stroke-opacity: 0.45;
+  pointer-events: none;
+}
+
+.log-timeline-hover-label {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  transform: translateX(-50%);
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.25rem;
+  background: var(--bs-body-bg);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .log-timeline-plot {
@@ -108,6 +134,43 @@ pre {
   border: 1px solid var(--bs-border-color);
   border-radius: 0.5rem;
   padding: 1rem;
+}
+
+.log-filters .log-collapse-toggle {
+  width: 100%;
+}
+
+.proxy-log-search {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+.proxy-log-list {
+  max-height: 18rem;
+  overflow: auto;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+}
+
+.proxy-log-item {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.5rem 2.15rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.proxy-log-item:last-child {
+  border-bottom: 0;
+}
+
+.proxy-log-item .form-check-label {
+  display: block;
+  min-width: 0;
+}
+
+.proxy-log-name {
+  display: block;
+  font-weight: 500;
 }
 
 .log-detail-modal {

@@ -109,6 +109,8 @@ export interface MockDto {
 
 export interface LogListItemDto {
   id: number
+  proxyId?: string | null
+  proxyName?: string | null
   timestampUtc: string
   method: string
   path: string
@@ -150,6 +152,18 @@ export interface ManualSendRequestDto {
 
 export interface LogQueryArgs {
   proxyId: string
+  path?: string
+  mode?: string
+  protocol?: string
+  statusCode?: number
+  from?: string
+  to?: string
+  skip?: number
+  take?: number
+}
+
+export interface GlobalLogQueryArgs {
+  proxyIds: string[]
   path?: string
   mode?: string
   protocol?: string

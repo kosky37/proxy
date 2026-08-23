@@ -39,6 +39,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
             <span className={`badge ${modeClass(log.mode)}`}>{modeBadge(log.mode).label}</span>
             <span className={`badge ${statusClass(log.statusCode)}`}>{log.statusCode ?? '-'}</span>
             <span>{log.durationMs} ms</span>
+            {log.proxyName && <span>{log.proxyName}</span>}
             {log.mockName && <span>Mock: {log.mockName}</span>}
             {log.error && <Badge bg="danger">{log.error}</Badge>}
             <div className="ms-auto">

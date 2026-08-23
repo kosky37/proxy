@@ -138,6 +138,8 @@ public sealed class LogListDto
 public class LogListItemDto
 {
     public long Id { get; set; }
+    public string? ProxyId { get; set; }
+    public string? ProxyName { get; set; }
     public DateTimeOffset TimestampUtc { get; set; }
     public required string Method { get; set; }
     public required string Path { get; set; }
@@ -283,9 +285,11 @@ public static class DtoMapper
         Response = ToModel(dto.Response)
     };
 
-    public static LogListItemDto ToListItem(RequestLogEntry entry) => new()
+    public static LogListItemDto ToListItem(RequestLogEntry entry, string? proxyId = null, string? proxyName = null) => new()
     {
         Id = entry.Id,
+        ProxyId = proxyId,
+        ProxyName = proxyName,
         TimestampUtc = entry.TimestampUtc,
         Method = entry.Method,
         Path = entry.Path,
@@ -304,9 +308,11 @@ public static class DtoMapper
         ResponseBodyTruncated = entry.ResponseBodyTruncated
     };
 
-    public static LogDetailDto ToDetail(RequestLogEntry entry) => new()
+    public static LogDetailDto ToDetail(RequestLogEntry entry, string? proxyId = null, string? proxyName = null) => new()
     {
         Id = entry.Id,
+        ProxyId = proxyId,
+        ProxyName = proxyName,
         TimestampUtc = entry.TimestampUtc,
         Method = entry.Method,
         Path = entry.Path,

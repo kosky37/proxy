@@ -54,6 +54,29 @@ public class RequestLogStoreTests
     }
 
     [Fact]
+    public async Task Concurrent_first_access_creates_the_request_logs_table()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-init-").FullName;
+        var store = new SqliteRequestLogStore();
+        try
+        {
+            var from = DateTimeOffset.UtcNow.AddHours(-1);
+            var to = DateTimeOffset.UtcNow;
+            var query = store.QueryAsync("fresh", folder, new LogQuery { FromUtc = from, ToUtc = to, Take = 50 });
+            var timeline = store.GetTimelineAsync("fresh", folder, from, to, 20);
+            var storage = store.GetStorageAsync("fresh", folder);
+
+            await FluentActions.Invoking(() => Task.WhenAll(query, timeline, storage)).Should().NotThrowAsync();
+            (await query).Total.Should().Be(0);
+            (await storage).EntryCount.Should().Be(0);
+        }
+        finally
+        {
+            DeleteFolder(folder);
+        }
+    }
+
+    [Fact]
     public async Task Stores_exceeded_body_size_without_the_body()
     {
         var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
