@@ -300,6 +300,20 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
             logs = logs.Where(item => item.Path.Contains(query.Path));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.SoapAction))
+        {
+            var soapAction = query.SoapAction;
+            logs = logs.Where(item => item.RequestHeaders != null && item.RequestHeaders.Contains(soapAction));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Body))
+        {
+            var body = query.Body;
+            logs = logs.Where(item =>
+                (item.RequestBody != null && item.RequestBody.Contains(body)) ||
+                (item.ResponseBody != null && item.ResponseBody.Contains(body)));
+        }
+
         if (query.Mode is { } mode)
         {
             var value = mode.ToString();

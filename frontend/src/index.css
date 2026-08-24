@@ -121,45 +121,6 @@ pre {
   text-align: left;
 }
 
-.soap-action-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
-.soap-action-line {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  margin-bottom: 0.15rem;
-}
-
-.soap-action-line strong {
-  word-break: break-all;
-}
-
-.soap-action-title {
-  margin-top: 0.2rem;
-  font-size: 1rem;
-  font-weight: 600;
-  word-break: break-all;
-}
-
-.soap-action-bar {
-  padding: 0.6rem 0.85rem;
-  margin-bottom: 1rem;
-  border: 1px solid var(--bs-border-color);
-  border-radius: 0.5rem;
-  background: var(--bs-tertiary-bg, var(--bs-secondary-bg));
-}
-
-.soap-action-value {
-  font-size: 1rem;
-  word-break: break-all;
-}
-
 .log-filters {
   border: 1px solid var(--bs-border-color);
   border-radius: 0.5rem;

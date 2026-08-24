@@ -12,11 +12,6 @@ public static class SoapMockMatcher
         }
 
         var match = mock.Match;
-        if (!PathMatcher.Matches(request.Path, match.Path, match.PathMode))
-        {
-            return false;
-        }
-
         var actualAction = SoapEnvelope.GetSoapAction(request.Headers);
         if (!SoapEnvelope.ActionsEqual(match.SoapAction, actualAction))
         {

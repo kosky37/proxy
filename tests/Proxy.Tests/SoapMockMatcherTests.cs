@@ -85,6 +85,28 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
+    public void Matches_by_soap_action_and_ignores_path()
+    {
+        var mock = new MockDefinition
+        {
+            Type = MockType.Soap,
+            Match = new MockMatch
+            {
+                Path = "/does-not-matter",
+                PathMode = PathMatchMode.Exact,
+                SoapAction = "GetAccount"
+            }
+        };
+
+        var request = Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        }, "/another-endpoint");
+
+        SoapMockMatcher.Matches(mock, request).Should().BeTrue();
+    }
+
+    [Fact]
     public void Matches_soap_action_without_reading_the_body()
     {
         var mock = new MockDefinition
@@ -174,11 +196,14 @@ public class SoapMockMatcherTests
         MockEngine.DetectProtocol(snapshot, null).Should().Be(RequestProtocol.Soap);
     }
 
-    private static HttpRequestSnapshot Snapshot(string body, Dictionary<string, string>? headers = null) =>
+    private static HttpRequestSnapshot Snapshot(
+        string body,
+        Dictionary<string, string>? headers = null,
+        string path = "/service") =>
         new()
         {
             Method = "POST",
-            Path = "/service",
+            Path = path,
             Query = new Dictionary<string, string>(),
             Headers = headers ?? new Dictionary<string, string>(),
             Body = body

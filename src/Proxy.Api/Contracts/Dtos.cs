@@ -275,15 +275,28 @@ public static class DtoMapper
         Response = ToDto(mock.Response)
     };
 
-    public static MockDefinition ToModel(MockDto dto) => new()
+    public static MockDefinition ToModel(MockDto dto)
     {
-        Type = Enum.TryParse<MockType>(dto.Type, true, out var type) ? type : MockType.Rest,
-        Name = dto.Name,
-        FileName = dto.FileName,
-        Enabled = dto.Enabled,
-        Match = ToModel(dto.Match),
-        Response = ToModel(dto.Response)
-    };
+        var type = Enum.TryParse<MockType>(dto.Type, true, out var parsed) ? parsed : MockType.Rest;
+        var match = ToModel(dto.Match);
+        if (type == MockType.Soap)
+        {
+            match.Path = null;
+            match.PathMode = PathMatchMode.Exact;
+            match.Methods = null;
+            match.Query = null;
+        }
+
+        return new MockDefinition
+        {
+            Type = type,
+            Name = dto.Name,
+            FileName = dto.FileName,
+            Enabled = dto.Enabled,
+            Match = match,
+            Response = ToModel(dto.Response)
+        };
+    }
 
     public static LogListItemDto ToListItem(RequestLogEntry entry, string? proxyId = null, string? proxyName = null) => new()
     {

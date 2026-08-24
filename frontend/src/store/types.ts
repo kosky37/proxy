@@ -153,6 +153,8 @@ export interface ManualSendRequestDto {
 export interface LogQueryArgs {
   proxyId: string
   path?: string
+  soapAction?: string
+  body?: string
   mode?: string
   protocol?: string
   statusCode?: number
@@ -165,6 +167,8 @@ export interface LogQueryArgs {
 export interface GlobalLogQueryArgs {
   proxyIds: string[]
   path?: string
+  soapAction?: string
+  body?: string
   mode?: string
   protocol?: string
   statusCode?: number

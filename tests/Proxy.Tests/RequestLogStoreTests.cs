@@ -137,6 +137,49 @@ public class RequestLogStoreTests
     }
 
     [Fact]
+    public async Task Filters_logs_by_soap_action_and_body()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;
+        var store = new SqliteRequestLogStore();
+        try
+        {
+            await store.WriteAsync("demo", folder, new RequestLogEntry
+            {
+                TimestampUtc = DateTimeOffset.UtcNow,
+                Method = "POST",
+                Path = "/service",
+                Protocol = RequestProtocol.Soap,
+                RequestHeaders = """{"SOAPAction":"\"GetAccount\""}""",
+                RequestBody = "<AccountId>999</AccountId>",
+                ResponseBody = "<Balance>10</Balance>"
+            });
+            await store.WriteAsync("demo", folder, new RequestLogEntry
+            {
+                TimestampUtc = DateTimeOffset.UtcNow,
+                Method = "POST",
+                Path = "/service",
+                Protocol = RequestProtocol.Soap,
+                RequestHeaders = """{"SOAPAction":"\"Ping\""}""",
+                RequestBody = "<Ping/>"
+            });
+            await store.WriteAsync("demo", folder, Entry(DateTimeOffset.UtcNow, "/plain", "hello world"));
+
+            var byAction = await store.QueryAsync("demo", folder, new LogQuery { SoapAction = "GetAccount", Take = 50 });
+            byAction.Items.Should().ContainSingle(item => item.RequestBody!.Contains("999"));
+
+            var byRequestBody = await store.QueryAsync("demo", folder, new LogQuery { Body = "AccountId", Take = 50 });
+            byRequestBody.Items.Should().ContainSingle(item => item.Path == "/service" && item.RequestBody!.Contains("999"));
+
+            var byResponseBody = await store.QueryAsync("demo", folder, new LogQuery { Body = "Balance", Take = 50 });
+            byResponseBody.Items.Should().ContainSingle(item => item.ResponseBody!.Contains("Balance"));
+        }
+        finally
+        {
+            DeleteFolder(folder);
+        }
+    }
+
+    [Fact]
     public async Task Timeline_splits_buckets_by_mode_and_status()
     {
         var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;

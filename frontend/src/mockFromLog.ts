@@ -19,8 +19,8 @@ export function mockFromLog(log: LogDetailDto): MockDto {
     type: isSoap ? 'soap' : 'rest',
     match: {
       pathMode: 'exact',
-      path: log.path,
-      methods: [log.method],
+      path: isSoap ? null : log.path,
+      methods: isSoap ? null : [log.method],
       soapAction: soapAction ?? null,
       operation: operation ?? null,
       headers: compactHeaders(

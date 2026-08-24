@@ -296,8 +296,11 @@ function mockSummary(mock?: MockDto) {
     return 'This mock no longer exists'
   }
   const methods = mock.match.methods?.filter(Boolean) ?? []
-  const target = mock.match.path || mock.match.soapAction || mock.match.operation || '*'
-  const method = methods.length > 0 ? methods.join(', ') : 'any'
+  const target =
+    mock.type === 'soap'
+      ? mock.match.soapAction || mock.match.operation || '*'
+      : mock.match.path || '*'
+  const method = mock.type === 'soap' ? 'SOAP' : methods.length > 0 ? methods.join(', ') : 'any'
   return `${method} ${target}`
 }
 

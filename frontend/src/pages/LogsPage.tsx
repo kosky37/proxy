@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { LogTimeline } from '../components/LogTimeline'
 import { ProxyLogFilter } from '../components/ProxyLogFilter'
-import { SoapActionBanner } from '../components/SoapActionBanner'
+import { LogRequestLine } from '../components/SoapActionBanner'
 import { formatBytes, formatDate, formatDateTime, formatTime, logWindow, type LogWindowPreset } from '../format'
 import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
@@ -29,7 +29,7 @@ export function LogsPage() {
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const [page, setPage] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
-  const [filter, setFilter] = useState({ path: '', mode: '', protocol: '' })
+  const [filter, setFilter] = useState({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
   const [openLog, setOpenLog] = useState<{ proxyId: string; entryId: number } | null>(null)
 
   useEffect(() => {
@@ -44,6 +44,8 @@ export function LogsPage() {
   const queryFilter = useMemo(
     () => ({
       path: filter.path || undefined,
+      soapAction: filter.soapAction || undefined,
+      body: filter.body || undefined,
       mode: filter.mode || undefined,
       protocol: filter.protocol || undefined,
     }),
@@ -170,7 +172,7 @@ export function LogsPage() {
             variant="link"
             size="sm"
             onClick={() => {
-              setFilter({ path: '', mode: '', protocol: '' })
+              setFilter({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
               setPage(0)
             }}
           >
@@ -187,6 +189,30 @@ export function LogsPage() {
                     value={filter.path}
                     onChange={(event) => {
                       setFilter({ ...filter, path: event.target.value })
+                      setPage(0)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>SOAPAction contains</Form.Label>
+                  <Form.Control
+                    value={filter.soapAction}
+                    onChange={(event) => {
+                      setFilter({ ...filter, soapAction: event.target.value })
+                      setPage(0)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Body contains</Form.Label>
+                  <Form.Control
+                    value={filter.body}
+                    onChange={(event) => {
+                      setFilter({ ...filter, body: event.target.value })
                       setPage(0)
                     }}
                   />
@@ -293,11 +319,7 @@ export function LogsPage() {
                 {item.mockName && <div className="row-meta">{item.mockName}</div>}
               </td>
               <td>
-                {item.protocol === 'soap' && <SoapActionBanner action={item.soapAction} compact />}
-                <div>
-                  <strong>{item.method}</strong> {item.path}
-                  {item.query && <span className="text-secondary">?{item.query}</span>}
-                </div>
+                <LogRequestLine item={item} />
                 <div className="row-meta">
                   {item.contentType || 'no content-type'}
                   {' · '}

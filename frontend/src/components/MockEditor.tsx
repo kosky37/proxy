@@ -46,10 +46,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
     try {
       await onSave({
         ...mock,
-        match: {
-          ...(useAdvanced ? mock.match : basicMatch(mock.match)),
-          headers: useHeaderMatch ? mock.match.headers : null,
-        },
+        match: persistMatch(mock.match, mock.type === 'soap', useAdvanced, useHeaderMatch),
         response: {
           ...mock.response,
           delayMs: useDelay ? mock.response.delayMs : 0,
@@ -78,7 +75,17 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 </FieldLabel>
                 <Form.Select
                   value={mock.type}
-                  onChange={(event) => setMock({ ...mock, type: event.target.value })}
+                  onChange={(event) => {
+                    const type = event.target.value
+                    setMock({
+                      ...mock,
+                      type,
+                      match:
+                        type === 'soap'
+                          ? { ...mock.match, path: null, pathMode: 'exact' }
+                          : mock.match,
+                    })
+                  }}
                 >
                   <option value="rest">REST</option>
                   <option value="soap">SOAP</option>
@@ -110,38 +117,14 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
             <Col xs={12}>
               <div className="editor-section-title">Match</div>
             </Col>
-            <Col md={isSoap ? 4 : 4}>
-              <Form.Group>
-                <FieldLabel help="The URL path after the host. Leave empty to match any path. Example: /accounts">
-                  Path
-                </FieldLabel>
-                <Form.Control
-                  placeholder="/accounts"
-                  value={mock.match.path ?? ''}
-                  onChange={(event) => setMock({ ...mock, match: { ...mock.match, path: event.target.value } })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <Form.Group>
-                <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
-                <Form.Select
-                  value={mock.match.pathMode}
-                  onChange={(event) => setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })}
-                >
-                  <option value="exact">exact — this path only</option>
-                  <option value="prefix">prefix — this path and below</option>
-                  <option value="template">template — {`{placeholders}`}</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
             {isSoap ? (
-              <Col md={4}>
+              <Col xs={12}>
                 <Form.Group>
-                  <FieldLabel help='Value of the SOAPAction header. Clients use it to name the call. Examples: GetAccount or "http://example.com/GetAccount". Leave empty to ignore the header.'>
+                  <FieldLabel help='Value of the SOAPAction header. This is how the mock is selected; the URL path is ignored. Examples: GetAccount or "http://example.com/GetAccount".'>
                     SOAPAction
                   </FieldLabel>
                   <Form.Control
+                    required
                     value={mock.match.soapAction ?? ''}
                     onChange={(event) =>
                       setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
@@ -150,20 +133,47 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 </Form.Group>
               </Col>
             ) : (
-              <Col md={4}>
-                <Form.Group>
-                  <FieldLabel help="HTTP methods this mock accepts. Leave empty to match any method.">
-                    Methods
-                  </FieldLabel>
-                  <MethodTypeahead
-                    id="mock-methods"
-                    multiple
-                    selected={mock.match.methods ?? []}
-                    onChange={(methods) => setMock({ ...mock, match: { ...mock.match, methods } })}
-                    placeholder="Any method"
-                  />
-                </Form.Group>
-              </Col>
+              <>
+                <Col md={4}>
+                  <Form.Group>
+                    <FieldLabel help="The URL path after the host. Leave empty to match any path. Example: /accounts">
+                      Path
+                    </FieldLabel>
+                    <Form.Control
+                      placeholder="/accounts"
+                      value={mock.match.path ?? ''}
+                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, path: event.target.value } })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
+                    <Form.Select
+                      value={mock.match.pathMode}
+                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })}
+                    >
+                      <option value="exact">exact — this path only</option>
+                      <option value="prefix">prefix — this path and below</option>
+                      <option value="template">template — {`{placeholders}`}</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group>
+                    <FieldLabel help="HTTP methods this mock accepts. Leave empty to match any method.">
+                      Methods
+                    </FieldLabel>
+                    <MethodTypeahead
+                      id="mock-methods"
+                      multiple
+                      selected={mock.match.methods ?? []}
+                      onChange={(methods) => setMock({ ...mock, match: { ...mock.match, methods } })}
+                      placeholder="Any method"
+                    />
+                  </Form.Group>
+                </Col>
+              </>
             )}
             <Col xs={12}>
               <Form.Check
@@ -196,7 +206,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 checked={useAdvanced}
                 onChange={(event) => setUseAdvanced(event.target.checked)}
               />
-              <Form.Text>Match on the request body as well as the path.</Form.Text>
+              <Form.Text>
+                {isSoap ? 'Match on the SOAP body as well as SOAPAction.' : 'Match on the request body as well as the path.'}
+              </Form.Text>
             </Col>
             {useAdvanced && !isSoap && (
               <>
@@ -413,6 +425,29 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
 
 function hasHeaderMatch(match: MockMatchDto): boolean {
   return Boolean(match.headers && Object.keys(match.headers).length > 0)
+}
+
+function persistMatch(
+  match: MockMatchDto,
+  isSoap: boolean,
+  useAdvanced: boolean,
+  useHeaderMatch: boolean,
+): MockMatchDto {
+  const next = {
+    ...(useAdvanced ? match : basicMatch(match)),
+    headers: useHeaderMatch ? match.headers : null,
+  }
+  if (!isSoap) {
+    return next
+  }
+
+  return {
+    ...next,
+    path: null,
+    pathMode: 'exact',
+    methods: null,
+    query: null,
+  }
 }
 
 function hasExtraFilters(match: MockMatchDto): boolean {

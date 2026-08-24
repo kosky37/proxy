@@ -747,8 +747,12 @@ function MockTable({
                 )}
               </td>
               <td>
-                <code>{mock.match.path || mock.match.soapAction || mock.match.operation || '*'}</code>
-                {mock.match.pathMode && mock.match.pathMode !== 'exact' && (
+                <code>
+                  {mock.type === 'soap'
+                    ? mock.match.soapAction || mock.match.operation || '*'
+                    : mock.match.path || '*'}
+                </code>
+                {mock.type !== 'soap' && mock.match.pathMode && mock.match.pathMode !== 'exact' && (
                   <div className="row-meta">{mock.match.pathMode}</div>
                 )}
               </td>

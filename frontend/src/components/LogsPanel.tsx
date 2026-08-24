@@ -12,7 +12,7 @@ import {
 } from '../store/proxyApi'
 import type { MockDto } from '../store/types'
 import { LogTimeline } from './LogTimeline'
-import { SoapActionBanner } from './SoapActionBanner'
+import { LogRequestLine } from './SoapActionBanner'
 
 const PAGE_SIZE = 50
 
@@ -35,10 +35,12 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
   const [windowPreset, setWindowPreset] = useState<WindowPreset>('24h')
   const [range, setRange] = useState<{ from: string; to: string } | null>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [filter, setFilter] = useState({ path: '', mode: '', protocol: '' })
+  const [filter, setFilter] = useState({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
   const queryFilter = useMemo(
     () => ({
       path: filter.path || undefined,
+      soapAction: filter.soapAction || undefined,
+      body: filter.body || undefined,
       mode: filter.mode || undefined,
       protocol: filter.protocol || undefined,
     }),
@@ -213,7 +215,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
             variant="link"
             size="sm"
             onClick={() => {
-              setFilter({ path: '', mode: '', protocol: '' })
+              setFilter({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
               setPage(0)
             }}
           >
@@ -230,6 +232,30 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                     value={filter.path}
                     onChange={(event) => {
                       setFilter({ ...filter, path: event.target.value })
+                      setPage(0)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>SOAPAction contains</Form.Label>
+                  <Form.Control
+                    value={filter.soapAction}
+                    onChange={(event) => {
+                      setFilter({ ...filter, soapAction: event.target.value })
+                      setPage(0)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Body contains</Form.Label>
+                  <Form.Control
+                    value={filter.body}
+                    onChange={(event) => {
+                      setFilter({ ...filter, body: event.target.value })
                       setPage(0)
                     }}
                   />
@@ -356,11 +382,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                 )}
               </td>
               <td>
-                {item.protocol === 'soap' && <SoapActionBanner action={item.soapAction} compact />}
-                <div>
-                  <strong>{item.method}</strong> {item.path}
-                  {item.query && <span className="text-secondary">?{item.query}</span>}
-                </div>
+                <LogRequestLine item={item} />
                 <div className="row-meta">
                   {item.contentType || 'no content-type'}
                   {' · '}
