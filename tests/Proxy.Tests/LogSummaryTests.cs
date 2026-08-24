@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Proxy.Api.Contracts;
 using Proxy.Core.Models;
 

@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Microsoft.Data.Sqlite;
 using Proxy.Core.Models;
 using Proxy.Infrastructure.Logging;

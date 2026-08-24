@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Proxy.Core.Matching;
 using Proxy.Core.Models;
 

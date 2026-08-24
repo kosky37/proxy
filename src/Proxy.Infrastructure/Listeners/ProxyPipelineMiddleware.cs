@@ -8,7 +8,6 @@ using Proxy.Core.Matching;
 using Proxy.Core.Models;
 using Proxy.Core.Options;
 using Proxy.Infrastructure.Http;
-using Yarp.ReverseProxy.Forwarder;
 
 namespace Proxy.Infrastructure.Listeners;
 

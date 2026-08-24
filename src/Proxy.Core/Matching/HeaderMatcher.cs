@@ -1,5 +1,3 @@
-using Proxy.Core.Models;
-
 namespace Proxy.Core.Matching;
 
 public static class HeaderMatcher

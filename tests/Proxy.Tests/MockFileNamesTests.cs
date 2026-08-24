@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Proxy.Core.Storage;
 
 namespace Proxy.Tests;
