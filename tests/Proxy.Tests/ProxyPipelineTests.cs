@@ -1,9 +1,11 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 
 namespace Proxy.Tests;
 
@@ -74,6 +76,72 @@ public class ProxyPipelineTests
         var modes = logs.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("mode").GetString()).ToList();
         modes.Should().Contain("mock");
         modes.Should().Contain("passthrough");
+
+        await downstream.StopAsync();
+        await downstream.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Passthrough_gzip_response_is_logged_decoded()
+    {
+        var downstreamPort = GetFreePort();
+        var listenPort = GetFreePort();
+
+        var downstream = WebApplication.Create();
+        downstream.Urls.Clear();
+        downstream.Urls.Add($"http://127.0.0.1:{downstreamPort}");
+        downstream.MapGet("/payload", async (HttpContext context) =>
+        {
+            const string json = """{"hello":"world"}""";
+            using var output = new MemoryStream();
+            using (var gzip = new GZipStream(output, CompressionLevel.Fastest, leaveOpen: true))
+            {
+                gzip.Write(Encoding.UTF8.GetBytes(json));
+            }
+
+            context.Response.ContentType = "application/json";
+            context.Response.Headers.ContentEncoding = "gzip";
+            await context.Response.Body.WriteAsync(output.ToArray());
+        });
+        await downstream.StartAsync();
+
+        await using var factory = new ProxyApiFactory();
+        var folder = Path.Combine(factory.DataRoot, "gzip");
+        Directory.CreateDirectory(Path.Combine(folder, "mocks"));
+        await File.WriteAllTextAsync(Path.Combine(folder, "proxy.json"), $$"""
+            {
+              "name": "Gzip",
+              "enabled": true,
+              "listen": { "url": "http://127.0.0.1:{{listenPort}}" },
+              "destination": { "address": "http://127.0.0.1:{{downstreamPort}}" },
+              "mocksEnabled": false
+            }
+            """);
+
+        using var api = factory.CreateClient();
+        (await api.GetStringAsync("/api/proxies")).Should().Contain("gzip");
+
+        using var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.None };
+        using var proxyClient = new HttpClient(handler) { BaseAddress = new Uri($"http://127.0.0.1:{listenPort}") };
+        await WaitForListener(proxyClient);
+
+        using var passthrough = await proxyClient.GetAsync("/payload");
+        passthrough.StatusCode.Should().Be(HttpStatusCode.OK);
+        passthrough.Content.Headers.ContentEncoding.Should().Contain("gzip");
+
+        using var logsResponse = await api.GetAsync("/api/proxies/gzip/logs");
+        var logsJson = await logsResponse.Content.ReadAsStringAsync();
+        logsResponse.StatusCode.Should().Be(HttpStatusCode.OK, logsJson);
+        using var logs = JsonDocument.Parse(logsJson);
+        var id = logs.RootElement.GetProperty("items").EnumerateArray()
+            .First(item => item.GetProperty("path").GetString() == "/payload")
+            .GetProperty("id").GetInt64();
+
+        using var detailResponse = await api.GetAsync($"/api/proxies/gzip/logs/{id}");
+        var detailJson = await detailResponse.Content.ReadAsStringAsync();
+        detailResponse.StatusCode.Should().Be(HttpStatusCode.OK, detailJson);
+        using var detail = JsonDocument.Parse(detailJson);
+        detail.RootElement.GetProperty("responseBody").GetString().Should().Be("""{"hello":"world"}""");
 
         await downstream.StopAsync();
         await downstream.DisposeAsync();

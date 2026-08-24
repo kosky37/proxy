@@ -84,7 +84,14 @@ public sealed class ManualRequestSender
                 responseHeaders[header.Key] = string.Join(", ", header.Value);
             }
 
-            responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            var encoding = JoinValues(response.Content.Headers.ContentEncoding);
+            if (string.IsNullOrEmpty(encoding) && responseHeaders.TryGetValue("Content-Encoding", out var headerEncoding))
+            {
+                encoding = headerEncoding;
+            }
+
+            responseBody = HttpContentDecoder.ToText(bytes, encoding, response.Content.Headers.ContentType?.ToString());
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -155,6 +162,12 @@ public sealed class ManualRequestSender
         }
 
         message.Content = content;
+    }
+
+    private static string? JoinValues(IEnumerable<string> values)
+    {
+        var joined = string.Join(", ", values);
+        return string.IsNullOrWhiteSpace(joined) ? null : joined;
     }
 }
 

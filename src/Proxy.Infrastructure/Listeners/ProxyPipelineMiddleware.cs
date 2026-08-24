@@ -7,6 +7,7 @@ using Proxy.Core.Contracts;
 using Proxy.Core.Matching;
 using Proxy.Core.Models;
 using Proxy.Core.Options;
+using Proxy.Infrastructure.Http;
 using Yarp.ReverseProxy.Forwarder;
 
 namespace Proxy.Infrastructure.Listeners;
@@ -184,11 +185,11 @@ public sealed class ProxyPipelineMiddleware
         string? error)
     {
         responseBuffer.Position = 0;
-        string responseBody;
-        using (var reader = new StreamReader(responseBuffer, leaveOpen: true))
-        {
-            responseBody = await reader.ReadToEndAsync();
-        }
+        var responseBytes = responseBuffer.ToArray();
+        var responseBody = HttpContentDecoder.ToText(
+            responseBytes,
+            context.Response.Headers.ContentEncoding.ToString(),
+            context.Response.ContentType);
 
         var limit = LogLimits.BodyLimitBytes(proxy.Definition, _options);
         var requestLimit = BodyLimiter.Limit(snapshot.Body, limit);
