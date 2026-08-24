@@ -23,6 +23,11 @@ public static class SoapMockMatcher
             return false;
         }
 
+        if (!HeaderMatcher.Matches(match.Headers, request.Headers))
+        {
+            return false;
+        }
+
         if (!string.IsNullOrEmpty(match.BodyContains) &&
             !request.Body.Contains(match.BodyContains, StringComparison.OrdinalIgnoreCase))
         {

@@ -1,33 +1,64 @@
-import { useEffect, useState } from 'react'
-import { Badge, Button, Col, Form, Modal, OverlayTrigger, Row, Stack, Table, Tooltip } from 'react-bootstrap'
-import { formatBytes } from '../format'
-import { modeClass, statusClass } from '../logColors'
-import { modeBadge } from '../modeBadge'
-import { parseBody, type ParsedField } from '../parseBody'
-import { protocolBadge } from '../protocolBadge'
-import type { LogDetailDto, MockDto } from '../store/types'
-import { BodyTree } from './BodyTree'
-import { CopyButton } from './CopyButton'
+import { useEffect, useState } from "react";
+import {
+  Badge,
+  Button,
+  Col,
+  Form,
+  Modal,
+  OverlayTrigger,
+  Row,
+  Stack,
+  Table,
+  Tooltip,
+} from "react-bootstrap";
+import { formatBytes } from "../format";
+import { modeClass, statusClass } from "../logColors";
+import { modeBadge } from "../modeBadge";
+import { parseBody, type ParsedField } from "../parseBody";
+import { protocolBadge } from "../protocolBadge";
+import type { LogDetailDto, MockDto } from "../store/types";
+import { BodyTree } from "./BodyTree";
+import { CopyButton } from "./CopyButton";
+import { SoapActionBanner } from "./SoapActionBanner";
 
 interface Props {
-  show: boolean
-  log: LogDetailDto | null
-  existingMock?: MockDto
-  onClose: () => void
-  onOpenMock?: (mock: MockDto) => void
-  onCreateMock?: (log: LogDetailDto) => void
-  onCreateIgnore?: (log: LogDetailDto) => void
+  show: boolean;
+  log: LogDetailDto | null;
+  existingMock?: MockDto;
+  onClose: () => void;
+  onOpenMock?: (mock: MockDto) => void;
+  onCreateMock?: (log: LogDetailDto) => void;
+  onCreateSend?: (log: LogDetailDto) => void;
+  onCreateIgnore?: (log: LogDetailDto) => void;
 }
 
-export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, onCreateMock, onCreateIgnore }: Props) {
-  const [raw, setRaw] = useState(false)
-  const kind = protocolBadge(log?.protocol ?? '')
+export function LogDetailModal({
+  show,
+  log,
+  existingMock,
+  onClose,
+  onOpenMock,
+  onCreateMock,
+  onCreateSend,
+  onCreateIgnore,
+}: Props) {
+  const [raw, setRaw] = useState(false);
+  const kind = protocolBadge(log?.protocol ?? "");
 
   return (
-    <Modal show={show} onHide={onClose} dialogClassName="log-detail-modal" scrollable onExited={() => setRaw(false)}>
+    <Modal
+      show={show}
+      onHide={onClose}
+      dialogClassName="log-detail-modal"
+      scrollable
+      onExited={() => setRaw(false)}
+    >
       <Modal.Header closeButton>
         <Modal.Title>
           {log?.method} {log?.path}
+          {log?.protocol === "soap" && log.soapAction && (
+            <div className="soap-action-title">{log.soapAction}</div>
+          )}
         </Modal.Title>
       </Modal.Header>
       {log && (
@@ -36,8 +67,12 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
             <Badge bg={kind.bg} text={kind.text}>
               {kind.label}
             </Badge>
-            <span className={`badge ${modeClass(log.mode)}`}>{modeBadge(log.mode).label}</span>
-            <span className={`badge ${statusClass(log.statusCode)}`}>{log.statusCode ?? '-'}</span>
+            <span className={`badge ${modeClass(log.mode)}`}>
+              {modeBadge(log.mode).label}
+            </span>
+            <span className={`badge ${statusClass(log.statusCode)}`}>
+              {log.statusCode ?? "-"}
+            </span>
             <span>{log.durationMs} ms</span>
             {log.proxyName && <span>{log.proxyName}</span>}
             {log.mockName && <span>Mock: {log.mockName}</span>}
@@ -52,6 +87,9 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
               />
             </div>
           </Stack>
+          {log.protocol === "soap" && (
+            <SoapActionBanner action={log.soapAction} />
+          )}
           <Row className="g-3">
             <Col lg={6}>
               <HttpMessage
@@ -87,6 +125,11 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
             Create mock
           </Button>
         )}
+        {log && onCreateSend && (
+          <Button variant="outline-primary" onClick={() => onCreateSend(log)}>
+            Send similar
+          </Button>
+        )}
         {log && onCreateIgnore && (
           <Button variant="outline-primary" onClick={() => onCreateIgnore(log)}>
             Create ignore
@@ -97,7 +140,7 @@ export function LogDetailModal({ show, log, existingMock, onClose, onOpenMock, o
         </Button>
       </Modal.Footer>
     </Modal>
-  )
+  );
 }
 
 function HttpMessage({
@@ -108,15 +151,17 @@ function HttpMessage({
   originalBytes,
   raw,
 }: {
-  title: string
-  headers?: string | null
-  body?: string | null
-  truncated: boolean
-  originalBytes?: number
-  raw: boolean
+  title: string;
+  headers?: string | null;
+  body?: string | null;
+  truncated: boolean;
+  originalBytes?: number;
+  raw: boolean;
 }) {
-  const headerFields = Object.entries(parseHeaders(headers)).map(([name, value]) => ({ name, value }))
-  const bodyNodes = raw ? null : parseBody(body)
+  const headerFields = Object.entries(parseHeaders(headers)).map(
+    ([name, value]) => ({ name, value }),
+  );
+  const bodyNodes = raw ? null : parseBody(body);
 
   return (
     <Stack gap={3}>
@@ -139,20 +184,22 @@ function HttpMessage({
             </Badge>
           )}
           <div className="ms-auto">
-            <CopyButton value={body ?? ''} label="Copy body" />
+            <CopyButton value={body ?? ""} label="Copy body" />
           </div>
         </Stack>
         {raw || !bodyNodes ? (
           <pre className="border rounded p-2 mb-0">
             {body ||
-              (truncated ? `Body not stored. Original size: ${formatBytes(originalBytes)}.` : '(empty)')}
+              (truncated
+                ? `Body not stored. Original size: ${formatBytes(originalBytes)}.`
+                : "(empty)")}
           </pre>
         ) : (
           <BodyTree nodes={bodyNodes} empty="(empty)" />
         )}
       </div>
     </Stack>
-  )
+  );
 }
 
 function FieldBlock({
@@ -164,42 +211,55 @@ function FieldBlock({
   copyLabel,
   defaultOpen = true,
 }: {
-  title: string
-  rawText?: string | null
-  fields: ParsedField[]
-  raw: boolean
-  empty: string
-  copyLabel: string
-  defaultOpen?: boolean
+  title: string;
+  rawText?: string | null;
+  fields: ParsedField[];
+  raw: boolean;
+  empty: string;
+  copyLabel: string;
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(defaultOpen);
   useEffect(() => {
-    setOpen(defaultOpen)
-  }, [rawText, defaultOpen])
+    setOpen(defaultOpen);
+  }, [rawText, defaultOpen]);
 
   return (
     <div>
       <Stack direction="horizontal" className="mb-2">
-        <button type="button" className="log-collapse-toggle" onClick={() => setOpen((value) => !value)}>
-          <i className={`bi ${open ? 'bi-chevron-down' : 'bi-chevron-right'}`} aria-hidden />
+        <button
+          type="button"
+          className="log-collapse-toggle"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <i
+            className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`}
+            aria-hidden
+          />
           <strong>{title}</strong>
           <span className="row-meta">{fields.length}</span>
         </button>
         <div className="ms-auto">
-          <CopyButton value={rawText ?? ''} label={copyLabel} />
+          <CopyButton value={rawText ?? ""} label={copyLabel} />
         </div>
       </Stack>
       {open &&
         (raw ? (
-          <pre className="border rounded p-2 mb-0">{rawText || '(none)'}</pre>
+          <pre className="border rounded p-2 mb-0">{rawText || "(none)"}</pre>
         ) : (
           <FieldTable fields={fields} empty={empty} />
         ))}
     </div>
-  )
+  );
 }
 
-function FieldTable({ fields, empty }: { fields: ParsedField[]; empty: string }) {
+function FieldTable({
+  fields,
+  empty,
+}: {
+  fields: ParsedField[];
+  empty: string;
+}) {
   return (
     <Table bordered size="sm" className="log-headers-table mb-0">
       <colgroup>
@@ -235,38 +295,48 @@ function FieldTable({ fields, empty }: { fields: ParsedField[]; empty: string })
         )}
       </tbody>
     </Table>
-  )
+  );
 }
 
-function TruncatedText({ value, code = false }: { value: string; code?: boolean }) {
-  const content = code ? <code>{value}</code> : value
+function TruncatedText({
+  value,
+  code = false,
+}: {
+  value: string;
+  code?: boolean;
+}) {
+  const content = code ? <code>{value}</code> : value;
   if (!value) {
-    return content
+    return content;
   }
 
   return (
-    <OverlayTrigger overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}>
+    <OverlayTrigger
+      overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}
+    >
       <span className="log-headers-text">{content}</span>
     </OverlayTrigger>
-  )
+  );
 }
 
 function parseHeaders(raw?: string | null): Record<string, string> {
   if (!raw) {
-    return {}
+    return {};
   }
 
   try {
-    const parsed = JSON.parse(raw) as unknown
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return Object.fromEntries(
-        Object.entries(parsed).map(([key, value]) => [key, value == null ? '' : String(value)]),
-      )
+        Object.entries(parsed).map(([key, value]) => [
+          key,
+          value == null ? "" : String(value),
+        ]),
+      );
     }
   } catch {
-    return { Raw: raw }
+    return { Raw: raw };
   }
 
-  return { Raw: raw }
+  return { Raw: raw };
 }
-

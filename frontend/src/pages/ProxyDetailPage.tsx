@@ -13,7 +13,7 @@ import {
   Table,
   Tooltip,
 } from 'react-bootstrap'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { LogsPanel } from '../components/LogsPanel'
@@ -22,6 +22,7 @@ import { MockEditor } from '../components/MockEditor'
 import { MockSetEditor } from '../components/MockSetEditor'
 import { hasAdvancedMatch } from '../format'
 import { ignoreFromLog, mockFromLog } from '../mockFromLog'
+import { sendFromLog, type SendDraft } from '../headers'
 import {
   useApplyMockSetMutation,
   useCreateIgnoreMutation,
@@ -49,6 +50,8 @@ type Tab = 'settings' | 'send' | 'rest' | 'soap' | 'mock-sets' | 'ignores' | 'lo
 
 export function ProxyDetailPage() {
   const { id = '' } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const proxy = useGetProxyQuery(id)
   const mocks = useGetMocksQuery(id)
   const ignores = useGetIgnoresQuery(id)
@@ -61,6 +64,7 @@ export function ProxyDetailPage() {
   const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined)
   const [editingSet, setEditingSet] = useState<MockSetDto | null | undefined>(undefined)
   const [logId, setLogId] = useState<number | null>(null)
+  const [sendDraft, setSendDraft] = useState<SendDraft | null>(null)
   const logDetail = useGetLogQuery({ proxyId: id, entryId: logId ?? 0 }, { skip: logId == null })
   const [updateProxy] = useUpdateProxyMutation()
   const [setMocksEnabled] = useSetMocksEnabledMutation()
@@ -89,6 +93,26 @@ export function ProxyDetailPage() {
       })
     }
   }, [proxy.data])
+
+  useEffect(() => {
+    const fromLog = (location.state as { fromLog?: { action: 'mock' | 'send'; log: LogDetailDto } } | null)?.fromLog
+    if (!fromLog) {
+      return
+    }
+
+    if (fromLog.action === 'send') {
+      setSendDraft(sendFromLog(fromLog.log))
+      setTab('send')
+      setLogId(null)
+    } else {
+      setEditingExisting(false)
+      setEditing(mockFromLog(fromLog.log))
+      setTab(fromLog.log.protocol === 'soap' ? 'soap' : 'rest')
+      setLogId(null)
+    }
+
+    navigate(location.pathname, { replace: true, state: {} })
+  }, [location.pathname, location.state, navigate])
 
   if (proxy.isLoading || !form) {
     return <Alert variant="secondary">Loading…</Alert>
@@ -155,6 +179,12 @@ export function ProxyDetailPage() {
     setEditingExisting(false)
     setEditing(mockFromLog(log))
     setTab(log.protocol === 'soap' ? 'soap' : 'rest')
+    setLogId(null)
+  }
+
+  const createSendFromLog = (log: LogDetailDto) => {
+    setSendDraft(sendFromLog(log))
+    setTab('send')
     setLogId(null)
   }
 
@@ -415,6 +445,8 @@ export function ProxyDetailPage() {
           proxyId={id}
           destination={proxy.data.destination.address}
           pathPrefix={proxy.data.listen.pathPrefix}
+          draft={sendDraft}
+          onDraftConsumed={() => setSendDraft(null)}
           onOpenLog={setLogId}
         />
       )}
@@ -575,6 +607,7 @@ export function ProxyDetailPage() {
         onClose={() => setLogId(null)}
         onOpenMock={openExistingMock}
         onCreateMock={createMockFromLog}
+        onCreateSend={createSendFromLog}
         onCreateIgnore={createIgnoreFromLog}
       />
 

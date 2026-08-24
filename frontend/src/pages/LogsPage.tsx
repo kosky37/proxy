@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { LogTimeline } from '../components/LogTimeline'
 import { ProxyLogFilter } from '../components/ProxyLogFilter'
+import { SoapActionBanner } from '../components/SoapActionBanner'
 import { formatBytes, formatDate, formatDateTime, formatTime, logWindow, type LogWindowPreset } from '../format'
 import { modeClass, statusClass } from '../logColors'
 import { modeBadge } from '../modeBadge'
@@ -20,6 +21,7 @@ const PRESETS: Exclude<LogWindowPreset, 'all'>[] = ['1h', '6h', '24h', '7d']
 const frozenQuery = { refetchOnFocus: false, refetchOnReconnect: false } as const
 
 export function LogsPage() {
+  const navigate = useNavigate()
   const proxies = useGetProxiesQuery()
   const [selectedIds, setSelectedIds] = useState<string[] | null>(null)
   const [windowEnd, setWindowEnd] = useState(() => Date.now())
@@ -285,13 +287,13 @@ export function LogsPage() {
                 <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
                   {protocolBadge(item.protocol).label}
                 </Badge>
-                {item.protocol === 'soap' && <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>}
               </td>
               <td>
                 <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
                 {item.mockName && <div className="row-meta">{item.mockName}</div>}
               </td>
               <td>
+                {item.protocol === 'soap' && <SoapActionBanner action={item.soapAction} compact />}
                 <div>
                   <strong>{item.method}</strong> {item.path}
                   {item.query && <span className="text-secondary">?{item.query}</span>}
@@ -325,6 +327,20 @@ export function LogsPage() {
             : null
         }
         onClose={() => setOpenLog(null)}
+        onCreateMock={(log) => {
+          if (!log.proxyId) {
+            return
+          }
+          setOpenLog(null)
+          navigate(`/proxies/${log.proxyId}`, { state: { fromLog: { action: 'mock', log } } })
+        }}
+        onCreateSend={(log) => {
+          if (!log.proxyId) {
+            return
+          }
+          setOpenLog(null)
+          navigate(`/proxies/${log.proxyId}`, { state: { fromLog: { action: 'send', log } } })
+        }}
       />
     </>
   )

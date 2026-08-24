@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Button, Col, Form, InputGroup, Modal, Row } from 'react-bootstrap'
 import type { MockDto, MockMatchDto } from '../store/types'
 import { FieldLabel, pathModeHelp } from './FieldHelp'
+import { HeaderEditor } from './HeaderEditor'
 import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
 
 const blank = (type: string): MockDto => ({
@@ -25,6 +26,7 @@ interface Props {
 export function MockEditor({ show, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType))
   const [useDelay, setUseDelay] = useState(false)
+  const [useHeaderMatch, setUseHeaderMatch] = useState(false)
   const [useAdvanced, setUseAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -33,6 +35,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
       const next = initial ?? blank(defaultType)
       setMock(next)
       setUseDelay((next.response.delayMs ?? 0) > 0)
+      setUseHeaderMatch(hasHeaderMatch(next.match))
       setUseAdvanced(hasExtraFilters(next.match))
     }
   }, [defaultType, initial, show])
@@ -43,7 +46,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
     try {
       await onSave({
         ...mock,
-        match: useAdvanced ? mock.match : basicMatch(mock.match),
+        match: {
+          ...(useAdvanced ? mock.match : basicMatch(mock.match)),
+          headers: useHeaderMatch ? mock.match.headers : null,
+        },
         response: {
           ...mock.response,
           delayMs: useDelay ? mock.response.delayMs : 0,
@@ -55,6 +61,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
   }
 
   const isSoap = mock.type === 'soap'
+  const headerResetKey = `${show}:${initial?.name ?? 'new'}:${initial?.fileName ?? ''}:${initial?.type ?? defaultType}`
 
   return (
     <Modal show={show} onHide={onCancel} size="lg" scrollable>
@@ -156,6 +163,28 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     placeholder="Any method"
                   />
                 </Form.Group>
+              </Col>
+            )}
+            <Col xs={12}>
+              <Form.Check
+                type="switch"
+                id="mock-header-match"
+                label="Match by headers"
+                checked={useHeaderMatch}
+                onChange={(event) => setUseHeaderMatch(event.target.checked)}
+              />
+              <Form.Text>Require these request headers. Names and values are case-insensitive.</Form.Text>
+            </Col>
+            {useHeaderMatch && (
+              <Col xs={12}>
+                <HeaderEditor
+                  id="mock-match-headers"
+                  resetKey={`${headerResetKey}:match`}
+                  label="Request headers"
+                  help="The request must include these headers with these values. Names and values are case-insensitive."
+                  value={mock.match.headers}
+                  onChange={(headers) => setMock({ ...mock, match: { ...mock.match, headers } })}
+                />
               </Col>
             )}
 
@@ -342,6 +371,17 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
               </Col>
             )}
             <Col xs={12}>
+              <HeaderEditor
+                id="mock-response-headers"
+                resetKey={`${headerResetKey}:response`}
+                label="Response headers"
+                help="Extra headers sent with the mocked response. Content-Type is set above; you can still override it here."
+                value={mock.response.headers}
+                onChange={(headers) => setMock({ ...mock, response: { ...mock.response, headers } })}
+                collapsible
+              />
+            </Col>
+            <Col xs={12}>
               <Form.Group>
                 <FieldLabel help="The body sent back to the client. For REST this is often JSON; for SOAP it is the XML envelope.">
                   Response body
@@ -371,12 +411,12 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
   )
 }
 
+function hasHeaderMatch(match: MockMatchDto): boolean {
+  return Boolean(match.headers && Object.keys(match.headers).length > 0)
+}
+
 function hasExtraFilters(match: MockMatchDto): boolean {
   if (match.query && Object.keys(match.query).length > 0) {
-    return true
-  }
-
-  if (match.headers && Object.keys(match.headers).length > 0) {
     return true
   }
 
@@ -387,7 +427,6 @@ function basicMatch(match: MockMatchDto): MockMatchDto {
   return {
     ...match,
     query: null,
-    headers: null,
     bodyContains: null,
     bodyRegex: null,
     jsonPath: null,

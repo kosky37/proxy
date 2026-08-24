@@ -62,6 +62,29 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
+    public void Matches_request_headers()
+    {
+        var mock = new MockDefinition
+        {
+            Type = MockType.Soap,
+            Match = new MockMatch
+            {
+                Headers = new Dictionary<string, string> { ["X-Tenant"] = "acme" }
+            }
+        };
+
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\"",
+            ["x-tenant"] = "acme"
+        })).Should().BeTrue();
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        })).Should().BeFalse();
+    }
+
+    [Fact]
     public void Matches_soap_action_without_reading_the_body()
     {
         var mock = new MockDefinition

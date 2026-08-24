@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Alert, Badge, Button, Card, Col, Form, InputGroup, Nav, Row, Stack } from 'react-bootstrap'
+import { useEffect, useState, type FormEvent } from 'react'
+import { Alert, Badge, Button, Card, Col, Form, Nav, Row, Stack } from 'react-bootstrap'
 import { modeClass, statusClass } from '../logColors'
 import { protocolBadge } from '../protocolBadge'
 import { useSendManualRequestMutation } from '../store/proxyApi'
 import type { LogDetailDto } from '../store/types'
+import type { SendDraft } from '../headers'
 import { CopyButton } from './CopyButton'
+import { HeaderEditor } from './HeaderEditor'
 import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
 
 const soapTemplate = `<?xml version="1.0" encoding="utf-8"?>
@@ -12,12 +14,6 @@ const soapTemplate = `<?xml version="1.0" encoding="utf-8"?>
   <s:Body>
   </s:Body>
 </s:Envelope>`
-
-interface HeaderRow {
-  id: number
-  name: string
-  value: string
-}
 
 interface AuthState {
   token: string
@@ -45,19 +41,30 @@ function readAuth(proxyId: string): AuthState {
   }
 }
 
+function authFromHeader(value: string): AuthState {
+  if (/^bearer\s/i.test(value)) {
+    return { scheme: 'Bearer', token: value.replace(/^bearer\s+/i, '') }
+  }
+
+  return { scheme: 'Raw', token: value }
+}
+
 interface Props {
   proxyId: string
   destination: string
   pathPrefix?: string | null
+  draft?: SendDraft | null
+  onDraftConsumed?: () => void
   onOpenLog: (id: number) => void
 }
 
-export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }: Props) {
+export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDraftConsumed, onOpenLog }: Props) {
   const [protocol, setProtocol] = useState<'rest' | 'soap'>('rest')
   const [method, setMethod] = useState('GET')
   const [path, setPath] = useState('/')
   const [query, setQuery] = useState('')
-  const [headers, setHeaders] = useState<HeaderRow[]>([{ id: 1, name: '', value: '' }])
+  const [headers, setHeaders] = useState<Record<string, string> | null>(null)
+  const [headerResetKey, setHeaderResetKey] = useState('blank')
   const [body, setBody] = useState('')
   const [soapAction, setSoapAction] = useState('')
   const [contentType, setContentType] = useState('application/json')
@@ -75,6 +82,27 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
   }, [auth, proxyId])
 
   useEffect(() => {
+    if (!draft) {
+      return
+    }
+
+    setProtocol(draft.protocol)
+    setMethod(draft.method)
+    setPath(draft.path)
+    setQuery(draft.query)
+    setHeaders(draft.headers)
+    setHeaderResetKey(`draft-${draft.method}-${draft.path}-${Date.now()}`)
+    setBody(draft.body)
+    setSoapAction(draft.soapAction)
+    setContentType(draft.contentType)
+    if (draft.authorization.trim()) {
+      setAuth(authFromHeader(draft.authorization))
+    }
+    setResult(null)
+    onDraftConsumed?.()
+  }, [draft])
+
+  useEffect(() => {
     if (protocol === 'soap') {
       setMethod('POST')
       setContentType((current) => (current === 'application/json' ? 'text/xml; charset=utf-8' : current))
@@ -85,16 +113,9 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
     setContentType((current) => (current.startsWith('text/xml') ? 'application/json' : current))
   }, [protocol])
 
-  const nextHeaderId = useMemo(() => headers.reduce((max, row) => Math.max(max, row.id), 0) + 1, [headers])
-
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    const outgoing: Record<string, string> = {}
-    for (const row of headers) {
-      if (row.name.trim()) {
-        outgoing[row.name.trim()] = row.value
-      }
-    }
+    const outgoing: Record<string, string> = { ...(headers ?? {}) }
 
     if (contentType.trim()) {
       outgoing['Content-Type'] = contentType.trim()
@@ -228,35 +249,15 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, onOpenLog }:
             </Form.Group>
           </Col>
           <Col xs={12}>
-            <Form.Label>Headers</Form.Label>
-            {headers.map((row) => (
-              <InputGroup className="mb-2" key={row.id}>
-                <Form.Control
-                  placeholder="Name"
-                  value={row.name}
-                  onChange={(event) =>
-                    setHeaders(headers.map((item) => (item.id === row.id ? { ...item, name: event.target.value } : item)))
-                  }
-                />
-                <Form.Control
-                  placeholder="Value"
-                  value={row.value}
-                  onChange={(event) =>
-                    setHeaders(headers.map((item) => (item.id === row.id ? { ...item, value: event.target.value } : item)))
-                  }
-                />
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setHeaders(headers.filter((item) => item.id !== row.id))}
-                  disabled={headers.length === 1}
-                >
-                  Remove
-                </Button>
-              </InputGroup>
-            ))}
-            <Button variant="outline-secondary" size="sm" onClick={() => setHeaders([...headers, { id: nextHeaderId, name: '', value: '' }])}>
-              Add header
-            </Button>
+            <HeaderEditor
+              id="send-headers"
+              resetKey={`${proxyId}:${headerResetKey}`}
+              label="Headers"
+              help="Additional request headers. Content-Type, SOAPAction, and Authorization are set in the fields above when those apply."
+              value={headers}
+              onChange={setHeaders}
+              collapsible
+            />
           </Col>
           <Col xs={12}>
             <Form.Group>

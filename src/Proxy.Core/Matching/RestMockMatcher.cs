@@ -31,16 +31,9 @@ public static class RestMockMatcher
             }
         }
 
-        if (match.Headers is { Count: > 0 })
+        if (!HeaderMatcher.Matches(match.Headers, request.Headers))
         {
-            foreach (var (key, expected) in match.Headers)
-            {
-                if (!TryGetHeader(request.Headers, key, out var actual) ||
-                    !actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
+            return false;
         }
 
         if (!string.IsNullOrEmpty(match.BodyContains) &&
@@ -80,20 +73,5 @@ public static class RestMockMatcher
         }
 
         return true;
-    }
-
-    private static bool TryGetHeader(IReadOnlyDictionary<string, string> headers, string name, out string value)
-    {
-        foreach (var (key, header) in headers)
-        {
-            if (key.Equals(name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = header;
-                return true;
-            }
-        }
-
-        value = "";
-        return false;
     }
 }

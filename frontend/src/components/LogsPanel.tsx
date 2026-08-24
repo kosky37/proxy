@@ -12,6 +12,7 @@ import {
 } from '../store/proxyApi'
 import type { MockDto } from '../store/types'
 import { LogTimeline } from './LogTimeline'
+import { SoapActionBanner } from './SoapActionBanner'
 
 const PAGE_SIZE = 50
 
@@ -328,7 +329,6 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                 <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
                   {protocolBadge(item.protocol).label}
                 </Badge>
-                {item.protocol === 'soap' && <div className="row-meta">{item.soapAction || 'no SOAPAction'}</div>}
               </td>
               <td>
                 <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
@@ -356,6 +356,7 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                 )}
               </td>
               <td>
+                {item.protocol === 'soap' && <SoapActionBanner action={item.soapAction} compact />}
                 <div>
                   <strong>{item.method}</strong> {item.path}
                   {item.query && <span className="text-secondary">?{item.query}</span>}
