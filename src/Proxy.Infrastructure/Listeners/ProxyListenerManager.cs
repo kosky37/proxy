@@ -244,7 +244,7 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
                 continue;
             }
 
-            return X509CertificateLoader.LoadPkcs12FromFile(path, cert?.Password ?? "", X509KeyStorageFlags.EphemeralKeySet);
+            return X509CertificateLoader.LoadPkcs12FromFile(path, cert?.Password ?? "");
         }
 
         return null;

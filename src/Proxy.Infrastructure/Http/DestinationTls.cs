@@ -26,8 +26,7 @@ public static class DestinationTls
 
         var certificate = X509CertificateLoader.LoadPkcs12FromFile(
             path,
-            cert?.Password ?? "",
-            X509KeyStorageFlags.EphemeralKeySet);
+            cert?.Password ?? "");
         handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
         handler.SslOptions.ClientCertificates.Add(certificate);
         handler.SslOptions.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 |

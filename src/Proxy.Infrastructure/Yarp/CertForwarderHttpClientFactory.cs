@@ -40,7 +40,6 @@ public sealed class CertForwarderHttpClientFactory : ForwarderHttpClientFactory
     {
         return X509CertificateLoader.LoadPkcs12FromFile(
             path,
-            password ?? "",
-            X509KeyStorageFlags.EphemeralKeySet);
+            password ?? "");
     }
 }
