@@ -19,7 +19,7 @@ import { protocolBadge } from "../protocolBadge";
 import type { LogDetailDto, MockDto } from "../store/types";
 import { BodyTree } from "./BodyTree";
 import { CopyButton } from "./CopyButton";
-import { SoapActionTitle } from "./SoapActionBanner";
+import { LogRequestLine, SoapActionTitle } from "./SoapActionBanner";
 
 interface Props {
   show: boolean;
@@ -57,11 +57,9 @@ export function LogDetailModal({
         <Modal.Title>
           {log?.protocol === "soap" ? (
             <SoapActionTitle action={log.soapAction} />
-          ) : (
-            <>
-              {log?.method} {log?.path}
-            </>
-          )}
+          ) : log ? (
+            <LogRequestLine item={log} />
+          ) : null}
         </Modal.Title>
       </Modal.Header>
       {log && (
@@ -95,6 +93,7 @@ export function LogDetailModal({
               <HttpMessage
                 title="Request"
                 headers={log.requestHeaders}
+                query={log.query}
                 body={log.requestBody}
                 truncated={log.requestBodyTruncated ?? false}
                 originalBytes={log.requestBytes}
@@ -146,6 +145,7 @@ export function LogDetailModal({
 function HttpMessage({
   title,
   headers,
+  query,
   body,
   truncated,
   originalBytes,
@@ -153,6 +153,7 @@ function HttpMessage({
 }: {
   title: string;
   headers?: string | null;
+  query?: string | null;
   body?: string | null;
   truncated: boolean;
   originalBytes?: number;
@@ -175,6 +176,16 @@ function HttpMessage({
         copyLabel="Copy headers"
         defaultOpen={false}
       />
+      {query?.trim() ? (
+        <FieldBlock
+          title="Query"
+          rawText={query}
+          fields={parseQuery(query)}
+          raw={raw}
+          empty="(none)"
+          copyLabel="Copy query"
+        />
+      ) : null}
       <div>
         <Stack direction="horizontal" className="mb-2">
           <strong>Body</strong>
@@ -317,6 +328,26 @@ function TruncatedText({
       <span className="log-headers-text">{content}</span>
     </OverlayTrigger>
   );
+}
+
+function parseQuery(raw?: string | null): ParsedField[] {
+  if (!raw?.trim()) {
+    return [];
+  }
+
+  const fields: ParsedField[] = [];
+  for (const pair of raw.split("&")) {
+    if (!pair) {
+      continue;
+    }
+    const eq = pair.indexOf("=");
+    if (eq === -1) {
+      fields.push({ name: pair, value: "" });
+    } else {
+      fields.push({ name: pair.slice(0, eq), value: pair.slice(eq + 1) });
+    }
+  }
+  return fields;
 }
 
 function parseHeaders(raw?: string | null): Record<string, string> {
