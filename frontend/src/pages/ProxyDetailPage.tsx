@@ -95,20 +95,29 @@ export function ProxyDetailPage() {
   }, [proxy.data])
 
   useEffect(() => {
-    const fromLog = (location.state as { fromLog?: { action: 'mock' | 'send'; log: LogDetailDto } } | null)?.fromLog
-    if (!fromLog) {
-      return
-    }
-
-    if (fromLog.action === 'send') {
-      setSendDraft(sendFromLog(fromLog.log))
-      setTab('send')
+    const state = location.state as {
+      fromLog?: { action: 'mock' | 'send'; log: LogDetailDto }
+      openMock?: MockDto
+    } | null
+    if (state?.openMock) {
+      setEditingExisting(true)
+      setEditing(state.openMock)
+      setTab(state.openMock.type === 'soap' ? 'soap' : 'rest')
       setLogId(null)
+    } else if (state?.fromLog) {
+      const fromLog = state.fromLog
+      if (fromLog.action === 'send') {
+        setSendDraft(sendFromLog(fromLog.log))
+        setTab('send')
+        setLogId(null)
+      } else {
+        setEditingExisting(false)
+        setEditing(mockFromLog(fromLog.log))
+        setTab(fromLog.log.protocol === 'soap' ? 'soap' : 'rest')
+        setLogId(null)
+      }
     } else {
-      setEditingExisting(false)
-      setEditing(mockFromLog(fromLog.log))
-      setTab(fromLog.log.protocol === 'soap' ? 'soap' : 'rest')
-      setLogId(null)
+      return
     }
 
     navigate(location.pathname, { replace: true, state: {} })

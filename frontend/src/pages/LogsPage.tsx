@@ -1,3 +1,4 @@
+import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
 import { Link, useNavigate } from 'react-router-dom'
@@ -13,8 +14,10 @@ import {
   useGetGlobalLogTimelineQuery,
   useGetGlobalLogsQuery,
   useGetLogQuery,
+  useGetMocksQuery,
   useGetProxiesQuery,
 } from '../store/proxyApi'
+import type { LogListItemDto, MockDto } from '../store/types'
 
 const PAGE_SIZE = 50
 const PRESETS: Exclude<LogWindowPreset, 'all'>[] = ['1h', '6h', '24h', '7d']
@@ -73,6 +76,21 @@ export function LogsPage() {
     { proxyId: openLog?.proxyId ?? '', entryId: openLog?.entryId ?? 0 },
     { skip: openLog == null },
   )
+
+  const openMocks = useGetMocksQuery(openLog?.proxyId ?? skipToken, frozenQuery)
+
+  const existingLogMock = useMemo(() => {
+    if (!openLog || !logDetail.data?.mockName) {
+      return undefined
+    }
+    const name = logDetail.data.mockName.toLowerCase()
+    return openMocks.data?.find((mock) => mock.name.toLowerCase() === name)
+  }, [openLog, logDetail.data, openMocks.data])
+
+  const openMockInProxy = (proxyId: string, mock: MockDto) => {
+    setOpenLog(null)
+    navigate(`/proxies/${proxyId}`, { state: { openMock: mock } })
+  }
 
   const total = logs.data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -326,7 +344,9 @@ export function LogsPage() {
               </td>
               <td>
                 <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
-                {item.mockName && <div className="row-meta">{item.mockName}</div>}
+                {item.mockName && (
+                  <MockNameLink item={item} onOpenMock={(row, mock) => row.proxyId && openMockInProxy(row.proxyId, mock)} />
+                )}
               </td>
               <td>
                 <span className={`badge ${statusClass(item.statusCode)}`}>{item.statusCode ?? '-'}</span>
@@ -354,7 +374,13 @@ export function LogsPage() {
             ? { ...logDetail.data, proxyId: openLog.proxyId, proxyName: proxies.data?.find((item) => item.id === openLog.proxyId)?.name }
             : null
         }
+        existingMock={existingLogMock}
         onClose={() => setOpenLog(null)}
+        onOpenMock={(mock) => {
+          if (openLog?.proxyId) {
+            openMockInProxy(openLog.proxyId, mock)
+          }
+        }}
         onCreateMock={(log) => {
           if (!log.proxyId) {
             return
@@ -371,5 +397,39 @@ export function LogsPage() {
         }}
       />
     </>
+  )
+}
+
+function MockNameLink({
+  item,
+  onOpenMock,
+}: {
+  item: LogListItemDto
+  onOpenMock: (item: LogListItemDto, mock: MockDto) => void
+}) {
+  const mocks = useGetMocksQuery(item.proxyId ?? skipToken, frozenQuery)
+  if (!item.mockName) {
+    return null
+  }
+  const name = item.mockName
+  const mock = mocks.data?.find((entry) => entry.name.toLowerCase() === name.toLowerCase())
+  if (!mock) {
+    return <div className="row-meta">{name}</div>
+  }
+
+  return (
+    <div>
+      <Button
+        variant="link"
+        size="sm"
+        className="p-0"
+        onClick={(event) => {
+          event.stopPropagation()
+          onOpenMock(item, mock)
+        }}
+      >
+        {name}
+      </Button>
+    </div>
   )
 }
