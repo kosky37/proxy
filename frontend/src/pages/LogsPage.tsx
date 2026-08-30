@@ -283,12 +283,13 @@ export function LogsPage() {
       <Table striped hover responsive size="sm" className="align-middle">
         <thead>
           <tr>
-            <th>Time</th>
             <th>Proxy</th>
+            <th>Request</th>
+            <th>SOAPAction</th>
             <th>Type</th>
             <th>Mode</th>
-            <th>Request</th>
             <th>Status</th>
+            <th>Time</th>
           </tr>
         </thead>
         <tbody>
@@ -299,24 +300,9 @@ export function LogsPage() {
               onClick={() => item.proxyId && setOpenLog({ proxyId: item.proxyId, entryId: item.id })}
             >
               <td>
-                <div>{formatTime(item.timestampUtc)}</div>
-                <div className="row-meta">
-                  {formatDate(item.timestampUtc)} · {item.durationMs} ms
-                </div>
-              </td>
-              <td>
                 <Link to={`/proxies/${item.proxyId}`} onClick={(event) => event.stopPropagation()}>
                   {item.proxyName || item.proxyId}
                 </Link>
-              </td>
-              <td>
-                <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
-                  {protocolBadge(item.protocol).label}
-                </Badge>
-              </td>
-              <td>
-                <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
-                {item.mockName && <div className="row-meta">{item.mockName}</div>}
               </td>
               <td>
                 <LogRequestLine item={item} />
@@ -329,13 +315,33 @@ export function LogsPage() {
                 </div>
               </td>
               <td>
+                {item.protocol === 'soap' && item.soapAction ? (
+                  <span>{item.soapAction}</span>
+                ) : null}
+              </td>
+              <td>
+                <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
+                  {protocolBadge(item.protocol).label}
+                </Badge>
+              </td>
+              <td>
+                <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
+                {item.mockName && <div className="row-meta">{item.mockName}</div>}
+              </td>
+              <td>
                 <span className={`badge ${statusClass(item.statusCode)}`}>{item.statusCode ?? '-'}</span>
+              </td>
+              <td>
+                <div>{formatTime(item.timestampUtc)}</div>
+                <div className="row-meta">
+                  {formatDate(item.timestampUtc)} · {item.durationMs} ms
+                </div>
               </td>
             </tr>
           ))}
           {(!logs.data || logs.data.items.length === 0) && (
             <tr>
-              <td colSpan={6}>{canQuery ? 'No logs in this range.' : 'Select at least one proxy.'}</td>
+              <td colSpan={7}>{canQuery ? 'No logs in this range.' : 'Select at least one proxy.'}</td>
             </tr>
           )}
         </tbody>
