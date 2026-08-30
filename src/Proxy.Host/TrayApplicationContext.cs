@@ -13,6 +13,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _startUi;
     private readonly ToolStripMenuItem _stopUi;
     private readonly ToolStripMenuItem _rebuildUi;
+    private readonly ToolStripMenuItem _devUi;
     private bool _busy;
 
     public TrayApplicationContext()
@@ -27,11 +28,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _startUi = Item("Start frontend", () => _controller?.StartFrontend(SetStatus));
         _stopUi = Item("Stop frontend", () => _controller?.StopFrontend());
         _rebuildUi = Item("Rebuild frontend", () => _controller?.RebuildFrontend(SetStatus));
+        _devUi = new ToolStripMenuItem("Development server") { CheckOnClick = true };
+        _devUi.CheckedChanged += (_, _) => OnDevServerToggled();
 
         var backend = new ToolStripMenuItem("Backend");
         backend.DropDownItems.AddRange(_startApi, _stopApi, _rebuildApi);
         var frontend = new ToolStripMenuItem("Frontend");
         frontend.DropDownItems.AddRange(_startUi, _stopUi, _rebuildUi);
+        frontend.DropDownItems.Add(new ToolStripSeparator());
+        frontend.DropDownItems.Add(_devUi);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add(new ToolStripMenuItem("Open admin UI", null, (_, _) => OpenUi())
@@ -108,6 +113,26 @@ internal sealed class TrayApplicationContext : ApplicationContext
         });
     }
 
+    private void OnDevServerToggled()
+    {
+        var controller = _controller;
+        if (controller is null)
+        {
+            return;
+        }
+
+        controller.UseDevServer = _devUi.Checked;
+
+        // Apply immediately when we own a running frontend; otherwise it takes effect on the next start.
+        if (_busy || !controller.OwnsFrontend || !controller.UiRunning)
+        {
+            RefreshStatus();
+            return;
+        }
+
+        Run("Restart frontend", () => controller.RestartFrontend(SetStatus));
+    }
+
     private void Run(string title, Action action)
     {
         if (_busy)
@@ -145,7 +170,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         var api = _controller.ApiRunning ? (_controller.OwnsApi ? "backend running" : "backend running (external)") : "backend stopped";
-        var ui = _controller.UiRunning ? (_controller.OwnsFrontend ? "frontend running" : "frontend running (external)") : "frontend stopped";
+        string ui;
+        if (!_controller.UiRunning)
+        {
+            ui = "frontend stopped";
+        }
+        else if (!_controller.OwnsFrontend)
+        {
+            ui = "frontend running (external)";
+        }
+        else
+        {
+            ui = _controller.UseDevServer ? "frontend running (dev)" : "frontend running";
+        }
+
         SetStatus($"{api}; {ui}");
     }
 
@@ -161,6 +199,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _startUi.Enabled = ready && controller is { UiRunning: false };
             _stopUi.Enabled = ready && controller is { OwnsFrontend: true };
             _rebuildUi.Enabled = ready;
+            _devUi.Enabled = ready;
         }
 
         InvokeOnMenu(Apply);

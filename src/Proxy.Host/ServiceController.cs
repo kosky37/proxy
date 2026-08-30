@@ -29,6 +29,9 @@ internal sealed class ServiceController : IDisposable
     public bool OwnsApi => _ownsApi;
     public bool OwnsFrontend => _ownsFrontend;
 
+    /// <summary>Serves the frontend with the Vite dev server instead of <c>vite preview</c>. Development only.</summary>
+    public bool UseDevServer { get; set; }
+
     public void StartApi(Action<string>? status = null)
     {
         if (ApiRunning)
@@ -149,6 +152,12 @@ internal sealed class ServiceController : IDisposable
         }
     }
 
+    public void RestartFrontend(Action<string>? status = null)
+    {
+        StopFrontend();
+        StartFrontend(status);
+    }
+
     public void StartAll(Action<string>? status = null)
     {
         StartApi(status);
@@ -177,7 +186,8 @@ internal sealed class ServiceController : IDisposable
             Run(NpmFile(), "install", _paths.Frontend, TimeSpan.FromMinutes(5));
         }
 
-        if (!_paths.HasFrontendBuild)
+        // The dev server compiles on the fly, so a production build is only needed for preview.
+        if (!UseDevServer && !_paths.HasFrontendBuild)
         {
             BuildFrontend(status);
         }
@@ -213,15 +223,17 @@ internal sealed class ServiceController : IDisposable
     {
         if (File.Exists(_paths.ViteEntry))
         {
+            var command = UseDevServer ? "" : " preview";
             return StartProcess(
                 NodeFile(),
-                $"\"{_paths.ViteEntry}\" preview --host 127.0.0.1 --port {UiPort} --strictPort",
+                $"\"{_paths.ViteEntry}\"{command} --host 127.0.0.1 --port {UiPort} --strictPort",
                 _paths.Frontend);
         }
 
+        var npmCommand = UseDevServer ? "dev" : "preview";
         return StartProcess(
             NpmFile(),
-            $"run preview -- --host 127.0.0.1 --port {UiPort} --strictPort",
+            $"run {npmCommand} -- --host 127.0.0.1 --port {UiPort} --strictPort",
             _paths.Frontend);
     }
 

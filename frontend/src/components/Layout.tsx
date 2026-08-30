@@ -1,28 +1,32 @@
-import { useState } from 'react'
-import { Badge, Button, Container, Nav, Navbar } from 'react-bootstrap'
-import { Link, NavLink, Outlet } from 'react-router-dom'
-import { useGetHealthQuery } from '../store/proxyApi'
-import { applyTheme, readTheme, type Theme } from '../theme'
+import { useState } from "react";
+import { Badge, Button, Container, Nav, Navbar } from "react-bootstrap";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { useGetHealthQuery } from "../store/proxyApi";
+import { applyTheme, readTheme, type Theme } from "../theme";
 
 export function Layout() {
   const [theme, setTheme] = useState<Theme>(() => {
-    const current = readTheme()
-    applyTheme(current)
-    return current
-  })
-  const health = useGetHealthQuery()
+    const current = readTheme();
+    applyTheme(current);
+    return current;
+  });
+  const health = useGetHealthQuery();
 
   const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light'
-    applyTheme(next)
-    setTheme(next)
-  }
+    const next = theme === "light" ? "dark" : "light";
+    applyTheme(next);
+    setTheme(next);
+  };
 
   return (
     <>
       <Navbar expand bg="body-tertiary" className="border-bottom">
         <Container fluid>
-          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
+          <Navbar.Brand
+            as={Link}
+            to="/"
+            className="d-flex align-items-center gap-2"
+          >
             <img src="/favicon.svg" alt="" className="app-logo" />
             Proxy
           </Navbar.Brand>
@@ -37,11 +41,14 @@ export function Layout() {
               Logs
             </Nav.Link>
           </Nav>
-          <Badge bg={health.data?.status === 'ok' ? 'success' : 'secondary'} className="me-3">
-            API {health.data?.status ?? 'offline'}
+          <Badge
+            bg={health.data?.status === "ok" ? "success" : "secondary"}
+            className="me-3"
+          >
+            API {health.data?.status ?? "offline"}
           </Badge>
           <Button variant="outline-secondary" size="sm" onClick={toggleTheme}>
-            {theme === 'light' ? 'Dark' : 'Light'} mode
+            {theme === "light" ? "Dark" : "Light"} mode
           </Button>
         </Container>
       </Navbar>
@@ -49,5 +56,5 @@ export function Layout() {
         <Outlet />
       </Container>
     </>
-  )
+  );
 }
