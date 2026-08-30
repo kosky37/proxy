@@ -114,11 +114,11 @@ export function ProxiesPage() {
       </Table>
 
       <Modal show={showCreate} onHide={() => setShowCreate(false)}>
-        <Form onSubmit={onCreate}>
-          <Modal.Header closeButton>
-            <Modal.Title>New proxy</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
+        <Modal.Header closeButton>
+          <Modal.Title>New proxy</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form id="proxy-create-form" onSubmit={onCreate}>
             <Row className="g-3">
               <Col md={6}>
                 <Form.Group>
@@ -178,16 +178,16 @@ export function ProxiesPage() {
                 </Form.Group>
               </Col>
             </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={createState.isLoading}>
-              Create
-            </Button>
-          </Modal.Footer>
-        </Form>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowCreate(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" form="proxy-create-form" disabled={createState.isLoading}>
+            Create
+          </Button>
+        </Modal.Footer>
       </Modal>
     </>
   )

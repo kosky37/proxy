@@ -62,11 +62,11 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
 
   return (
     <Modal show={show} onHide={onCancel} size="lg" scrollable>
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : 'New mock'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Modal.Header closeButton>
+        <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : 'New mock'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form id="mock-form" onSubmit={submit}>
           <Row className="g-3">
             <Col md={4}>
               <Form.Group>
@@ -409,16 +409,16 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
               </Form.Group>
             </Col>
           </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={saving}>
-            Save
-          </Button>
-        </Modal.Footer>
-      </Form>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" form="mock-form" disabled={saving}>
+          Save
+        </Button>
+      </Modal.Footer>
     </Modal>
   )
 }

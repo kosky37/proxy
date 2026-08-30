@@ -42,11 +42,11 @@ export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, on
 
   return (
     <Modal show={show} onHide={onCancel}>
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title>{isNew ? 'New ignore' : `Edit ${initial?.name}`}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Modal.Header closeButton>
+        <Modal.Title>{isNew ? 'New ignore' : `Edit ${initial?.name}`}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form id="ignore-form" onSubmit={submit}>
           <Row className="g-3">
             <Col md={6}>
               <Form.Group>
@@ -96,16 +96,16 @@ export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, on
               </Form.Group>
             </Col>
           </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={saving}>
-            Save
-          </Button>
-        </Modal.Footer>
-      </Form>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" form="ignore-form" disabled={saving}>
+          Save
+        </Button>
+      </Modal.Footer>
     </Modal>
   )
 }

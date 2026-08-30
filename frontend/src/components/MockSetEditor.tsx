@@ -111,11 +111,11 @@ export function MockSetEditor({ show, initial, isNew = !initial?.name, mocks, on
 
   return (
     <Modal show={show} onHide={onCancel} dialogClassName="mock-set-modal" scrollable>
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title>{isNew ? 'New mock set' : `Edit ${initial?.name}`}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Modal.Header closeButton>
+        <Modal.Title>{isNew ? 'New mock set' : `Edit ${initial?.name}`}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form id="mock-set-form" onSubmit={submit}>
           <Row className="g-3">
             <Col xs={12}>
               <Form.Group>
@@ -199,16 +199,16 @@ export function MockSetEditor({ show, initial, isNew = !initial?.name, mocks, on
               </div>
             </Col>
           </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={saving}>
-            Save
-          </Button>
-        </Modal.Footer>
-      </Form>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" form="mock-set-form" disabled={saving}>
+          Save
+        </Button>
+      </Modal.Footer>
     </Modal>
   )
 }

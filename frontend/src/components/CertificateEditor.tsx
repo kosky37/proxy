@@ -51,11 +51,11 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
 
   return (
     <Modal show={show} onHide={onCancel}>
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New certificate'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
+      <Modal.Header closeButton>
+        <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New certificate'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form id="certificate-form" onSubmit={submit}>
           <Row className="g-3">
             <Col md={8}>
               <Form.Group>
@@ -125,16 +125,16 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
               </Form.Group>
             </Col>
           </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={saving}>
-            Save
-          </Button>
-        </Modal.Footer>
-      </Form>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" form="certificate-form" disabled={saving}>
+          Save
+        </Button>
+      </Modal.Footer>
     </Modal>
   )
 }
