@@ -85,25 +85,41 @@ public class SoapMockMatcherTests
     }
 
     [Fact]
-    public void Matches_by_soap_action_and_ignores_path()
+    public void Matches_by_soap_action_and_path()
     {
         var mock = new MockDefinition
         {
             Type = MockType.Soap,
             Match = new MockMatch
             {
-                Path = "/does-not-matter",
-                PathMode = PathMatchMode.Exact,
+                Path = "/service",
                 SoapAction = "GetAccount"
             }
         };
 
-        var request = Snapshot(Envelope, new Dictionary<string, string>
+        // Empty path matches any endpoint.
+        var emptyPathMock = new MockDefinition
+        {
+            Type = MockType.Soap,
+            Match = new MockMatch { SoapAction = "GetAccount" }
+        };
+
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope, new Dictionary<string, string>
         {
             ["SOAPAction"] = "\"GetAccount\""
-        }, "/another-endpoint");
+        }, "/service")).Should().BeTrue();
 
-        SoapMockMatcher.Matches(mock, request).Should().BeTrue();
+        // Different path does not match.
+        SoapMockMatcher.Matches(mock, Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        }, "/other")).Should().BeFalse();
+
+        // Empty path matches any endpoint.
+        SoapMockMatcher.Matches(emptyPathMock, Snapshot(Envelope, new Dictionary<string, string>
+        {
+            ["SOAPAction"] = "\"GetAccount\""
+        }, "/any-path")).Should().BeTrue();
     }
 
     [Fact]

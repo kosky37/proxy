@@ -19,7 +19,7 @@ import { protocolBadge } from "../protocolBadge";
 import type { LogDetailDto, MockDto } from "../store/types";
 import { BodyTree } from "./BodyTree";
 import { CopyButton } from "./CopyButton";
-import { LogRequestLine, SoapActionTitle } from "./SoapActionBanner";
+import { LogRequestLine } from "./SoapActionBanner";
 
 interface Props {
   show: boolean;
@@ -55,11 +55,7 @@ export function LogDetailModal({
     >
       <Modal.Header closeButton>
         <Modal.Title>
-          {log?.protocol === "soap" ? (
-            <SoapActionTitle action={log.soapAction} />
-          ) : log ? (
-            <LogRequestLine item={log} />
-          ) : null}
+          {log ? <LogRequestLine item={log} showSoapAction /> : null}
         </Modal.Title>
       </Modal.Header>
       {log && (

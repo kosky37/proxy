@@ -7,13 +7,27 @@ export function soapActionText(action?: string | null) {
 
 export function LogRequestLine({
   item,
+  showSoapAction = false,
 }: {
   item: Pick<LogListItemDto, 'protocol' | 'method' | 'path' | 'query' | 'soapAction'>
+  showSoapAction?: boolean
 }) {
   if (item.protocol === 'soap') {
+    const action = soapActionText(item.soapAction)
     return (
       <div>
-        <strong className="text-break">{soapActionText(item.soapAction)}</strong>
+        <span className="text-break">
+          <strong>{item.method}</strong> {item.path}
+          {item.query ? <span className="text-secondary">?{item.query}</span> : null}
+        </span>{' '}
+        {showSoapAction && (
+          <>
+            <br />
+            <span className="text-break text-info-emphasis">{action}</span>
+            {' '}
+            <CopyButton value={item.soapAction ?? ''} label="Copy SOAPAction" />
+          </>
+        )}
       </div>
     )
   }

@@ -1,41 +1,73 @@
-import { useMemo, useState } from 'react'
-import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
-import { formatBytes, formatDate, formatDateTime, formatTime, logWindow, type LogWindowPreset } from '../format'
-import { modeClass, statusClass } from '../logColors'
-import { modeBadge } from '../modeBadge'
-import { protocolBadge } from '../protocolBadge'
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Col,
+  Collapse,
+  Form,
+  Row,
+  Stack,
+  Table,
+} from "react-bootstrap";
+import {
+  formatBytes,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  logWindow,
+  type LogWindowPreset,
+} from "../format";
+import { modeClass, statusClass } from "../logColors";
+import { modeBadge } from "../modeBadge";
+import { protocolBadge } from "../protocolBadge";
 import {
   useClearLogsMutation,
   useGetLogStorageQuery,
   useGetLogsQuery,
   useGetLogTimelineQuery,
-} from '../store/proxyApi'
-import type { MockDto } from '../store/types'
-import { LogTimeline } from './LogTimeline'
-import { LogRequestLine } from './SoapActionBanner'
+} from "../store/proxyApi";
+import type { MockDto } from "../store/types";
+import { LogTimeline } from "./LogTimeline";
+import { LogRequestLine } from "./SoapActionBanner";
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 50;
 
-type WindowPreset = LogWindowPreset
+type WindowPreset = LogWindowPreset;
 
 interface Props {
-  proxyId: string
-  active: boolean
-  mocks: MockDto[]
-  onOpenLog: (id: number) => void
-  onOpenMock: (mock: MockDto) => void
+  proxyId: string;
+  active: boolean;
+  mocks: MockDto[];
+  onOpenLog: (id: number) => void;
+  onOpenMock: (mock: MockDto) => void;
 }
 
-const frozenQuery = { refetchOnFocus: false, refetchOnReconnect: false } as const
+const frozenQuery = {
+  refetchOnFocus: false,
+  refetchOnReconnect: false,
+} as const;
 
-export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Props) {
-  const [paused, setPaused] = useState(false)
-  const [pausedAt, setPausedAt] = useState<number | null>(null)
-  const [page, setPage] = useState(0)
-  const [windowPreset, setWindowPreset] = useState<WindowPreset>('24h')
-  const [range, setRange] = useState<{ from: string; to: string } | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
-  const [filter, setFilter] = useState({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
+export function LogsPanel({
+  proxyId,
+  active,
+  mocks,
+  onOpenLog,
+  onOpenMock,
+}: Props) {
+  const [paused, setPaused] = useState(false);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [windowPreset, setWindowPreset] = useState<WindowPreset>("24h");
+  const [range, setRange] = useState<{ from: string; to: string } | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filter, setFilter] = useState({
+    path: "",
+    soapAction: "",
+    body: "",
+    mode: "",
+    protocol: "",
+  });
   const queryFilter = useMemo(
     () => ({
       path: filter.path || undefined,
@@ -45,26 +77,26 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
       protocol: filter.protocol || undefined,
     }),
     [filter],
-  )
-  const activeFilterCount = Object.values(queryFilter).filter(Boolean).length
+  );
+  const activeFilterCount = Object.values(queryFilter).filter(Boolean).length;
   const windowRange = useMemo(
     () => logWindow(windowPreset, pausedAt ?? Date.now()),
     [windowPreset, pausedAt],
-  )
+  );
 
   const storage = useGetLogStorageQuery(proxyId, {
     skip: !active || !proxyId,
     pollingInterval: 60_000,
-  })
+  });
 
   const timeline = useGetLogTimelineQuery(
     { proxyId, ...windowRange, buckets: 80 },
     { skip: !active || !paused || !proxyId, ...frozenQuery },
-  )
+  );
   const liveLogs = useGetLogsQuery(
     { proxyId, ...queryFilter, take: PAGE_SIZE },
     { skip: !active || !proxyId || paused, pollingInterval: 2000 },
-  )
+  );
   const pausedLogs = useGetLogsQuery(
     {
       proxyId,
@@ -75,61 +107,75 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
       take: PAGE_SIZE,
     },
     { skip: !active || !proxyId || !paused, ...frozenQuery },
-  )
-  const logs = paused ? pausedLogs : liveLogs
-  const [clearLogs, clearState] = useClearLogsMutation()
+  );
+  const logs = paused ? pausedLogs : liveLogs;
+  const [clearLogs, clearState] = useClearLogsMutation();
 
-  const total = logs.data?.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const showingFrom = total === 0 ? 0 : (paused ? page * PAGE_SIZE : 0) + 1
-  const showingTo = Math.min(total, (paused ? page * PAGE_SIZE : 0) + (logs.data?.items.length ?? 0))
+  const total = logs.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const showingFrom = total === 0 ? 0 : (paused ? page * PAGE_SIZE : 0) + 1;
+  const showingTo = Math.min(
+    total,
+    (paused ? page * PAGE_SIZE : 0) + (logs.data?.items.length ?? 0),
+  );
 
   const pauseUpdates = () => {
-    setPaused(true)
-    setPausedAt(Date.now())
-    setPage(0)
-  }
+    setPaused(true);
+    setPausedAt(Date.now());
+    setPage(0);
+  };
 
   const selectRange = (from: string, to: string) => {
-    setRange({ from, to })
-    setPage(0)
+    setRange({ from, to });
+    setPage(0);
     if (!paused) {
-      pauseUpdates()
+      pauseUpdates();
     }
-  }
+  };
 
   const resumeLive = () => {
-    setPaused(false)
-    setPausedAt(null)
-    setRange(null)
-    setPage(0)
-  }
+    setPaused(false);
+    setPausedAt(null);
+    setRange(null);
+    setPage(0);
+  };
 
   const clear = async (selected: boolean) => {
     const label = selected
-      ? 'Delete logs in the selected time range? This cannot be undone.'
-      : `Delete all ${storage.data?.entryCount ?? total} log entries? This cannot be undone.`
+      ? "Delete logs in the selected time range? This cannot be undone."
+      : `Delete all ${storage.data?.entryCount ?? total} log entries? This cannot be undone.`;
     if (!window.confirm(label)) {
-      return
+      return;
     }
 
     await clearLogs({
       proxyId,
       from: selected ? range?.from : undefined,
       to: selected ? range?.to : undefined,
-    }).unwrap()
-    setPage(0)
-  }
+    }).unwrap();
+    setPage(0);
+  };
 
   return (
     <>
-      <Stack direction="horizontal" className="mb-3 flex-wrap gap-2 align-items-center">
+      <Stack
+        direction="horizontal"
+        className="mb-3 flex-wrap gap-2 align-items-center"
+      >
         <div>
-          <div className="fw-semibold">Database {formatBytes(storage.data?.totalBytes)}</div>
-          <div className="row-meta">{storage.data?.entryCount ?? 0} entries on disk</div>
+          <div className="fw-semibold">
+            Database {formatBytes(storage.data?.totalBytes)}
+          </div>
+          <div className="row-meta">
+            {storage.data?.entryCount ?? 0} entries on disk
+          </div>
         </div>
-        <Badge bg={paused ? 'warning' : 'success'} text={paused ? 'dark' : undefined} className="ms-2">
-          {paused ? 'Paused' : 'Live'}
+        <Badge
+          bg={paused ? "warning" : "success"}
+          text={paused ? "dark" : undefined}
+          className="ms-2"
+        >
+          {paused ? "Paused" : "Live"}
         </Badge>
         <div className="ms-auto d-flex flex-wrap gap-2">
           {paused ? (
@@ -137,16 +183,30 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
               Resume live
             </Button>
           ) : (
-            <Button variant="outline-secondary" size="sm" onClick={pauseUpdates}>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={pauseUpdates}
+            >
               Pause
             </Button>
           )}
           {range && (
-            <Button variant="outline-danger" size="sm" disabled={clearState.isLoading} onClick={() => clear(true)}>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              disabled={clearState.isLoading}
+              onClick={() => clear(true)}
+            >
               Clear selection
             </Button>
           )}
-          <Button variant="outline-danger" size="sm" disabled={clearState.isLoading} onClick={() => clear(false)}>
+          <Button
+            variant="outline-danger"
+            size="sm"
+            disabled={clearState.isLoading}
+            onClick={() => clear(false)}
+          >
             Clear all logs
           </Button>
         </div>
@@ -154,20 +214,29 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
 
       {paused && (
         <div className="log-timeline-card mb-3">
-          <Stack direction="horizontal" className="mb-2 flex-wrap gap-2 align-items-center">
+          <Stack
+            direction="horizontal"
+            className="mb-2 flex-wrap gap-2 align-items-center"
+          >
             <strong>Timeline</strong>
-            <span className="row-meta">Drag across the graph to inspect a time range</span>
+            <span className="row-meta">
+              Drag across the graph to inspect a time range
+            </span>
             <div className="ms-auto d-flex flex-wrap gap-1">
-              {(['1h', '6h', '24h', '7d', 'all'] as WindowPreset[]).map((preset) => (
-                <Button
-                  key={preset}
-                  size="sm"
-                  variant={windowPreset === preset ? 'primary' : 'outline-secondary'}
-                  onClick={() => setWindowPreset(preset)}
-                >
-                  {preset === 'all' ? 'All' : preset}
-                </Button>
-              ))}
+              {(["1h", "6h", "24h", "7d", "all"] as WindowPreset[]).map(
+                (preset) => (
+                  <Button
+                    key={preset}
+                    size="sm"
+                    variant={
+                      windowPreset === preset ? "primary" : "outline-secondary"
+                    }
+                    onClick={() => setWindowPreset(preset)}
+                  >
+                    {preset === "all" ? "All" : preset}
+                  </Button>
+                ),
+              )}
             </div>
           </Stack>
           {timeline.data ? (
@@ -192,7 +261,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
 
       {paused && (
         <Alert variant="secondary">
-          Updates are paused. Browse history with the timeline and pagination, or resume to follow the latest entries.
+          Updates are paused. Browse history with the timeline and pagination,
+          or resume to follow the latest entries.
         </Alert>
       )}
 
@@ -215,8 +285,14 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
             variant="link"
             size="sm"
             onClick={() => {
-              setFilter({ path: '', soapAction: '', body: '', mode: '', protocol: '' })
-              setPage(0)
+              setFilter({
+                path: "",
+                soapAction: "",
+                body: "",
+                mode: "",
+                protocol: "",
+              });
+              setPage(0);
             }}
           >
             Clear
@@ -231,8 +307,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   <Form.Control
                     value={filter.path}
                     onChange={(event) => {
-                      setFilter({ ...filter, path: event.target.value })
-                      setPage(0)
+                      setFilter({ ...filter, path: event.target.value });
+                      setPage(0);
                     }}
                   />
                 </Form.Group>
@@ -243,8 +319,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   <Form.Control
                     value={filter.soapAction}
                     onChange={(event) => {
-                      setFilter({ ...filter, soapAction: event.target.value })
-                      setPage(0)
+                      setFilter({ ...filter, soapAction: event.target.value });
+                      setPage(0);
                     }}
                   />
                 </Form.Group>
@@ -255,8 +331,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   <Form.Control
                     value={filter.body}
                     onChange={(event) => {
-                      setFilter({ ...filter, body: event.target.value })
-                      setPage(0)
+                      setFilter({ ...filter, body: event.target.value });
+                      setPage(0);
                     }}
                   />
                 </Form.Group>
@@ -267,8 +343,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   <Form.Select
                     value={filter.mode}
                     onChange={(event) => {
-                      setFilter({ ...filter, mode: event.target.value })
-                      setPage(0)
+                      setFilter({ ...filter, mode: event.target.value });
+                      setPage(0);
                     }}
                   >
                     <option value="">Any mode</option>
@@ -284,8 +360,8 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                   <Form.Select
                     value={filter.protocol}
                     onChange={(event) => {
-                      setFilter({ ...filter, protocol: event.target.value })
-                      setPage(0)
+                      setFilter({ ...filter, protocol: event.target.value });
+                      setPage(0);
                     }}
                   >
                     <option value="">Any type</option>
@@ -301,7 +377,10 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
         </Collapse>
       </div>
 
-      <Stack direction="horizontal" className="mb-2 flex-wrap gap-2 align-items-center">
+      <Stack
+        direction="horizontal"
+        className="mb-2 flex-wrap gap-2 align-items-center"
+      >
         <div className="row-meta">
           {paused
             ? `Showing ${showingFrom}–${showingTo} of ${total}`
@@ -335,41 +414,64 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
       <Table striped hover responsive size="sm" className="align-middle">
         <thead>
           <tr>
-            <th>Time</th>
+            <th>Request</th>
+            <th>SOAPAction</th>
             <th>Type</th>
             <th>Mode</th>
-            <th>Request</th>
             <th>Status</th>
+            <th>Time</th>
           </tr>
         </thead>
         <tbody>
           {logs.data?.items.map((item) => (
             <tr key={item.id} role="button" onClick={() => onOpenLog(item.id)}>
               <td>
-                <div>{formatTime(item.timestampUtc)}</div>
+                <LogRequestLine item={item} />
                 <div className="row-meta">
-                  {formatDate(item.timestampUtc)} · {item.durationMs} ms
+                  {item.contentType || "no content-type"}
+                  {" · "}
+                  {formatBytes(item.requestBytes, item.requestBodyTruncated)}
+                  {" → "}
+                  {formatBytes(item.responseBytes, item.responseBodyTruncated)}
                 </div>
               </td>
               <td>
-                <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
+                {item.protocol === "soap" && item.soapAction ? (
+                  <span className="text-break">{item.soapAction}</span>
+                ) : null}
+              </td>
+              <td>
+                <Badge
+                  bg={protocolBadge(item.protocol).bg}
+                  text={protocolBadge(item.protocol).text}
+                >
                   {protocolBadge(item.protocol).label}
                 </Badge>
               </td>
               <td>
-                <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
+                <span className={`badge ${modeClass(item.mode)}`}>
+                  {modeBadge(item.mode).label}
+                </span>
                 {item.mockName && (
                   <div>
-                    {mocks.some((mock) => mock.name.toLowerCase() === item.mockName?.toLowerCase()) ? (
+                    {mocks.some(
+                      (mock) =>
+                        mock.name.toLowerCase() ===
+                        item.mockName?.toLowerCase(),
+                    ) ? (
                       <Button
                         variant="link"
                         size="sm"
                         className="p-0"
                         onClick={(event) => {
-                          event.stopPropagation()
-                          const mock = mocks.find((entry) => entry.name.toLowerCase() === item.mockName?.toLowerCase())
+                          event.stopPropagation();
+                          const mock = mocks.find(
+                            (entry) =>
+                              entry.name.toLowerCase() ===
+                              item.mockName?.toLowerCase(),
+                          );
                           if (mock) {
-                            onOpenMock(mock)
+                            onOpenMock(mock);
                           }
                         }}
                       >
@@ -382,28 +484,27 @@ export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Pro
                 )}
               </td>
               <td>
-                <LogRequestLine item={item} />
-                <div className="row-meta">
-                  {item.contentType || 'no content-type'}
-                  {' · '}
-                  {formatBytes(item.requestBytes, item.requestBodyTruncated)}
-                  {' → '}
-                  {formatBytes(item.responseBytes, item.responseBodyTruncated)}
-                </div>
+                <span className={`badge ${statusClass(item.statusCode)}`}>
+                  {item.statusCode ?? "-"}
+                </span>
               </td>
               <td>
-                <span className={`badge ${statusClass(item.statusCode)}`}>{item.statusCode ?? '-'}</span>
+                <div>{formatTime(item.timestampUtc)}</div>
+                <div className="row-meta">
+                  {formatDate(item.timestampUtc)} · {item.durationMs} ms
+                </div>
               </td>
             </tr>
           ))}
           {logs.data?.items.length === 0 && (
             <tr>
-              <td colSpan={5}>{paused ? 'No logs in this range.' : 'No logs yet.'}</td>
+              <td colSpan={6}>
+                {paused ? "No logs in this range." : "No logs yet."}
+              </td>
             </tr>
           )}
         </tbody>
       </Table>
     </>
-  )
+  );
 }
-

@@ -12,6 +12,25 @@ public static class SoapMockMatcher
         }
 
         var match = mock.Match;
+
+        // Match by URL path and query (optional — allows routing multiple operations through one mock).
+        if (!PathMatcher.Matches(request.Path, match.Path, match.PathMode))
+        {
+            return false;
+        }
+
+        if (match.Query is { Count: > 0 })
+        {
+            foreach (var (key, expected) in match.Query)
+            {
+                if (!request.Query.TryGetValue(key, out var actual) ||
+                    !actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+        }
+
         var actualAction = SoapEnvelope.GetSoapAction(request.Headers);
         if (!SoapEnvelope.ActionsEqual(match.SoapAction, actualAction))
         {

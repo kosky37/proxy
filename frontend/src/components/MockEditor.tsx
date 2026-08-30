@@ -27,6 +27,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType))
   const [useDelay, setUseDelay] = useState(false)
   const [useHeaderMatch, setUseHeaderMatch] = useState(false)
+  const [useUrlMatch, setUseUrlMatch] = useState(false)
   const [useAdvanced, setUseAdvanced] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -36,7 +37,8 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
       setMock(next)
       setUseDelay((next.response.delayMs ?? 0) > 0)
       setUseHeaderMatch(hasHeaderMatch(next.match))
-      setUseAdvanced(hasExtraFilters(next.match))
+      setUseUrlMatch(hasUrlMatch(next.match, mock.type === 'soap'))
+      setUseAdvanced(hasExtraFilters(next.match, next.type === 'soap'))
     }
   }, [defaultType, initial, show])
 
@@ -118,20 +120,73 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
               <div className="editor-section-title">Match</div>
             </Col>
             {isSoap ? (
-              <Col xs={12}>
-                <Form.Group>
-                  <FieldLabel help='Value of the SOAPAction header. This is how the mock is selected; the URL path is ignored. Examples: GetAccount or "http://example.com/GetAccount".'>
-                    SOAPAction
-                  </FieldLabel>
-                  <Form.Control
-                    required
-                    value={mock.match.soapAction ?? ''}
-                    onChange={(event) =>
-                      setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
-                    }
+              <>
+                <Col xs={12}>
+                  <Form.Group>
+                    <FieldLabel help='Value of the SOAPAction header. This is how the mock is selected; the URL path is ignored. Examples: GetAccount or "http://example.com/GetAccount".'>
+                      SOAPAction
+                    </FieldLabel>
+                    <Form.Control
+                      required
+                      value={mock.match.soapAction ?? ''}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
+                      }
+                    />
+                  </Form.Group>
+                </Col>
+                <Col xs={12}>
+                  <Form.Check
+                    type="switch"
+                    id="soap-url-match"
+                    label="Match by URL path and query"
+                    checked={useUrlMatch}
+                    onChange={(event) => setUseUrlMatch(event.target.checked)}
                   />
-                </Form.Group>
-              </Col>
+                </Col>
+                {useUrlMatch && (
+                  <>
+                    <Col md={6}>
+                      <Form.Group>
+                        <FieldLabel help="The URL path after the host. Leave empty to match any path.">
+                          Path
+                        </FieldLabel>
+                        <Form.Control
+                          placeholder="/endpoint"
+                          value={mock.match.path ?? ''}
+                          onChange={(event) =>
+                            setMock({ ...mock, match: { ...mock.match, path: event.target.value } })
+                          }
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group>
+                        <FieldLabel help="Query parameters to match. Leave empty to ignore query string.">
+                          Query
+                        </FieldLabel>
+                        <Form.Control
+                          placeholder="key=value&amp;other=param"
+                          value={mock.match.query ? Object.entries(mock.match.query).map(([k, v]) => `${k}=${v}`).join('&') : ''}
+                          onChange={(event) => {
+                            const pairs = event.target.value.split('&').filter(Boolean)
+                            const query: Record<string, string> = {}
+                            for (const pair of pairs) {
+                              const eq = pair.indexOf('=')
+                              if (eq === -1) {
+                                query[pair] = ''
+                              } else {
+                                query[pair.slice(0, eq)] = pair.slice(eq + 1)
+                              }
+                            }
+                            setMock({ ...mock, match: { ...mock.match, query: Object.keys(query).length > 0 ? query : null } })
+                          }}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </>
+                )}
+              </>
             ) : (
               <>
                 <Col md={4}>
@@ -427,6 +482,13 @@ function hasHeaderMatch(match: MockMatchDto): boolean {
   return Boolean(match.headers && Object.keys(match.headers).length > 0)
 }
 
+function hasUrlMatch(match: MockMatchDto, isSoap: boolean): boolean {
+  if (!isSoap) {
+    return false
+  }
+  return Boolean(match.path && match.path.trim())
+}
+
 function persistMatch(
   match: MockMatchDto,
   isSoap: boolean,
@@ -443,15 +505,23 @@ function persistMatch(
 
   return {
     ...next,
-    path: null,
-    pathMode: 'exact',
     methods: null,
-    query: null,
+    query: useHeaderMatch ? next.query : null,
   }
 }
 
-function hasExtraFilters(match: MockMatchDto): boolean {
+function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
+  // For SOAP with URL matching enabled, path/mode/query count as extra filters.
+  if (isSoap && match.pathMode && match.pathMode !== 'exact') {
+    return true
+  }
+
   if (match.query && Object.keys(match.query).length > 0) {
+    return true
+  }
+
+  // SOAP with URL matching and a path set counts as having extra filters.
+  if (isSoap && match.path && match.path.trim()) {
     return true
   }
 
