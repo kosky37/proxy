@@ -45,7 +45,7 @@ export function Layout() {
           </Button>
         </Container>
       </Navbar>
-      <Container className="py-4">
+      <Container fluid className="py-4">
         <Outlet />
       </Container>
     </>
