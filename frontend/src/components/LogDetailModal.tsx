@@ -112,22 +112,22 @@ export function LogDetailModal({
       <Modal.Footer>
         {existingMock && onOpenMock && (
           <Button variant="primary" onClick={() => onOpenMock(existingMock)}>
-            Open mock
+            Edit mock
           </Button>
         )}
         {!existingMock && log && onCreateMock && (
           <Button variant="primary" onClick={() => onCreateMock(log)}>
-            Create mock
+            Mock
           </Button>
         )}
         {log && onCreateSend && (
-          <Button variant="outline-primary" onClick={() => onCreateSend(log)}>
-            Send similar
+          <Button variant="outline-info" onClick={() => onCreateSend(log)}>
+            Resend
           </Button>
         )}
         {log && onCreateIgnore && (
-          <Button variant="outline-primary" onClick={() => onCreateIgnore(log)}>
-            Create ignore
+          <Button variant="outline-danger" onClick={() => onCreateIgnore(log)}>
+            Ignore
           </Button>
         )}
         <Button variant="secondary" onClick={onClose}>

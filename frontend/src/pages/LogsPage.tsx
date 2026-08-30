@@ -316,7 +316,7 @@ export function LogsPage() {
               </td>
               <td>
                 {item.protocol === 'soap' && item.soapAction ? (
-                  <span>{item.soapAction}</span>
+                  <span className="text-break">{item.soapAction}</span>
                 ) : null}
               </td>
               <td>
