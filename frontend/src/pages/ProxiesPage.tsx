@@ -1,37 +1,74 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap'
+﻿import { useEffect, useState, type FormEvent } from 'react'
+import {
+  Alert,
+  Badge,
+  Button,
+  Form,
+  Modal,
+  Stack,
+  Table,
+} from 'react-bootstrap'
 import { Link } from 'react-router-dom'
+import { ProxySettingsFields } from '../components/ProxySettingsFields'
 import {
   useCreateProxyMutation,
   useDeleteProxyMutation,
+  useGetCertificatesQuery,
+  useGetProxyQuery,
   useGetProxiesQuery,
   useSetMocksEnabledMutation,
+  useUpdateProxyMutation,
 } from '../store/proxyApi'
 import type { UpsertProxyRequest } from '../store/types'
 
 const emptyForm: UpsertProxyRequest = {
   id: '',
-  name: '',
+  name: 'Gateway',
   enabled: true,
-  listen: { url: 'http://127.0.0.1:8083' },
-  destination: { address: 'http://127.0.0.1:9090', acceptAnyServerCertificate: false },
+  listen: { url: 'https://127.0.0.1:8085', serverCertificateId: null },
+  destination: {
+    address: 'https://domain-gateway.uat.mille.pl:8085',
+    acceptAnyServerCertificate: false,
+    clientCertificateId: null,
+  },
   mocksEnabled: true,
   passthroughDelayMs: 0,
+  logRetentionDays: 7,
+  bodyLogLimitBytes: 1_048_576,
 }
 
 export function ProxiesPage() {
   const { data, isLoading, error, refetch } = useGetProxiesQuery()
+  const certificates = useGetCertificatesQuery()
   const [createProxy, createState] = useCreateProxyMutation()
+  const [updateProxy, updateState] = useUpdateProxyMutation()
   const [deleteProxy] = useDeleteProxyMutation()
   const [setMocksEnabled] = useSetMocksEnabledMutation()
   const [showCreate, setShowCreate] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const editingProxy = useGetProxyQuery(editId ?? '', { skip: !editId })
 
   useEffect(() => {
     if (showCreate) {
       setForm(emptyForm)
     }
   }, [showCreate])
+
+  useEffect(() => {
+    if (editingProxy.data) {
+      setForm({
+        name: editingProxy.data.name,
+        enabled: editingProxy.data.enabled,
+        listen: editingProxy.data.listen,
+        destination: editingProxy.data.destination,
+        mocksEnabled: editingProxy.data.mocksEnabled,
+        passthroughDelayMs: editingProxy.data.passthroughDelayMs,
+        logRetentionDays: editingProxy.data.logRetentionDays ?? 7,
+        bodyLogLimitBytes: editingProxy.data.bodyLogLimitBytes ?? 1_048_576,
+      })
+    }
+  }, [editingProxy.data])
 
   const onCreate = async (event: FormEvent) => {
     event.preventDefault()
@@ -40,6 +77,15 @@ export function ProxiesPage() {
       id: form.id || undefined,
     }).unwrap()
     setShowCreate(false)
+  }
+
+  const onSaveEdit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!editId) {
+      return
+    }
+    await updateProxy({ id: editId, body: form }).unwrap()
+    setEditId(null)
   }
 
   return (
@@ -55,7 +101,9 @@ export function ProxiesPage() {
       </Stack>
 
       {isLoading && <Alert variant="secondary">Loading…</Alert>}
-      {error && <Alert variant="danger">Could not load proxies. Is the API running on port 5050?</Alert>}
+      {error && (
+        <Alert variant="danger">Could not load proxies. Is the API running on port 5050?</Alert>
+      )}
 
       <Table striped hover responsive className="align-middle">
         <thead>
@@ -82,7 +130,9 @@ export function ProxiesPage() {
                 <div>
                   <code>{proxy.listenUrl}</code>
                 </div>
-                {proxy.listenPathPrefix && <div className="row-meta">{proxy.listenPathPrefix}</div>}
+                {proxy.listenPathPrefix && (
+                  <div className="row-meta">{proxy.listenPathPrefix}</div>
+                )}
               </td>
               <td>
                 <code>{proxy.destinationAddress}</code>
@@ -94,14 +144,22 @@ export function ProxiesPage() {
                   checked={proxy.mocksEnabled}
                   label={`${proxy.enabledMockCount}/${proxy.mockCount} enabled`}
                   onChange={(event) =>
-                    setMocksEnabled({ id: proxy.id, mocksEnabled: event.target.checked })
+                    setMocksEnabled({
+                      id: proxy.id,
+                      mocksEnabled: event.target.checked,
+                    })
                   }
                 />
               </td>
               <td className="text-end">
-                <Button variant="outline-danger" size="sm" onClick={() => deleteProxy(proxy.id)}>
-                  Delete
-                </Button>
+                <Stack direction="horizontal" gap={1} className="justify-content-end">
+                  <Button variant="outline-primary" size="sm" onClick={() => setEditId(proxy.id)}>
+                    Edit
+                  </Button>
+                  <Button variant="outline-danger" size="sm" onClick={() => deleteProxy(proxy.id)}>
+                    Delete
+                  </Button>
+                </Stack>
               </td>
             </tr>
           ))}
@@ -113,71 +171,19 @@ export function ProxiesPage() {
         </tbody>
       </Table>
 
-      <Modal show={showCreate} onHide={() => setShowCreate(false)}>
+      <Modal show={showCreate} onHide={() => setShowCreate(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>New proxy</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form id="proxy-create-form" onSubmit={onCreate}>
-            <Row className="g-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Id</Form.Label>
-                  <Form.Control
-                    value={form.id ?? ''}
-                    placeholder="folder-name"
-                    onChange={(event) => setForm({ ...form, id: event.target.value })}
-                  />
-                  <Form.Text>Leave empty to derive it from the name.</Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Name</Form.Label>
-                  <Form.Control
-                    required
-                    value={form.name}
-                    onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={7}>
-                <Form.Group>
-                  <Form.Label>Listen URL</Form.Label>
-                  <Form.Control
-                    required
-                    value={form.listen.url}
-                    onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
-                  />
-                  <Form.Text>Scheme, host, and port this proxy binds.</Form.Text>
-                </Form.Group>
-              </Col>
-              <Col md={5}>
-                <Form.Group>
-                  <Form.Label>Path prefix</Form.Label>
-                  <Form.Control
-                    value={form.listen.pathPrefix ?? ''}
-                    placeholder="/api"
-                    onChange={(event) =>
-                      setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value || null } })
-                    }
-                  />
-                  <Form.Text>Optional. Use this to share a port with other proxies.</Form.Text>
-                </Form.Group>
-              </Col>
-              <Col xs={12}>
-                <Form.Group>
-                  <Form.Label>Destination</Form.Label>
-                  <Form.Control
-                    required
-                    value={form.destination.address}
-                    onChange={(event) =>
-                      setForm({ ...form, destination: { ...form.destination, address: event.target.value } })
-                    }
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            <ProxySettingsFields
+              form={form}
+              onChange={setForm}
+              certificates={certificates.data}
+              showId
+              showAdvanced={false}
+            />
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -186,6 +192,38 @@ export function ProxiesPage() {
           </Button>
           <Button type="submit" form="proxy-create-form" disabled={createState.isLoading}>
             Create
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(editId)} onHide={() => setEditId(null)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Edit {editingProxy.data?.name ?? 'proxy'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {editingProxy.isLoading && <Alert variant="secondary">Loading…</Alert>}
+          {editingProxy.isError && <Alert variant="danger">Could not load proxy settings.</Alert>}
+          {editingProxy.data && (
+            <Form id="proxy-edit-form" onSubmit={onSaveEdit}>
+              <ProxySettingsFields
+                form={form}
+                onChange={setForm}
+                certificates={certificates.data}
+                showAdvanced
+              />
+            </Form>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setEditId(null)}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="proxy-edit-form"
+            disabled={updateState.isLoading || !editingProxy.data}
+          >
+            Save
           </Button>
         </Modal.Footer>
       </Modal>

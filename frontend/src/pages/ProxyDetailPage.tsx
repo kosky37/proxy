@@ -1,14 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Badge,
   Button,
-  Card,
-  Col,
   Form,
   Nav,
   OverlayTrigger,
-  Row,
   Stack,
   Table,
   Tooltip,
@@ -31,7 +28,6 @@ import {
   useDeleteIgnoreMutation,
   useDeleteMockMutation,
   useDeleteMockSetMutation,
-  useGetCertificatesQuery,
   useGetIgnoresQuery,
   useGetLogQuery,
   useGetMocksQuery,
@@ -42,11 +38,10 @@ import {
   useUpdateIgnoreMutation,
   useUpdateMockMutation,
   useUpdateMockSetMutation,
-  useUpdateProxyMutation,
 } from '../store/proxyApi'
-import type { IgnoredPathDto, LogDetailDto, MockDto, MockSetDto, UpsertProxyRequest } from '../store/types'
+import type { IgnoredPathDto, LogDetailDto, MockDto, MockSetDto } from '../store/types'
 
-type Tab = 'settings' | 'send' | 'rest' | 'soap' | 'mock-sets' | 'ignores' | 'logs'
+type Tab = 'send' | 'rest' | 'soap' | 'mock-sets' | 'ignores' | 'logs'
 
 export function ProxyDetailPage() {
   const { id = '' } = useParams()
@@ -56,9 +51,7 @@ export function ProxyDetailPage() {
   const mocks = useGetMocksQuery(id)
   const ignores = useGetIgnoresQuery(id)
   const mockSets = useGetMockSetsQuery(id)
-  const certificates = useGetCertificatesQuery()
   const [tab, setTab] = useState<Tab>('logs')
-  const [form, setForm] = useState<UpsertProxyRequest | null>(null)
   const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
   const [editingExisting, setEditingExisting] = useState(false)
   const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined)
@@ -66,7 +59,6 @@ export function ProxyDetailPage() {
   const [logId, setLogId] = useState<number | null>(null)
   const [sendDraft, setSendDraft] = useState<SendDraft | null>(null)
   const logDetail = useGetLogQuery({ proxyId: id, entryId: logId ?? 0 }, { skip: logId == null })
-  const [updateProxy] = useUpdateProxyMutation()
   const [setMocksEnabled] = useSetMocksEnabledMutation()
   const [createMock] = useCreateMockMutation()
   const [updateMock] = useUpdateMockMutation()
@@ -79,20 +71,6 @@ export function ProxyDetailPage() {
   const [updateMockSet] = useUpdateMockSetMutation()
   const [deleteMockSet] = useDeleteMockSetMutation()
   const [applyMockSet] = useApplyMockSetMutation()
-  useEffect(() => {
-    if (proxy.data) {
-      setForm({
-        name: proxy.data.name,
-        enabled: proxy.data.enabled,
-        listen: proxy.data.listen,
-        destination: proxy.data.destination,
-        mocksEnabled: proxy.data.mocksEnabled,
-        passthroughDelayMs: proxy.data.passthroughDelayMs,
-        logRetentionDays: proxy.data.logRetentionDays ?? 7,
-        bodyLogLimitBytes: proxy.data.bodyLogLimitBytes ?? 1_048_576,
-      })
-    }
-  }, [proxy.data])
 
   useEffect(() => {
     const state = location.state as {
@@ -123,17 +101,13 @@ export function ProxyDetailPage() {
     navigate(location.pathname, { replace: true, state: {} })
   }, [location.pathname, location.state, navigate])
 
-  if (proxy.isLoading || !form) {
+  if (proxy.isLoading || !proxy.data) {
     return <Alert variant="secondary">Loading…</Alert>
   }
   if (proxy.isError) {
     return <Alert variant="danger">Proxy not found.</Alert>
   }
 
-  const saveSettings = async (event: FormEvent) => {
-    event.preventDefault()
-    await updateProxy({ id, body: form }).unwrap()
-  }
 
   const saveMock = async (mock: MockDto) => {
     if (editingExisting && editing?.name) {
@@ -255,199 +229,8 @@ export function ProxyDetailPage() {
         <Nav.Item>
           <Nav.Link eventKey="send">Send</Nav.Link>
         </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="settings">Settings</Nav.Link>
-        </Nav.Item>
       </Nav>
 
-      {tab === 'settings' && (
-        <Form onSubmit={saveSettings}>
-          <Stack gap={3}>
-            <Card>
-              <Card.Body>
-                <h2 className="h6 mb-3">Proxy</h2>
-                <Row className="g-3 align-items-end">
-                  <Col md={8}>
-                    <Form.Group>
-                      <Form.Label>Name</Form.Label>
-                      <Form.Control
-                        value={form.name}
-                        onChange={(event) => setForm({ ...form, name: event.target.value })}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={4} className="d-flex align-items-end pb-2">
-                    <Form.Check
-                      type="switch"
-                      id="proxy-enabled"
-                      label="Enabled"
-                      checked={form.enabled}
-                      onChange={(event) => setForm({ ...form, enabled: event.target.checked })}
-                    />
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-
-            <Row className="g-3">
-              <Col md={6}>
-                <Card className="h-100">
-                  <Card.Body>
-                    <h2 className="h6 mb-3">Listen</h2>
-                    <Stack gap={3}>
-                      <Form.Group>
-                        <Form.Label>Listen URL</Form.Label>
-                        <Form.Control
-                          value={form.listen.url}
-                          onChange={(event) => setForm({ ...form, listen: { ...form.listen, url: event.target.value } })}
-                        />
-                        <Form.Text>Scheme, host, and port this proxy binds.</Form.Text>
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>Path prefix</Form.Label>
-                        <Form.Control
-                          value={form.listen.pathPrefix ?? ''}
-                          onChange={(event) =>
-                            setForm({ ...form, listen: { ...form.listen, pathPrefix: event.target.value } })
-                          }
-                        />
-                        <Form.Text>Optional. Share a port by giving each proxy a different prefix, for example /api. Removed before the request is forwarded.</Form.Text>
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>Server certificate</Form.Label>
-                        <Form.Select
-                          value={form.listen.serverCertificateId ?? ''}
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              listen: { ...form.listen, serverCertificateId: event.target.value || null },
-                            })
-                          }
-                        >
-                          <option value="">None</option>
-                          {certificates.data
-                            ?.filter((item) => item.type === 'server')
-                            .map((item) => (
-                              <option key={item.name} value={item.name}>
-                                {item.name}
-                              </option>
-                            ))}
-                        </Form.Select>
-                        <Form.Text>
-                          HTTPS certificate for this listener. Defined on the <Link to="/certificates">Certificates</Link>{' '}
-                          page.
-                        </Form.Text>
-                      </Form.Group>
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={6}>
-                <Card className="h-100">
-                  <Card.Body>
-                    <h2 className="h6 mb-3">Destination</h2>
-                    <Stack gap={3}>
-                      <Form.Group>
-                        <Form.Label>Destination URL</Form.Label>
-                        <Form.Control
-                          value={form.destination.address}
-                          onChange={(event) =>
-                            setForm({ ...form, destination: { ...form.destination, address: event.target.value } })
-                          }
-                        />
-                        <Form.Text>Upstream service used when no mock matches.</Form.Text>
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>Passthrough delay ms</Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={form.passthroughDelayMs}
-                          onChange={(event) => setForm({ ...form, passthroughDelayMs: Number(event.target.value) })}
-                        />
-                        <Form.Text>Optional wait before forwarding an unmatched request.</Form.Text>
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>Client certificate</Form.Label>
-                        <Form.Select
-                          value={form.destination.clientCertificateId ?? ''}
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              destination: { ...form.destination, clientCertificateId: event.target.value || null },
-                            })
-                          }
-                        >
-                          <option value="">None</option>
-                          {certificates.data
-                            ?.filter((item) => item.type === 'client')
-                            .map((item) => (
-                              <option key={item.name} value={item.name}>
-                                {item.name}
-                              </option>
-                            ))}
-                        </Form.Select>
-                        <Form.Text>
-                          Presented to the destination. Defined on the <Link to="/certificates">Certificates</Link> page.
-                        </Form.Text>
-                      </Form.Group>
-                      <Form.Check
-                        type="switch"
-                        id="accept-any-cert"
-                        label="Accept any server certificate"
-                        checked={form.destination.acceptAnyServerCertificate}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            destination: { ...form.destination, acceptAnyServerCertificate: event.target.checked },
-                          })
-                        }
-                      />
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-
-            <Card>
-              <Card.Body>
-                <h2 className="h6 mb-3">Logs</h2>
-                <Row className="g-3">
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label>Retention (days)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        min={0}
-                        value={form.logRetentionDays ?? 7}
-                        onChange={(event) => setForm({ ...form, logRetentionDays: Number(event.target.value) })}
-                      />
-                      <Form.Text>0 keeps logs forever. Older entries are deleted automatically.</Form.Text>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label>Max logged body (KB)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        min={1}
-                        value={Math.round((form.bodyLogLimitBytes ?? 1_048_576) / 1024)}
-                        onChange={(event) =>
-                          setForm({ ...form, bodyLogLimitBytes: Math.max(1, Number(event.target.value)) * 1024 })
-                        }
-                      />
-                      <Form.Text>Bodies larger than this are not stored; only the original size is logged.</Form.Text>
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-
-            <div>
-              <Button type="submit">Save settings</Button>
-            </div>
-          </Stack>
-        </Form>
-      )}
 
       {tab === 'send' && proxy.data && (
         <ManualSendPanel

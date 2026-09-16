@@ -21,9 +21,10 @@ public sealed class ProxyConfigWatcher : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var roots = new[] { _options.Value.DataRoot, _options.Value.CertificatesRoot }
+        var appData = Path.GetDirectoryName(Path.GetFullPath(_options.Value.CertificatesRoot));
+        var roots = new[] { _options.Value.DataRoot, _options.Value.CertificatesRoot, appData }
             .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(Path.GetFullPath)
+            .Select(path => Path.GetFullPath(path!))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -100,6 +101,7 @@ public sealed class ProxyConfigWatcher : BackgroundService
     {
         var name = Path.GetFileName(path);
         return name.StartsWith("logs.db", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("certificates.db", StringComparison.OrdinalIgnoreCase) ||
                name.EndsWith(".db-wal", StringComparison.OrdinalIgnoreCase) ||
                name.EndsWith(".db-shm", StringComparison.OrdinalIgnoreCase);
     }

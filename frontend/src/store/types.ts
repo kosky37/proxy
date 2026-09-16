@@ -2,8 +2,21 @@ export interface CertificateDto {
   name: string
   fileName: string
   type: string
+  source?: string
   pfxPath?: string | null
   password?: string | null
+  storeName?: string | null
+  storeLocation?: string | null
+  thumbprint?: string | null
+}
+
+export interface WindowsStoreCertificateDto {
+  thumbprint: string
+  subject: string
+  friendlyName?: string | null
+  notBeforeUtc: string
+  notAfterUtc: string
+  hasPrivateKey: boolean
 }
 
 export interface UploadedCertificateFileDto {

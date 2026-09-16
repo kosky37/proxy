@@ -16,6 +16,7 @@ import type {
   ProxyListItemDto,
   UploadedCertificateFileDto,
   UpsertProxyRequest,
+  WindowsStoreCertificateDto,
 } from './types'
 
 export const proxyApi = emptySplitApi.injectEndpoints({
@@ -138,6 +139,16 @@ export const proxyApi = emptySplitApi.injectEndpoints({
       query: () => '/api/certificates',
       providesTags: ['Certificates'],
     }),
+    getWindowsStoreCertificates: build.query<
+      WindowsStoreCertificateDto[],
+      { location?: string; store?: string } | void
+    >({
+      query: (args) => {
+        const location = args?.location ?? 'CurrentUser'
+        const store = args?.store ?? 'My'
+        return `/api/certificates/windows-store?location=${encodeURIComponent(location)}&store=${encodeURIComponent(store)}`
+      },
+    }),
     createCertificate: build.mutation<CertificateDto, CertificateDto>({
       query: (body) => ({ url: '/api/certificates', method: 'POST', body }),
       invalidatesTags: ['Certificates', 'Proxies'],
@@ -247,6 +258,7 @@ export const {
   useUpdateIgnoreMutation,
   useDeleteIgnoreMutation,
   useGetCertificatesQuery,
+  useGetWindowsStoreCertificatesQuery,
   useCreateCertificateMutation,
   useUpdateCertificateMutation,
   useDeleteCertificateMutation,

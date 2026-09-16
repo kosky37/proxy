@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using ProxyMockTool.Core.Matching;
 using ProxyMockTool.Core.Models;
+using ProxyMockTool.Infrastructure.Certificates;
 
 namespace ProxyMockTool.Infrastructure.Http;
 
@@ -18,15 +19,12 @@ public static class DestinationTls
         }
 
         var cert = CertificateResolver.ResolveClient(proxy, catalog);
-        var path = CertificateResolver.ResolveFilePath(certificatesRoot, cert);
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        var certificate = CertificateLoader.Load(cert, certificatesRoot);
+        if (certificate is null)
         {
             return;
         }
 
-        var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-            path,
-            cert?.Password ?? "");
         handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
         handler.SslOptions.ClientCertificates.Add(certificate);
         handler.SslOptions.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 |

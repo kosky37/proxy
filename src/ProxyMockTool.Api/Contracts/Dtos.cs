@@ -49,8 +49,22 @@ public sealed class CertificateDto
     public required string Name { get; set; }
     public required string FileName { get; set; }
     public required string Type { get; set; }
+    public string Source { get; set; } = "file";
     public string? PfxPath { get; set; }
     public string? Password { get; set; }
+    public string? StoreName { get; set; }
+    public string? StoreLocation { get; set; }
+    public string? Thumbprint { get; set; }
+}
+
+public sealed class WindowsStoreCertificateDto
+{
+    public required string Thumbprint { get; set; }
+    public required string Subject { get; set; }
+    public string? FriendlyName { get; set; }
+    public DateTime NotBeforeUtc { get; set; }
+    public DateTime NotAfterUtc { get; set; }
+    public bool HasPrivateKey { get; set; }
 }
 
 public sealed class UploadedCertificateFileDto
@@ -394,8 +408,12 @@ public static class DtoMapper
         Name = certificate.Name,
         FileName = certificate.FileName,
         Type = certificate.Type.ToString().ToLowerInvariant(),
+        Source = certificate.Source == CertificateSource.WindowsStore ? "windowsStore" : "file",
         PfxPath = certificate.PfxPath,
-        Password = certificate.Password
+        Password = certificate.Password,
+        StoreName = certificate.StoreName,
+        StoreLocation = certificate.StoreLocation,
+        Thumbprint = certificate.Thumbprint
     };
 
     public static CertificateDefinition ToModel(CertificateDto dto) => new()
@@ -403,8 +421,14 @@ public static class DtoMapper
         Name = dto.Name,
         FileName = dto.FileName,
         Type = Enum.TryParse<CertificateUsage>(dto.Type, true, out var type) ? type : CertificateUsage.Client,
+        Source = string.Equals(dto.Source, "windowsStore", StringComparison.OrdinalIgnoreCase)
+            ? CertificateSource.WindowsStore
+            : CertificateSource.File,
         PfxPath = dto.PfxPath,
-        Password = dto.Password
+        Password = dto.Password,
+        StoreName = dto.StoreName,
+        StoreLocation = dto.StoreLocation,
+        Thumbprint = dto.Thumbprint
     };
 
     private static MockMatchDto ToDto(MockMatch match) => new()

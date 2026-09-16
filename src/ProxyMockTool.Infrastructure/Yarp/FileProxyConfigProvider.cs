@@ -58,11 +58,25 @@ public sealed class FileProxyConfigProvider : IProxyConfigProvider, IDisposable
             };
 
             var clientCert = CertificateResolver.ResolveClient(proxy, certificates);
-            var clientPath = CertificateResolver.ResolveFilePath(certificatesRoot, clientCert);
-            if (!string.IsNullOrWhiteSpace(clientPath) && File.Exists(clientPath))
+            if (clientCert is not null)
             {
-                metadata["clientCertPath"] = clientPath;
-                metadata["clientCertPassword"] = clientCert?.Password ?? "";
+                if (clientCert.Source == CertificateSource.WindowsStore)
+                {
+                    metadata["clientCertSource"] = "windowsStore";
+                    metadata["clientCertThumbprint"] = clientCert.Thumbprint ?? "";
+                    metadata["clientCertStoreLocation"] = clientCert.StoreLocation ?? "CurrentUser";
+                    metadata["clientCertStoreName"] = clientCert.StoreName ?? "My";
+                }
+                else
+                {
+                    var clientPath = CertificateResolver.ResolveFilePath(certificatesRoot, clientCert);
+                    if (!string.IsNullOrWhiteSpace(clientPath) && File.Exists(clientPath))
+                    {
+                        metadata["clientCertSource"] = "file";
+                        metadata["clientCertPath"] = clientPath;
+                        metadata["clientCertPassword"] = clientCert.Password ?? "";
+                    }
+                }
             }
 
             clusters.Add(new ClusterConfig

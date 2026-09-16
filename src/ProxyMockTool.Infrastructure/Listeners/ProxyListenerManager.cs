@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ProxyMockTool.Core.Contracts;
 using ProxyMockTool.Core.Matching;
+using ProxyMockTool.Infrastructure.Certificates;
 using ProxyMockTool.Core.Models;
 using ProxyMockTool.Core.Options;
 using ProxyMockTool.Infrastructure.Yarp;
@@ -238,13 +239,11 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
         foreach (var proxy in proxies)
         {
             var cert = CertificateResolver.ResolveServer(proxy, catalog);
-            var path = CertificateResolver.ResolveFilePath(dataRoot, cert);
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            var loaded = CertificateLoader.Load(cert, dataRoot);
+            if (loaded is not null)
             {
-                continue;
+                return loaded;
             }
-
-            return X509CertificateLoader.LoadPkcs12FromFile(path, cert?.Password ?? "");
         }
 
         return null;
@@ -258,10 +257,10 @@ public sealed class ProxyListenerManager : IHostedService, IDisposable
         foreach (var proxy in proxies)
         {
             var cert = CertificateResolver.ResolveServer(proxy, catalog);
-            var path = CertificateResolver.ResolveFilePath(dataRoot, cert);
-            if (!string.IsNullOrWhiteSpace(path))
+            var key = CertificateLoader.CacheKey(cert, dataRoot);
+            if (!string.IsNullOrWhiteSpace(key))
             {
-                return path + "|" + cert?.Password;
+                return key;
             }
         }
 

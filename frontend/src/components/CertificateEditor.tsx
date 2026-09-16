@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+﻿import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button, Col, Form, InputGroup, Modal, Row, Spinner } from 'react-bootstrap'
-import { useUploadCertificateMutation } from '../store/proxyApi'
+import {
+  useGetWindowsStoreCertificatesQuery,
+  useUploadCertificateMutation,
+} from '../store/proxyApi'
 import type { CertificateDto } from '../store/types'
 
 const blank = (): CertificateDto => ({
   name: '',
   fileName: '',
   type: 'client',
+  source: 'file',
   pfxPath: '',
   password: '',
+  storeName: 'My',
+  storeLocation: 'CurrentUser',
+  thumbprint: '',
 })
 
 interface Props {
@@ -22,11 +29,18 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [certificate, setCertificate] = useState<CertificateDto>(initial ?? blank())
   const [saving, setSaving] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [upload, uploadState] = useUploadCertificateMutation()
+  const source = certificate.source === 'windowsStore' ? 'windowsStore' : 'file'
+  const windowsStore = useGetWindowsStoreCertificatesQuery(
+    { location: certificate.storeLocation ?? 'CurrentUser', store: certificate.storeName ?? 'My' },
+    { skip: !show || source !== 'windowsStore' },
+  )
 
   useEffect(() => {
     if (show) {
       setCertificate(initial ?? blank())
+      setShowPassword(false)
     }
   }, [initial, show])
 
@@ -36,21 +50,29 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
     }
 
     const uploaded = await upload({ file, name: certificate.name }).unwrap()
-    setCertificate((current) => ({ ...current, pfxPath: uploaded.pfxPath ?? '' }))
+    setCertificate((current) => ({ ...current, pfxPath: uploaded.pfxPath ?? '', source: 'file' }))
   }
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSaving(true)
     try {
-      await onSave(certificate)
+      await onSave({
+        ...certificate,
+        source,
+        pfxPath: source === 'file' ? certificate.pfxPath : null,
+        password: source === 'file' ? certificate.password : null,
+        storeName: source === 'windowsStore' ? certificate.storeName || 'My' : null,
+        storeLocation: source === 'windowsStore' ? certificate.storeLocation || 'CurrentUser' : null,
+        thumbprint: source === 'windowsStore' ? certificate.thumbprint : null,
+      })
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal show={show} onHide={onCancel}>
+    <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New certificate'}</Modal.Title>
       </Modal.Header>
@@ -81,49 +103,162 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
             </Col>
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Certificate file</Form.Label>
-                <InputGroup>
-                  <Form.Control
-                    required
-                    placeholder="client.pfx"
-                    value={certificate.pfxPath ?? ''}
-                    onChange={(event) => setCertificate({ ...certificate, pfxPath: event.target.value })}
-                  />
-                  <Button
-                    variant="outline-secondary"
-                    disabled={uploadState.isLoading}
-                    onClick={() => fileInput.current?.click()}
-                  >
-                    Browse
-                  </Button>
-                </InputGroup>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept=".pfx,.p12,.pem,.crt,.cer"
-                  hidden
-                  onChange={(event) => {
-                    void pickFile(event.currentTarget.files?.[0])
-                    event.currentTarget.value = ''
-                  }}
-                />
-                {uploadState.isLoading && (
-                  <Form.Text>
-                    <Spinner animation="border" size="sm" /> Uploading…
-                  </Form.Text>
-                )}
+                <Form.Label>Source</Form.Label>
+                <Form.Select
+                  value={source}
+                  onChange={(event) =>
+                    setCertificate({
+                      ...certificate,
+                      source: event.target.value,
+                    })
+                  }
+                >
+                  <option value="file">Certificate file</option>
+                  <option value="windowsStore">Windows certificate store</option>
+                </Form.Select>
               </Form.Group>
             </Col>
-            <Col xs={12}>
-              <Form.Group>
-                <Form.Label>Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  value={certificate.password ?? ''}
-                  onChange={(event) => setCertificate({ ...certificate, password: event.target.value })}
-                />
-              </Form.Group>
-            </Col>
+
+            {source === 'file' ? (
+              <>
+                <Col xs={12}>
+                  <Form.Group>
+                    <Form.Label>Certificate file</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        required
+                        placeholder="client.pfx"
+                        value={certificate.pfxPath ?? ''}
+                        onChange={(event) =>
+                          setCertificate({ ...certificate, pfxPath: event.target.value })
+                        }
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        disabled={uploadState.isLoading}
+                        onClick={() => fileInput.current?.click()}
+                      >
+                        Browse
+                      </Button>
+                    </InputGroup>
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      accept=".pfx,.p12,.pem,.crt,.cer"
+                      hidden
+                      onChange={(event) => {
+                        void pickFile(event.currentTarget.files?.[0])
+                        event.currentTarget.value = ''
+                      }}
+                    />
+                    {uploadState.isLoading && (
+                      <Form.Text>
+                        <Spinner animation="border" size="sm" /> Uploading…
+                      </Form.Text>
+                    )}
+                  </Form.Group>
+                </Col>
+                <Col xs={12}>
+                  <Form.Group>
+                    <Form.Label>Password</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showPassword ? 'text' : 'password'}
+                        value={certificate.password ?? ''}
+                        onChange={(event) =>
+                          setCertificate({ ...certificate, password: event.target.value })
+                        }
+                        autoComplete="new-password"
+                      />
+                      <Button
+                        variant="outline-secondary"
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                      >
+                        {showPassword ? 'Hide' : 'Show'}
+                      </Button>
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+              </>
+            ) : (
+              <>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Store location</Form.Label>
+                    <Form.Select
+                      value={certificate.storeLocation ?? 'CurrentUser'}
+                      onChange={(event) =>
+                        setCertificate({
+                          ...certificate,
+                          storeLocation: event.target.value,
+                          thumbprint: '',
+                        })
+                      }
+                    >
+                      <option value="CurrentUser">Current user</option>
+                      <option value="LocalMachine">Local machine</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Store name</Form.Label>
+                    <Form.Select
+                      value={certificate.storeName ?? 'My'}
+                      onChange={(event) =>
+                        setCertificate({
+                          ...certificate,
+                          storeName: event.target.value,
+                          thumbprint: '',
+                        })
+                      }
+                    >
+                      <option value="My">Personal (My)</option>
+                      <option value="Root">Trusted Root</option>
+                      <option value="CertificateAuthority">Intermediate CA</option>
+                      <option value="TrustedPeople">Trusted People</option>
+                      <option value="TrustedPublisher">Trusted Publisher</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col xs={12}>
+                  <Form.Group>
+                    <Form.Label>Certificate</Form.Label>
+                    {windowsStore.isLoading && (
+                      <div>
+                        <Spinner animation="border" size="sm" /> Loading store…
+                      </div>
+                    )}
+                    {windowsStore.isError && (
+                      <Form.Text className="text-danger">
+                        Could not read the Windows certificate store.
+                      </Form.Text>
+                    )}
+                    <Form.Select
+                      required
+                      value={certificate.thumbprint ?? ''}
+                      onChange={(event) =>
+                        setCertificate({ ...certificate, thumbprint: event.target.value })
+                      }
+                    >
+                      <option value="">Select a certificate…</option>
+                      {windowsStore.data?.map((item) => (
+                        <option key={item.thumbprint} value={item.thumbprint}>
+                          {(item.friendlyName || item.subject) +
+                            (item.hasPrivateKey ? '' : ' (no private key)') +
+                            ` — ${item.thumbprint.slice(0, 8)}…`}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text>
+                      Uses the certificate already installed on this Windows machine. No password is
+                      stored.
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+              </>
+            )}
           </Row>
         </Form>
       </Modal.Body>

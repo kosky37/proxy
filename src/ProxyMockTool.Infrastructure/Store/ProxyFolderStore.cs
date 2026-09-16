@@ -7,6 +7,7 @@ using ProxyMockTool.Core.Contracts;
 using ProxyMockTool.Core.Models;
 using ProxyMockTool.Core.Options;
 using ProxyMockTool.Core.Storage;
+using ProxyMockTool.Infrastructure.Certificates;
 
 namespace ProxyMockTool.Infrastructure.Store;
 
@@ -14,6 +15,7 @@ public sealed class ProxyFolderStore : IProxyConfigStore
 {
     private readonly IOptions<AppOptions> _options;
     private readonly ILogger<ProxyFolderStore> _logger;
+    private readonly SqliteCertificateCatalog _certificateCatalog;
     private readonly object _gate = new();
     private ImmutableArray<LoadedProxy> _proxies = [];
     private ImmutableArray<CertificateDefinition> _certificates = [];
@@ -22,6 +24,11 @@ public sealed class ProxyFolderStore : IProxyConfigStore
     {
         _options = options;
         _logger = logger;
+        var appData = Path.GetDirectoryName(Path.GetFullPath(options.Value.CertificatesRoot))
+                      ?? DataRootResolver.AppDataRoot();
+        _certificateCatalog = new SqliteCertificateCatalog(Path.Combine(appData, "certificates.db"));
+        Directory.CreateDirectory(options.Value.CertificatesRoot);
+        _certificateCatalog.ImportFromJsonFiles(options.Value.CertificatesRoot);
         ReloadSilent();
     }
 
@@ -345,17 +352,10 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         CertificateDefinition created;
         lock (_gate)
         {
-            var fileName = $"{MockFileNames.Sanitize(certificate.Name)}.json";
-            var path = Path.Combine(CertificatesRoot, fileName);
-            if (File.Exists(path) || FindCertificateFile(certificate.Name) is not null)
-            {
-                throw new InvalidOperationException($"Certificate '{certificate.Name}' already exists.");
-            }
-
             WriteGeneration++;
-            WriteCertificateFile(path, certificate);
+            created = _certificateCatalog.Create(NormalizeCertificate(certificate));
             ReloadCore();
-            created = RequireCertificate(certificate.Name);
+            created = RequireCertificate(created.Name);
         }
 
         NotifyChanged();
@@ -367,23 +367,15 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         CertificateDefinition updated;
         lock (_gate)
         {
-            var existing = FindCertificateFile(name) ?? throw new KeyNotFoundException($"Certificate '{name}' was not found.");
             WriteGeneration++;
-            WriteCertificateFile(existing, certificate);
-            var desiredPath = Path.Combine(CertificatesRoot, $"{MockFileNames.Sanitize(certificate.Name)}.json");
-            if (!existing.Equals(desiredPath, StringComparison.OrdinalIgnoreCase))
+            updated = _certificateCatalog.Update(name, NormalizeCertificate(certificate));
+            if (!name.Equals(updated.Name, StringComparison.OrdinalIgnoreCase))
             {
-                if (File.Exists(desiredPath))
-                {
-                    throw new InvalidOperationException($"Certificate '{certificate.Name}' already exists.");
-                }
-
-                File.Move(existing, desiredPath);
-                RetargetCertificateIds(name, certificate.Name);
+                RetargetCertificateIds(name, updated.Name);
             }
 
             ReloadCore();
-            updated = RequireCertificate(certificate.Name);
+            updated = RequireCertificate(updated.Name);
         }
 
         NotifyChanged();
@@ -394,9 +386,8 @@ public sealed class ProxyFolderStore : IProxyConfigStore
     {
         lock (_gate)
         {
-            var existing = FindCertificateFile(name) ?? throw new KeyNotFoundException($"Certificate '{name}' was not found.");
             WriteGeneration++;
-            File.Delete(existing);
+            _certificateCatalog.Delete(name);
             RetargetCertificateIds(name, null);
             ReloadCore();
         }
@@ -494,12 +485,31 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         };
     }
 
-    private IEnumerable<CertificateDefinition> LoadCertificates() =>
-        Directory.GetFiles(CertificatesRoot, "*.json")
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .Select(LoadCertificate)
-            .Where(item => item is not null)
-            .Cast<CertificateDefinition>();
+    private IEnumerable<CertificateDefinition> LoadCertificates() => _certificateCatalog.List();
+
+    private static CertificateDefinition NormalizeCertificate(CertificateDefinition certificate)
+    {
+        if (certificate.Source == CertificateSource.WindowsStore)
+        {
+            certificate.StoreName = string.IsNullOrWhiteSpace(certificate.StoreName) ? "My" : certificate.StoreName;
+            certificate.StoreLocation = string.IsNullOrWhiteSpace(certificate.StoreLocation) ? "CurrentUser" : certificate.StoreLocation;
+            certificate.Thumbprint = certificate.Thumbprint?.Replace(" ", "").ToUpperInvariant();
+            certificate.PfxPath = null;
+            certificate.Password = null;
+            certificate.FileName = $"store:{certificate.StoreLocation}/{certificate.StoreName}/{certificate.Thumbprint}";
+        }
+        else
+        {
+            certificate.Source = CertificateSource.File;
+            certificate.PfxPath = NormalizePfxPath(certificate.PfxPath);
+            certificate.StoreName = null;
+            certificate.StoreLocation = null;
+            certificate.Thumbprint = null;
+            certificate.FileName = Path.GetFileName(certificate.PfxPath ?? "");
+        }
+
+        return certificate;
+    }
 
     private MockDefinition? LoadMock(string path)
     {
@@ -572,29 +582,6 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         catch (Exception exception)
         {
             _logger.LogError(exception, "Failed to load mock set {Path}", path);
-            return null;
-        }
-    }
-
-    private CertificateDefinition? LoadCertificate(string path)
-    {
-        try
-        {
-            var json = File.ReadAllText(path);
-            var certificate = JsonSerializer.Deserialize<CertificateDefinition>(json, JsonDefaults.Options)
-                              ?? throw new InvalidOperationException("Certificate file was empty.");
-            var fileName = Path.GetFileName(path);
-            certificate.FileName = fileName;
-            if (string.IsNullOrWhiteSpace(certificate.Name))
-            {
-                certificate.Name = Path.GetFileNameWithoutExtension(fileName);
-            }
-
-            return certificate;
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Failed to load certificate {Path}", path);
             return null;
         }
     }
@@ -725,33 +712,6 @@ public sealed class ProxyFolderStore : IProxyConfigStore
         File.WriteAllText(path, json);
     }
 
-    private string? FindCertificateFile(string name)
-    {
-        if (!Directory.Exists(CertificatesRoot))
-        {
-            return null;
-        }
-
-        return Directory.GetFiles(CertificatesRoot, "*.json")
-            .FirstOrDefault(path =>
-            {
-                if (Path.GetFileNameWithoutExtension(path).Equals(name, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                try
-                {
-                    var certificate = JsonSerializer.Deserialize<CertificateDefinition>(File.ReadAllText(path), JsonDefaults.Options);
-                    return certificate?.Name.Equals(name, StringComparison.OrdinalIgnoreCase) == true;
-                }
-                catch (JsonException)
-                {
-                    return false;
-                }
-            });
-    }
-
     private void RetargetCertificateIds(string oldName, string? newName)
     {
         foreach (var proxy in _proxies)
@@ -789,34 +749,7 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             }
         }
 
-        if (!Directory.Exists(CertificatesRoot))
-        {
-            return;
-        }
-
-        foreach (var path in Directory.GetFiles(CertificatesRoot, "*.json"))
-        {
-            try
-            {
-                var certificate = JsonSerializer.Deserialize<CertificateDefinition>(File.ReadAllText(path), JsonDefaults.Options);
-                if (certificate is null)
-                {
-                    continue;
-                }
-
-                var normalized = NormalizePfxPath(certificate.PfxPath);
-                if (normalized == certificate.PfxPath)
-                {
-                    continue;
-                }
-
-                certificate.PfxPath = normalized;
-                WriteCertificateFile(path, certificate);
-            }
-            catch (JsonException)
-            {
-            }
-        }
+        _certificateCatalog.ImportFromJsonFiles(CertificatesRoot);
     }
 
     private static void MoveLooseFiles(string sourceDirectory, string destinationDirectory)
@@ -836,19 +769,6 @@ public sealed class ProxyFolderStore : IProxyConfigStore
                 File.Move(file, destination);
             }
         }
-    }
-
-    private static void WriteCertificateFile(string path, CertificateDefinition certificate)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var persisted = new CertificateDefinition
-        {
-            Name = certificate.Name,
-            Type = certificate.Type,
-            PfxPath = NormalizePfxPath(certificate.PfxPath),
-            Password = certificate.Password
-        };
-        File.WriteAllText(path, JsonSerializer.Serialize(persisted, JsonDefaults.Options));
     }
 
     private static string? NormalizePfxPath(string? pfxPath)

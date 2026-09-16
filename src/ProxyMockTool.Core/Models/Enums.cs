@@ -1,4 +1,4 @@
-namespace ProxyMockTool.Core.Models;
+﻿namespace ProxyMockTool.Core.Models;
 
 public enum MockType
 {
@@ -33,4 +33,10 @@ public enum CertificateUsage
 {
     Client,
     Server
+}
+
+public enum CertificateSource
+{
+    File,
+    WindowsStore
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ProxyMockTool.Api.Contracts;
 using ProxyMockTool.Core.Contracts;
 using ProxyMockTool.Core.Storage;
+using ProxyMockTool.Infrastructure.Certificates;
 
 namespace ProxyMockTool.Api.Controllers;
 
@@ -20,6 +21,26 @@ public sealed class CertificatesController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<CertificateDto>), StatusCodes.Status200OK)]
     public ActionResult<IReadOnlyList<CertificateDto>> List() =>
         Ok(_store.GetCertificates().Select(DtoMapper.ToDto).ToList());
+
+    [HttpGet("windows-store")]
+    [ProducesResponseType(typeof(IReadOnlyList<WindowsStoreCertificateDto>), StatusCodes.Status200OK)]
+    public ActionResult<IReadOnlyList<WindowsStoreCertificateDto>> ListWindowsStore(
+        [FromQuery] string location = "CurrentUser",
+        [FromQuery] string store = "My")
+    {
+        var items = CertificateLoader.ListWindowsStore(location, store)
+            .Select(item => new WindowsStoreCertificateDto
+            {
+                Thumbprint = item.Thumbprint,
+                Subject = item.Subject,
+                FriendlyName = item.FriendlyName,
+                NotBeforeUtc = item.NotBeforeUtc,
+                NotAfterUtc = item.NotAfterUtc,
+                HasPrivateKey = item.HasPrivateKey
+            })
+            .ToList();
+        return Ok(items);
+    }
 
     [HttpPost("file")]
     [Consumes("multipart/form-data")]
