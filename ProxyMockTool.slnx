@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ProxyMockTool.Api/ProxyMockTool.Api.csproj" />
+    <Project Path="src/ProxyMockTool.Core/ProxyMockTool.Core.csproj" />
+    <Project Path="src/ProxyMockTool.Host/ProxyMockTool.Host.csproj" />
+    <Project Path="src/ProxyMockTool.Infrastructure/ProxyMockTool.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProxyMockTool.Tests/ProxyMockTool.Tests.csproj" />
+  </Folder>
+</Solution>

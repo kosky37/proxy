@@ -24,8 +24,8 @@ frontend/.env.local
 *.swp
 
 ## Published host
-/Proxy.Host.exe
-/Proxy.exe
+/ProxyMockTool.Host.exe
+/ProxyMockTool.exe
 
 ## OS
 Thumbs.db

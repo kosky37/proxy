@@ -28,7 +28,7 @@ export function Layout() {
             className="d-flex align-items-center gap-2"
           >
             <img src="/favicon.svg" alt="" className="app-logo" />
-            Proxy
+            ProxyMockTool
           </Navbar.Brand>
           <Nav className="me-auto">
             <Nav.Link as={NavLink} to="/" end>

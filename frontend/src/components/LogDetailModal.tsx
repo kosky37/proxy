@@ -117,7 +117,7 @@ export function LogDetailModal({
         )}
         {!existingMock && log && onCreateMock && (
           <Button variant="primary" onClick={() => onCreateMock(log)}>
-            Mock
+            Create mock
           </Button>
         )}
         {log && onCreateSend && (

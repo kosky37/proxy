@@ -1,9 +1,9 @@
 $ErrorActionPreference = "Stop"
 
 $root = $PSScriptRoot
-$project = Join-Path $root "src\Proxy.Host\Proxy.Host.csproj"
+$project = Join-Path $root "src\ProxyMockTool.Host\ProxyMockTool.Host.csproj"
 $staging = Join-Path $root "artifacts\host"
-$destination = Join-Path $root "Proxy.Host.exe"
+$destination = Join-Path $root "ProxyMockTool.Host.exe"
 
 if (-not (Test-Path $project)) {
     throw "Could not find $project"
@@ -29,7 +29,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed with exit code $LASTEXITCODE."
 }
 
-$published = Join-Path $staging "Proxy.Host.exe"
+$published = Join-Path $staging "ProxyMockTool.Host.exe"
 if (-not (Test-Path $published)) {
     throw "Publish succeeded but $published was not produced."
 }

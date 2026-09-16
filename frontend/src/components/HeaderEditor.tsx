@@ -125,7 +125,6 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
                   variant="outline-secondary"
                   type="button"
                   onClick={() => setFieldRows(rows.filter((item) => item.id !== row.id))}
-                  disabled={rows.length === 1}
                 >
                   Remove
                 </Button>
