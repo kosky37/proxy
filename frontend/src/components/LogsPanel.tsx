@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -18,8 +18,7 @@ import {
   logWindow,
   type LogWindowPreset,
 } from "../format";
-import { modeClass, statusClass } from "../logColors";
-import { modeBadge } from "../modeBadge";
+import { statusClass } from "../logColors";
 import { protocolBadge } from "../protocolBadge";
 import {
   useClearLogsMutation,
@@ -28,12 +27,27 @@ import {
   useGetLogTimelineQuery,
 } from "../store/proxyApi";
 import type { MockDto } from "../store/types";
+import { ClipText } from "./ClipText";
+import { LogModeBadge } from "./LogModeBadge";
 import { LogTimeline } from "./LogTimeline";
 import { LogRequestLine } from "./SoapActionBanner";
 
 const PAGE_SIZE = 50;
+const REFRESH_STORAGE_KEY = "proxy-log-refresh-ms";
+const REFRESH_OPTIONS = [
+  { label: "1s", ms: 1_000 },
+  { label: "2s", ms: 2_000 },
+  { label: "5s", ms: 5_000 },
+  { label: "10s", ms: 10_000 },
+  { label: "30s", ms: 30_000 },
+] as const;
 
 type WindowPreset = LogWindowPreset;
+
+function readRefreshMs() {
+  const raw = Number(window.localStorage.getItem(REFRESH_STORAGE_KEY));
+  return REFRESH_OPTIONS.some((option) => option.ms === raw) ? raw : 2_000;
+}
 
 interface Props {
   proxyId: string;
@@ -57,6 +71,8 @@ export function LogsPanel({
 }: Props) {
   const [paused, setPaused] = useState(false);
   const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [refreshMs, setRefreshMs] = useState(readRefreshMs);
+  const [now, setNow] = useState(() => Date.now());
   const [page, setPage] = useState(0);
   const [windowPreset, setWindowPreset] = useState<WindowPreset>("24h");
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
@@ -95,7 +111,7 @@ export function LogsPanel({
   );
   const liveLogs = useGetLogsQuery(
     { proxyId, ...queryFilter, take: PAGE_SIZE },
-    { skip: !active || !proxyId || paused, pollingInterval: 2000 },
+    { skip: !active || !proxyId || paused, pollingInterval: refreshMs },
   );
   const pausedLogs = useGetLogsQuery(
     {
@@ -110,6 +126,23 @@ export function LogsPanel({
   );
   const logs = paused ? pausedLogs : liveLogs;
   const [clearLogs, clearState] = useClearLogsMutation();
+
+  useEffect(() => {
+    window.localStorage.setItem(REFRESH_STORAGE_KEY, String(refreshMs));
+  }, [refreshMs]);
+
+  useEffect(() => {
+    if (!active || paused) {
+      return;
+    }
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [active, paused]);
+
+  const nextRefreshMs = Math.max(
+    0,
+    refreshMs - (now - (liveLogs.fulfilledTimeStamp ?? now)),
+  );
 
   const total = logs.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -177,6 +210,29 @@ export function LogsPanel({
         >
           {paused ? "Paused" : "Live"}
         </Badge>
+        {!paused && (
+          <span className="row-meta">
+            {liveLogs.isFetching
+              ? "Refreshing…"
+              : `Next refresh in ${(nextRefreshMs / 1000).toFixed(1)}s`}
+          </span>
+        )}
+        <Form.Group className="d-flex align-items-center gap-2 mb-0">
+          <Form.Label className="mb-0 row-meta text-nowrap">Refresh every</Form.Label>
+          <Form.Select
+            size="sm"
+            className="refresh-interval-select"
+            value={refreshMs}
+            onChange={(event) => setRefreshMs(Number(event.target.value))}
+            aria-label="Log refresh interval"
+          >
+            {REFRESH_OPTIONS.map((option) => (
+              <option key={option.ms} value={option.ms}>
+                {option.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
         <div className="ms-auto d-flex flex-wrap gap-2">
           {paused ? (
             <Button variant="outline-success" size="sm" onClick={resumeLive}>
@@ -411,9 +467,19 @@ export function LogsPanel({
         )}
       </Stack>
 
-      <Table striped hover responsive size="sm" className="align-middle">
+      <Table striped hover responsive size="sm" className="align-middle logs-table">
+        <colgroup>
+          <col className="col-method" />
+          <col />
+          <col className="col-soap" />
+          <col className="col-type" />
+          <col className="col-mode" />
+          <col className="col-status" />
+          <col className="col-time" />
+        </colgroup>
         <thead>
           <tr>
+            <th>Method</th>
             <th>Request</th>
             <th>SOAPAction</th>
             <th>Type</th>
@@ -426,7 +492,10 @@ export function LogsPanel({
           {logs.data?.items.map((item) => (
             <tr key={item.id} role="button" onClick={() => onOpenLog(item.id)}>
               <td>
-                <LogRequestLine item={item} />
+                <strong>{item.method}</strong>
+              </td>
+              <td>
+                <LogRequestLine item={item} clip showMethod={false} />
                 <div className="row-meta">
                   {item.contentType || "no content-type"}
                   {" · "}
@@ -437,7 +506,7 @@ export function LogsPanel({
               </td>
               <td>
                 {item.protocol === "soap" && item.soapAction ? (
-                  <span className="text-break">{item.soapAction}</span>
+                  <ClipText text={item.soapAction} />
                 ) : null}
               </td>
               <td>
@@ -449,39 +518,15 @@ export function LogsPanel({
                 </Badge>
               </td>
               <td>
-                <span className={`badge ${modeClass(item.mode)}`}>
-                  {modeBadge(item.mode).label}
-                </span>
-                {item.mockName && (
-                  <div>
-                    {mocks.some(
-                      (mock) =>
-                        mock.name.toLowerCase() ===
-                        item.mockName?.toLowerCase(),
-                    ) ? (
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const mock = mocks.find(
-                            (entry) =>
-                              entry.name.toLowerCase() ===
-                              item.mockName?.toLowerCase(),
-                          );
-                          if (mock) {
-                            onOpenMock(mock);
-                          }
-                        }}
-                      >
-                        {item.mockName}
-                      </Button>
-                    ) : (
-                      <span className="row-meta">{item.mockName}</span>
-                    )}
-                  </div>
-                )}
+                <LogModeBadge
+                  mode={item.mode}
+                  mockName={item.mockName}
+                  mock={mocks.find(
+                    (entry) =>
+                      entry.name.toLowerCase() === item.mockName?.toLowerCase(),
+                  )}
+                  onOpenMock={onOpenMock}
+                />
               </td>
               <td>
                 <span className={`badge ${statusClass(item.statusCode)}`}>
@@ -498,7 +543,7 @@ export function LogsPanel({
           ))}
           {logs.data?.items.length === 0 && (
             <tr>
-              <td colSpan={6}>
+              <td colSpan={7}>
                 {paused ? "No logs in this range." : "No logs yet."}
               </td>
             </tr>

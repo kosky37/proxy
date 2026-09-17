@@ -504,7 +504,9 @@ public sealed class ProxyFolderStore : IProxyConfigStore
             certificate.PfxPath = NormalizePfxPath(certificate.PfxPath);
             certificate.StoreName = null;
             certificate.StoreLocation = null;
-            certificate.Thumbprint = null;
+            certificate.Thumbprint = string.IsNullOrWhiteSpace(certificate.Thumbprint)
+                ? null
+                : certificate.Thumbprint.Replace(" ", "").ToUpperInvariant();
             certificate.FileName = Path.GetFileName(certificate.PfxPath ?? "");
         }
 

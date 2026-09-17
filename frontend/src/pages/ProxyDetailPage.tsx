@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Alert,
   Badge,
+  Breadcrumb,
   Button,
   Form,
   Nav,
@@ -11,6 +12,7 @@ import {
   Tooltip,
 } from 'react-bootstrap'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { TabToolbar } from '../components/FieldHelp'
 import { IgnoreEditor } from '../components/IgnoreEditor'
 import { LogDetailModal } from '../components/LogDetailModal'
 import { LogsPanel } from '../components/LogsPanel'
@@ -194,12 +196,13 @@ export function ProxyDetailPage() {
 
   return (
     <>
-      <Stack direction="horizontal" className="mb-3 align-items-start">
-        <div>
-          <Link to="/">Proxies</Link>
-          <h1 className="h3 mb-0">{proxy.data?.name}</h1>
-          <div>{id}</div>
-        </div>
+      <Stack direction="horizontal" className="mb-3 align-items-center flex-wrap gap-2">
+        <Breadcrumb className="mb-0">
+          <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }}>
+            Proxies
+          </Breadcrumb.Item>
+          <Breadcrumb.Item active>{proxy.data?.name}</Breadcrumb.Item>
+        </Breadcrumb>
         <Form.Check
           type="switch"
           id="mocks-enabled"
@@ -245,15 +248,22 @@ export function ProxyDetailPage() {
 
       {(tab === 'rest' || tab === 'soap') && (
         <>
-          <Button
-            className="mb-3"
-            onClick={() => {
-              setEditingExisting(false)
-              setEditing(null)
-            }}
+          <TabToolbar
+            help={
+              tab === 'soap'
+                ? 'Match SOAP requests by action or operation and return the configured response instead of forwarding.'
+                : 'Match REST requests by path and method and return the configured response instead of forwarding.'
+            }
           >
-            Add {tab === 'soap' ? 'SOAP' : 'REST'} mock
-          </Button>
+            <Button
+              onClick={() => {
+                setEditingExisting(false)
+                setEditing(null)
+              }}
+            >
+              Add {tab === 'soap' ? 'SOAP' : 'REST'} mock
+            </Button>
+          </TabToolbar>
           <MockTable
             items={tab === 'rest' ? restMocks : soapMocks}
             onEdit={(mock) => {
@@ -268,14 +278,16 @@ export function ProxyDetailPage() {
 
       {tab === 'mock-sets' && (
         <>
-          <p>
-            Apply a set to enable those mocks and disable every other mock. Use this to switch between testing
-            scenarios.
-          </p>
-          <Button className="mb-3" onClick={() => setEditingSet(null)}>
-            Add mock set
-          </Button>
-          <Table striped responsive className="align-middle">
+          <TabToolbar help="Apply a set to enable those mocks and disable every other mock. Use this to switch between testing scenarios.">
+            <Button onClick={() => setEditingSet(null)}>Add mock set</Button>
+          </TabToolbar>
+          <Table striped responsive className="align-middle mock-sets-table">
+            <colgroup>
+              <col />
+              <col />
+              <col className="col-status" />
+              <col className="col-actions-wide" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Name</th>
@@ -333,11 +345,17 @@ export function ProxyDetailPage() {
 
       {tab === 'ignores' && (
         <>
-          <p>Matching requests are still proxied or mocked, but they are not written to logs.</p>
-          <Button className="mb-3" onClick={() => setEditingIgnore(null)}>
-            Add ignore
-          </Button>
-          <Table striped responsive className="align-middle">
+          <TabToolbar help="Matching requests are still proxied or mocked, but they are not written to logs.">
+            <Button onClick={() => setEditingIgnore(null)}>Add ignore</Button>
+          </TabToolbar>
+          <Table striped responsive className="align-middle ignores-table">
+            <colgroup>
+              <col />
+              <col />
+              <col className="col-mode" />
+              <col className="col-methods" />
+              <col className="col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Name</th>
@@ -502,7 +520,15 @@ function MockTable({
   onDelete: (name: string) => void
 }) {
   return (
-    <Table striped responsive className="align-middle">
+    <Table striped responsive className="align-middle mocks-table">
+      <colgroup>
+        <col />
+        <col className="col-methods" />
+        <col />
+        <col className="col-flags" />
+        <col className="col-status" />
+        <col className="col-actions-wide" />
+      </colgroup>
       <thead>
         <tr>
           <th>Name</th>

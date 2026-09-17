@@ -9,6 +9,7 @@ import {
   Table,
 } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
+import { CopyButton } from '../components/CopyButton'
 import { ProxySettingsFields } from '../components/ProxySettingsFields'
 import {
   useCreateProxyMutation,
@@ -105,7 +106,14 @@ export function ProxiesPage() {
         <Alert variant="danger">Could not load proxies. Is the API running on port 5050?</Alert>
       )}
 
-      <Table striped hover responsive className="align-middle">
+      <Table striped hover responsive className="align-middle proxies-table">
+        <colgroup>
+          <col className="proxies-col-name" />
+          <col className="proxies-col-listen" />
+          <col className="proxies-col-destination" />
+          <col className="proxies-col-mocks" />
+          <col className="proxies-col-actions" />
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
@@ -127,17 +135,21 @@ export function ProxiesPage() {
                 )}
               </td>
               <td>
-                <div>
+                <div className="copyable-cell">
                   <code>{proxy.listenUrl}</code>
+                  <CopyButton value={proxy.listenUrl} label="Copy listen URL" />
                 </div>
                 {proxy.listenPathPrefix && (
                   <div className="row-meta">{proxy.listenPathPrefix}</div>
                 )}
               </td>
               <td>
-                <code>{proxy.destinationAddress}</code>
+                <div className="copyable-cell">
+                  <code>{proxy.destinationAddress}</code>
+                  <CopyButton value={proxy.destinationAddress} label="Copy destination URL" />
+                </div>
               </td>
-              <td>
+              <td className="proxies-mocks-cell">
                 <Form.Check
                   type="switch"
                   id={`mocks-${proxy.id}`}

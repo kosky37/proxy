@@ -1,4 +1,5 @@
 import type { LogListItemDto } from "../store/types";
+import { ClipText } from "./ClipText";
 import { CopyButton } from "./CopyButton";
 
 export function soapActionText(action?: string | null) {
@@ -8,23 +9,41 @@ export function soapActionText(action?: string | null) {
 export function LogRequestLine({
   item,
   showSoapAction = false,
+  showMethod = true,
+  clip = false,
 }: {
   item: Pick<
     LogListItemDto,
     "protocol" | "method" | "path" | "query" | "soapAction"
   >;
   showSoapAction?: boolean;
+  showMethod?: boolean;
+  clip?: boolean;
 }) {
+  const pathText = `${item.path}${item.query ? `?${item.query}` : ""}`;
+  const full = showMethod ? `${item.method} ${pathText}` : pathText;
+  const path = (
+    <>
+      {showMethod ? <strong>{item.method} </strong> : null}
+      {item.path}
+      {item.query ? (
+        <span className="text-secondary">?{item.query}</span>
+      ) : null}
+    </>
+  );
+  const request = clip ? (
+    <ClipText text={full} tooltip={path}>
+      {path}
+    </ClipText>
+  ) : (
+    <span className="text-break">{path}</span>
+  );
+
   if (item.protocol === "soap") {
     const action = soapActionText(item.soapAction);
     return (
       <div>
-        <span className="text-break">
-          <strong>{item.method}</strong> {item.path}
-          {item.query ? (
-            <span className="text-secondary">?{item.query}</span>
-          ) : null}
-        </span>{" "}
+        {request}{" "}
         {showSoapAction && (
           <>
             <br />
@@ -36,16 +55,7 @@ export function LogRequestLine({
     );
   }
 
-  return (
-    <div>
-      <span className="text-break">
-        <strong>{item.method}</strong> {item.path}
-        {item.query ? (
-          <span className="text-secondary">?{item.query}</span>
-        ) : null}
-      </span>
-    </div>
-  );
+  return <div>{request}</div>;
 }
 
 export function SoapActionTitle({ action }: { action?: string | null }) {

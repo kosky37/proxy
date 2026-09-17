@@ -12,6 +12,8 @@ import {
   Tooltip,
 } from "react-bootstrap";
 import { formatBytes } from "../format";
+import { getHeader, parseHeaders as parseHeaderMap } from "../headers";
+import { looksLikeHtml } from "../looksLikeHtml";
 import { modeClass, statusClass } from "../logColors";
 import { modeBadge } from "../modeBadge";
 import { parseBody, type ParsedField } from "../parseBody";
@@ -19,6 +21,7 @@ import { protocolBadge } from "../protocolBadge";
 import type { LogDetailDto, MockDto } from "../store/types";
 import { BodyTree } from "./BodyTree";
 import { CopyButton } from "./CopyButton";
+import { HtmlBodyPreview } from "./HtmlBodyPreview";
 import { LogRequestLine } from "./SoapActionBanner";
 
 interface Props {
@@ -104,6 +107,7 @@ export function LogDetailModal({
                 truncated={log.responseBodyTruncated ?? false}
                 originalBytes={log.responseBytes}
                 raw={raw}
+                allowHtmlPreview
               />
             </Col>
           </Row>
@@ -146,6 +150,7 @@ function HttpMessage({
   truncated,
   originalBytes,
   raw,
+  allowHtmlPreview = false,
 }: {
   title: string;
   headers?: string | null;
@@ -154,11 +159,19 @@ function HttpMessage({
   truncated: boolean;
   originalBytes?: number;
   raw: boolean;
+  allowHtmlPreview?: boolean;
 }) {
+  const [htmlPreview, setHtmlPreview] = useState(false);
   const headerFields = Object.entries(parseHeaders(headers)).map(
     ([name, value]) => ({ name, value }),
   );
-  const bodyNodes = raw ? null : parseBody(body);
+  const contentType = getHeader(parseHeaderMap(headers), "Content-Type");
+  const html = allowHtmlPreview && looksLikeHtml(body, contentType);
+  const bodyNodes = raw || htmlPreview ? null : parseBody(body);
+
+  useEffect(() => {
+    setHtmlPreview(false);
+  }, [body]);
 
   return (
     <Stack gap={3}>
@@ -183,18 +196,29 @@ function HttpMessage({
         />
       ) : null}
       <div>
-        <Stack direction="horizontal" className="mb-2">
+        <Stack direction="horizontal" gap={3} className="mb-2">
           <strong>Body</strong>
           {truncated && (
             <Badge bg="warning" text="dark" className="ms-2">
               exceeded limit
             </Badge>
           )}
-          <div className="ms-auto">
+          <div className="ms-auto d-flex align-items-center gap-3">
+            {html && (
+              <Form.Check
+                type="switch"
+                id={`html-preview-${title}`}
+                label="HTML preview"
+                checked={htmlPreview}
+                onChange={(event) => setHtmlPreview(event.currentTarget.checked)}
+              />
+            )}
             <CopyButton value={body ?? ""} label="Copy body" />
           </div>
         </Stack>
-        {raw || !bodyNodes ? (
+        {html && htmlPreview ? (
+          <HtmlBodyPreview html={body ?? ""} />
+        ) : raw || !bodyNodes ? (
           <pre className="border rounded p-2 mb-0">
             {body ||
               (truncated

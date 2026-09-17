@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { Badge, Button, Stack, Table } from 'react-bootstrap'
 import { CertificateEditor } from '../components/CertificateEditor'
+import { RootCertificatePanel } from '../components/RootCertificatePanel'
 import {
   useCreateCertificateMutation,
   useDeleteCertificateMutation,
@@ -16,6 +17,8 @@ export function CertificatesPage() {
   const [createCertificate] = useCreateCertificateMutation()
   const [updateCertificate] = useUpdateCertificateMutation()
   const [deleteCertificate] = useDeleteCertificateMutation()
+  const catalog = certificates.data ?? []
+  const leafCertificates = catalog.filter((item) => item.type !== 'root')
 
   const save = async (certificate: CertificateDto) => {
     if (editing?.name) {
@@ -45,6 +48,9 @@ export function CertificatesPage() {
         </Button>
       </Stack>
 
+      <RootCertificatePanel certificates={catalog} />
+
+      <h2 className="h5 mb-3">Client and server certificates</h2>
       <Table striped responsive className="align-middle">
         <thead>
           <tr>
@@ -57,7 +63,7 @@ export function CertificatesPage() {
           </tr>
         </thead>
         <tbody>
-          {certificates.data?.map((certificate) => {
+          {leafCertificates.map((certificate) => {
             const isStore = certificate.source === 'windowsStore'
             const showSecret = revealed[certificate.name] === true
             return (
@@ -116,9 +122,12 @@ export function CertificatesPage() {
               </tr>
             )
           })}
-          {certificates.data?.length === 0 && (
+          {leafCertificates.length === 0 && (
             <tr>
-              <td colSpan={6}>No certificates defined. Add one here, then select it on a proxy.</td>
+              <td colSpan={6}>
+                No client or server certificates yet. Add one here, or generate a server certificate
+                from a root CA.
+              </td>
             </tr>
           )}
         </tbody>

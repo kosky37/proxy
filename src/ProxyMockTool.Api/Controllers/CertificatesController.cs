@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ProxyMockTool.Api.Contracts;
 using ProxyMockTool.Core.Contracts;
+using ProxyMockTool.Core.Models;
 using ProxyMockTool.Core.Storage;
 using ProxyMockTool.Infrastructure.Certificates;
 
@@ -20,7 +21,7 @@ public sealed class CertificatesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<CertificateDto>), StatusCodes.Status200OK)]
     public ActionResult<IReadOnlyList<CertificateDto>> List() =>
-        Ok(_store.GetCertificates().Select(DtoMapper.ToDto).ToList());
+        Ok(_store.GetCertificates().Select(Enrich).ToList());
 
     [HttpGet("windows-store")]
     [ProducesResponseType(typeof(IReadOnlyList<WindowsStoreCertificateDto>), StatusCodes.Status200OK)]
@@ -64,6 +65,166 @@ public sealed class CertificatesController : ControllerBase
         return Ok(new UploadedCertificateFileDto { PfxPath = fileName });
     }
 
+    [HttpPost("generate-root")]
+    [ProducesResponseType(typeof(CertificateDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public ActionResult<CertificateDto> GenerateRoot([FromBody] GenerateRootCertificateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { message = "Name is required." });
+        }
+
+        var name = request.Name.Trim();
+        var subject = string.IsNullOrWhiteSpace(request.Subject) ? name : request.Subject.Trim();
+        var years = request.ValidityYears <= 0 ? 10 : Math.Clamp(request.ValidityYears, 1, 30);
+        var generated = CertificateGenerator.CreateRootCa(
+            subject,
+            DateTimeOffset.UtcNow.AddYears(years),
+            request.Password ?? "",
+            name);
+        var pfxPath = CertificateGenerator.WritePfxAndCer(_store.CertificatesRoot, name, generated);
+
+        try
+        {
+            var created = _store.CreateCertificate(new CertificateDefinition
+            {
+                Name = name,
+                Type = CertificateUsage.Root,
+                Source = CertificateSource.File,
+                PfxPath = pfxPath,
+                Password = request.Password,
+                Thumbprint = generated.Thumbprint
+            });
+            return CreatedAtAction(nameof(List), Enrich(created));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
+    }
+
+    [HttpPost("generate-server")]
+    [ProducesResponseType(typeof(CertificateDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public ActionResult<CertificateDto> GenerateServer([FromBody] GenerateServerCertificateRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest(new { message = "Name is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RootCertificateName))
+        {
+            return BadRequest(new { message = "Select a root certificate." });
+        }
+
+        var root = _store.GetCertificates().FirstOrDefault(item =>
+            item.Type == CertificateUsage.Root &&
+            item.Name.Equals(request.RootCertificateName, StringComparison.OrdinalIgnoreCase));
+        if (root is null)
+        {
+            return BadRequest(new { message = "The selected root certificate was not found." });
+        }
+
+        using var issuer = CertificateLoader.Load(root, _store.CertificatesRoot);
+        if (issuer is null)
+        {
+            return BadRequest(new { message = "Could not load the root certificate private key." });
+        }
+
+        var name = request.Name.Trim();
+        var hosts = (request.Hosts ?? [])
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .ToList();
+        var subject = string.IsNullOrWhiteSpace(request.Subject)
+            ? hosts.FirstOrDefault(item => !System.Net.IPAddress.TryParse(item, out _)) ?? name
+            : request.Subject.Trim();
+        var years = request.ValidityYears <= 0 ? 2 : Math.Clamp(request.ValidityYears, 1, 10);
+
+        try
+        {
+            var generated = CertificateGenerator.CreateServerCertificate(
+                issuer,
+                subject,
+                hosts,
+                DateTimeOffset.UtcNow.AddYears(years),
+                request.Password ?? "",
+                name);
+            var pfxPath = CertificateGenerator.WritePfxAndCer(_store.CertificatesRoot, name, generated);
+            var created = _store.CreateCertificate(new CertificateDefinition
+            {
+                Name = name,
+                Type = CertificateUsage.Server,
+                Source = CertificateSource.File,
+                PfxPath = pfxPath,
+                Password = request.Password,
+                Thumbprint = generated.Thumbprint
+            });
+            return CreatedAtAction(nameof(List), Enrich(created));
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
+    }
+
+    [HttpGet("{name}/public")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult DownloadPublic(string name)
+    {
+        var certificate = FindCertificate(name);
+        if (certificate is null)
+        {
+            return NotFound();
+        }
+
+        var bytes = CertificateLoader.ExportPublicCert(certificate, _store.CertificatesRoot);
+        if (bytes is null || bytes.Length == 0)
+        {
+            return NotFound(new { message = "The public certificate file is not available." });
+        }
+
+        var fileName = $"{SafeStem(certificate.Name) ?? "certificate"}.cer";
+        return File(bytes, "application/x-x509-ca-cert", fileName);
+    }
+
+    [HttpGet("{name}/store-status")]
+    [ProducesResponseType(typeof(CertificateStoreStatusDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<CertificateStoreStatusDto> StoreStatus(string name)
+    {
+        var certificate = FindCertificate(name);
+        if (certificate is null)
+        {
+            return NotFound();
+        }
+
+        var info = CertificateLoader.GetPublicInfo(certificate, _store.CertificatesRoot);
+        if (info is null)
+        {
+            return BadRequest(new { message = "Could not read the certificate." });
+        }
+
+        var locations = CertificateLoader.FindInRootStore(info.Thumbprint);
+        return Ok(new CertificateStoreStatusDto
+        {
+            Thumbprint = info.Thumbprint,
+            Installed = locations.Count > 0,
+            Locations = locations
+                .Select(item => new CertificateStoreLocationDto
+                {
+                    StoreLocation = item.StoreLocation,
+                    StoreName = item.StoreName
+                })
+                .ToList()
+        });
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(CertificateDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -72,7 +233,7 @@ public sealed class CertificatesController : ControllerBase
         try
         {
             var created = _store.CreateCertificate(DtoMapper.ToModel(request));
-            return CreatedAtAction(nameof(List), DtoMapper.ToDto(created));
+            return CreatedAtAction(nameof(List), Enrich(created));
         }
         catch (InvalidOperationException exception)
         {
@@ -87,7 +248,7 @@ public sealed class CertificatesController : ControllerBase
     {
         try
         {
-            return Ok(DtoMapper.ToDto(_store.UpdateCertificate(name, DtoMapper.ToModel(request))));
+            return Ok(Enrich(_store.UpdateCertificate(name, DtoMapper.ToModel(request))));
         }
         catch (KeyNotFoundException)
         {
@@ -109,6 +270,40 @@ public sealed class CertificatesController : ControllerBase
         {
             return NotFound();
         }
+    }
+
+    private CertificateDefinition? FindCertificate(string name) =>
+        _store.GetCertificates()
+            .FirstOrDefault(item => item.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    private CertificateDto Enrich(CertificateDefinition certificate)
+    {
+        var dto = DtoMapper.ToDto(certificate);
+        var info = CertificateLoader.GetPublicInfo(certificate, _store.CertificatesRoot);
+        if (info is null)
+        {
+            return dto;
+        }
+
+        dto.Thumbprint = info.Thumbprint;
+        dto.Subject = info.Subject;
+        dto.NotBeforeUtc = info.NotBeforeUtc;
+        dto.NotAfterUtc = info.NotAfterUtc;
+        if (certificate.Type != CertificateUsage.Root)
+        {
+            return dto;
+        }
+
+        var locations = CertificateLoader.FindInRootStore(info.Thumbprint);
+        dto.RootStoreInstalled = locations.Count > 0;
+        dto.RootStoreLocations = locations
+            .Select(item => new CertificateStoreLocationDto
+            {
+                StoreLocation = item.StoreLocation,
+                StoreName = item.StoreName
+            })
+            .ToList();
+        return dto;
     }
 
     private static string UniqueFileName(string directory, string? certificateName, string originalFileName)

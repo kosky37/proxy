@@ -55,6 +55,11 @@ public sealed class CertificateDto
     public string? StoreName { get; set; }
     public string? StoreLocation { get; set; }
     public string? Thumbprint { get; set; }
+    public string? Subject { get; set; }
+    public DateTime? NotBeforeUtc { get; set; }
+    public DateTime? NotAfterUtc { get; set; }
+    public bool? RootStoreInstalled { get; set; }
+    public List<CertificateStoreLocationDto>? RootStoreLocations { get; set; }
 }
 
 public sealed class WindowsStoreCertificateDto
@@ -70,6 +75,37 @@ public sealed class WindowsStoreCertificateDto
 public sealed class UploadedCertificateFileDto
 {
     public string? PfxPath { get; set; }
+}
+
+public sealed class GenerateRootCertificateRequest
+{
+    public required string Name { get; set; }
+    public string? Subject { get; set; }
+    public int ValidityYears { get; set; } = 10;
+    public string? Password { get; set; }
+}
+
+public sealed class GenerateServerCertificateRequest
+{
+    public required string Name { get; set; }
+    public required string RootCertificateName { get; set; }
+    public string? Subject { get; set; }
+    public List<string>? Hosts { get; set; }
+    public int ValidityYears { get; set; } = 2;
+    public string? Password { get; set; }
+}
+
+public sealed class CertificateStoreStatusDto
+{
+    public required string Thumbprint { get; set; }
+    public bool Installed { get; set; }
+    public List<CertificateStoreLocationDto> Locations { get; set; } = [];
+}
+
+public sealed class CertificateStoreLocationDto
+{
+    public required string StoreLocation { get; set; }
+    public required string StoreName { get; set; }
 }
 
 public sealed class UpsertProxyRequest

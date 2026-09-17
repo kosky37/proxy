@@ -4,8 +4,11 @@ import { modeClass, statusClass } from '../logColors'
 import { protocolBadge } from '../protocolBadge'
 import { useSendManualRequestMutation } from '../store/proxyApi'
 import type { LogDetailDto } from '../store/types'
-import type { SendDraft } from '../headers'
+import { getHeader, parseHeaders, type SendDraft } from '../headers'
+import { looksLikeHtml } from '../looksLikeHtml'
 import { CopyButton } from './CopyButton'
+import { HtmlBodyPreview } from './HtmlBodyPreview'
+import { FieldHelp } from './FieldHelp'
 import { HeaderEditor } from './HeaderEditor'
 import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
 
@@ -69,12 +72,15 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDra
   const [soapAction, setSoapAction] = useState('')
   const [contentType, setContentType] = useState('application/json')
   const [auth, setAuth] = useState<AuthState>(() => readAuth(proxyId))
+  const [authOpen, setAuthOpen] = useState(false)
   const [result, setResult] = useState<LogDetailDto | null>(null)
+  const [htmlPreview, setHtmlPreview] = useState(false)
   const [send, sendState] = useSendManualRequestMutation()
 
   useEffect(() => {
     setAuth(readAuth(proxyId))
     setResult(null)
+    setHtmlPreview(false)
   }, [proxyId])
 
   useEffect(() => {
@@ -99,6 +105,7 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDra
       setAuth(authFromHeader(draft.authorization))
     }
     setResult(null)
+    setHtmlPreview(false)
     onDraftConsumed?.()
   }, [draft])
 
@@ -142,29 +149,84 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDra
         protocol,
       },
     }).unwrap()
+    setHtmlPreview(false)
     setResult(log)
   }
 
   return (
     <>
-      <p className="text-secondary">
-        Sends directly to <code>{destination}</code>
-        {pathPrefix ? (
-          <>
-            {' '}
-            (listen prefix <code>{pathPrefix}</code> is stripped)
-          </>
-        ) : null}
-        . The request is logged as Manual.
-      </p>
-      <Nav variant="pills" activeKey={protocol} onSelect={(key) => setProtocol((key as 'rest' | 'soap') ?? 'rest')} className="mb-3">
-        <Nav.Item>
-          <Nav.Link eventKey="rest">REST</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="soap">SOAP</Nav.Link>
-        </Nav.Item>
-      </Nav>
+      <div className="send-protocol-row d-flex align-items-center gap-3 mb-3">
+        <Nav
+          variant="pills"
+          activeKey={protocol}
+          onSelect={(key) => setProtocol((key as 'rest' | 'soap') ?? 'rest')}
+        >
+          <Nav.Item>
+            <Nav.Link eventKey="rest">REST</Nav.Link>
+          </Nav.Item>
+          <Nav.Item>
+            <Nav.Link eventKey="soap">SOAP</Nav.Link>
+          </Nav.Item>
+        </Nav>
+        {protocol === 'rest' && (
+          <button
+            type="button"
+            className="log-collapse-toggle ms-auto"
+            onClick={() => setAuthOpen((open) => !open)}
+            aria-expanded={authOpen}
+            aria-controls="send-auth-panel"
+          >
+            <i className={`bi ${authOpen ? 'bi-chevron-down' : 'bi-chevron-right'}`} aria-hidden />
+            <strong>Authentication</strong>
+            <span className="row-meta">{auth.token.trim() ? 'filled' : 'empty'}</span>
+          </button>
+        )}
+        <span className={`tab-help${protocol === 'rest' ? '' : ' ms-auto'}`}>
+          <FieldHelp
+            placement="left"
+            text={`Sends directly to ${destination}${
+              pathPrefix ? ` (listen prefix ${pathPrefix} is stripped)` : ''
+            }. The request is logged as Manual.`}
+          />
+        </span>
+      </div>
+      {protocol === 'rest' && authOpen && (
+        <Card id="send-auth-panel" className="send-auth-panel border-primary-subtle mb-3">
+          <Card.Body>
+            <Row className="g-3">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Scheme</Form.Label>
+                  <Form.Select
+                    value={auth.scheme}
+                    onChange={(event) =>
+                      setAuth({ ...auth, scheme: event.target.value === 'Raw' ? 'Raw' : 'Bearer' })
+                    }
+                  >
+                    <option value="Bearer">Bearer</option>
+                    <option value="Raw">Raw header value</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={9}>
+                <Form.Group>
+                  <Form.Label>Token</Form.Label>
+                  <Form.Control
+                    type="password"
+                    autoComplete="off"
+                    value={auth.token}
+                    onChange={(event) => setAuth({ ...auth, token: event.target.value })}
+                    placeholder={auth.scheme === 'Bearer' ? 'eyJ...' : 'Bearer eyJ...'}
+                  />
+                  <Form.Text>
+                    Sent as the Authorization header. Kept in this browser tab only.
+                  </Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
       <Form onSubmit={submit}>
         <Row className="g-3">
           <Col md={2}>
@@ -190,46 +252,6 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDra
               <Form.Control value={query} onChange={(event) => setQuery(event.target.value)} placeholder="id=1&active=true" />
             </Form.Group>
           </Col>
-          {protocol === 'rest' && (
-            <Col xs={12}>
-              <Card className="border-primary-subtle">
-                <Card.Header>Authentication</Card.Header>
-                <Card.Body>
-                  <Row className="g-3">
-                    <Col md={3}>
-                      <Form.Group>
-                        <Form.Label>Scheme</Form.Label>
-                        <Form.Select
-                          value={auth.scheme}
-                          onChange={(event) =>
-                            setAuth({ ...auth, scheme: event.target.value === 'Raw' ? 'Raw' : 'Bearer' })
-                          }
-                        >
-                          <option value="Bearer">Bearer</option>
-                          <option value="Raw">Raw header value</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                    <Col md={9}>
-                      <Form.Group>
-                        <Form.Label>Token</Form.Label>
-                        <Form.Control
-                          type="password"
-                          autoComplete="off"
-                          value={auth.token}
-                          onChange={(event) => setAuth({ ...auth, token: event.target.value })}
-                          placeholder={auth.scheme === 'Bearer' ? 'eyJ...' : 'Bearer eyJ...'}
-                        />
-                        <Form.Text>
-                          Sent as the Authorization header. Kept in this browser tab only.
-                        </Form.Text>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </Card.Body>
-              </Card>
-            </Col>
-          )}
           {protocol === 'soap' && (
             <Col md={6}>
               <Form.Group>
@@ -312,13 +334,29 @@ export function ManualSendPanel({ proxyId, destination, pathPrefix, draft, onDra
                 <pre className="border rounded p-2 mb-0">{result.requestBody || '(empty)'}</pre>
               </Col>
               <Col lg={6}>
-                <Stack direction="horizontal" className="mb-2">
+                <Stack direction="horizontal" gap={3} className="mb-2">
                   <strong>Response body</strong>
-                  <div className="ms-auto">
+                  <div className="ms-auto d-flex align-items-center gap-3">
+                    {looksLikeHtml(
+                      result.responseBody,
+                      getHeader(parseHeaders(result.responseHeaders), 'Content-Type'),
+                    ) && (
+                      <Form.Check
+                        type="switch"
+                        id="send-html-preview"
+                        label="HTML preview"
+                        checked={htmlPreview}
+                        onChange={(event) => setHtmlPreview(event.currentTarget.checked)}
+                      />
+                    )}
                     <CopyButton value={result.responseBody ?? ''} label="Copy" />
                   </div>
                 </Stack>
-                <pre className="border rounded p-2 mb-0">{result.responseBody || result.error || '(empty)'}</pre>
+                {htmlPreview && result.responseBody ? (
+                  <HtmlBodyPreview html={result.responseBody} />
+                ) : (
+                  <pre className="border rounded p-2 mb-0">{result.responseBody || result.error || '(empty)'}</pre>
+                )}
               </Col>
             </Row>
           </Card.Body>

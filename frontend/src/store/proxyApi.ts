@@ -17,6 +17,9 @@ import type {
   UploadedCertificateFileDto,
   UpsertProxyRequest,
   WindowsStoreCertificateDto,
+  CertificateStoreStatusDto,
+  GenerateRootCertificateRequest,
+  GenerateServerCertificateRequest,
 } from './types'
 
 export const proxyApi = emptySplitApi.injectEndpoints({
@@ -178,6 +181,17 @@ export const proxyApi = emptySplitApi.injectEndpoints({
         return { url: '/api/certificates/file', method: 'POST', body }
       },
     }),
+    generateRootCertificate: build.mutation<CertificateDto, GenerateRootCertificateRequest>({
+      query: (body) => ({ url: '/api/certificates/generate-root', method: 'POST', body }),
+      invalidatesTags: ['Certificates', 'Proxies'],
+    }),
+    generateServerCertificate: build.mutation<CertificateDto, GenerateServerCertificateRequest>({
+      query: (body) => ({ url: '/api/certificates/generate-server', method: 'POST', body }),
+      invalidatesTags: ['Certificates', 'Proxies'],
+    }),
+    getCertificateStoreStatus: build.query<CertificateStoreStatusDto, string>({
+      query: (name) => `/api/certificates/${encodeURIComponent(name)}/store-status`,
+    }),
     getGlobalLogs: build.query<LogListDto, GlobalLogQueryArgs>({
       query: ({ proxyIds, ...params }) => ({
         url: '/api/logs',
@@ -263,6 +277,9 @@ export const {
   useUpdateCertificateMutation,
   useDeleteCertificateMutation,
   useUploadCertificateMutation,
+  useGenerateRootCertificateMutation,
+  useGenerateServerCertificateMutation,
+  useLazyGetCertificateStoreStatusQuery,
   useGetGlobalLogsQuery,
   useGetGlobalLogTimelineQuery,
   useGetLogsQuery,

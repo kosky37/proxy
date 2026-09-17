@@ -8,6 +8,38 @@ export interface CertificateDto {
   storeName?: string | null
   storeLocation?: string | null
   thumbprint?: string | null
+  subject?: string | null
+  notBeforeUtc?: string | null
+  notAfterUtc?: string | null
+  rootStoreInstalled?: boolean | null
+  rootStoreLocations?: CertificateStoreLocationDto[] | null
+}
+
+export interface CertificateStoreLocationDto {
+  storeLocation: string
+  storeName: string
+}
+
+export interface CertificateStoreStatusDto {
+  thumbprint: string
+  installed: boolean
+  locations: CertificateStoreLocationDto[]
+}
+
+export interface GenerateRootCertificateRequest {
+  name: string
+  subject?: string | null
+  validityYears?: number
+  password?: string | null
+}
+
+export interface GenerateServerCertificateRequest {
+  name: string
+  rootCertificateName: string
+  subject?: string | null
+  hosts?: string[] | null
+  validityYears?: number
+  password?: string | null
 }
 
 export interface WindowsStoreCertificateDto {

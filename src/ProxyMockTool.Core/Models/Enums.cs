@@ -32,7 +32,8 @@ public enum RequestProtocol
 public enum CertificateUsage
 {
     Client,
-    Server
+    Server,
+    Root
 }
 
 public enum CertificateSource

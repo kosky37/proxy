@@ -2,13 +2,14 @@ import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Col, Collapse, Form, Row, Stack, Table } from 'react-bootstrap'
 import { Link, useNavigate } from 'react-router-dom'
+import { ClipText } from '../components/ClipText'
 import { LogDetailModal } from '../components/LogDetailModal'
+import { LogModeBadge } from '../components/LogModeBadge'
 import { LogTimeline } from '../components/LogTimeline'
 import { ProxyLogFilter } from '../components/ProxyLogFilter'
 import { LogRequestLine } from '../components/SoapActionBanner'
 import { formatBytes, formatDate, formatDateTime, formatTime, logWindow, type LogWindowPreset } from '../format'
-import { modeClass, statusClass } from '../logColors'
-import { modeBadge } from '../modeBadge'
+import { statusClass } from '../logColors'
 import { protocolBadge } from '../protocolBadge'
 import {
   useGetGlobalLogTimelineQuery,
@@ -298,10 +299,21 @@ export function LogsPage() {
         </div>
       </Stack>
 
-      <Table striped hover responsive size="sm" className="align-middle">
+      <Table striped hover responsive size="sm" className="align-middle logs-table">
+        <colgroup>
+          <col className="col-proxy" />
+          <col className="col-method" />
+          <col />
+          <col className="col-soap" />
+          <col className="col-type" />
+          <col className="col-mode" />
+          <col className="col-status" />
+          <col className="col-time" />
+        </colgroup>
         <thead>
           <tr>
             <th>Proxy</th>
+            <th>Method</th>
             <th>Request</th>
             <th>SOAPAction</th>
             <th>Type</th>
@@ -318,12 +330,24 @@ export function LogsPage() {
               onClick={() => item.proxyId && setOpenLog({ proxyId: item.proxyId, entryId: item.id })}
             >
               <td>
-                <Link to={`/proxies/${item.proxyId}`} onClick={(event) => event.stopPropagation()}>
-                  {item.proxyName || item.proxyId}
-                </Link>
+                <ClipText
+                  text={item.proxyName || item.proxyId || ''}
+                  tooltip={
+                    <Link to={`/proxies/${item.proxyId}`} onClick={(event) => event.stopPropagation()}>
+                      {item.proxyName || item.proxyId}
+                    </Link>
+                  }
+                >
+                  <Link to={`/proxies/${item.proxyId}`} onClick={(event) => event.stopPropagation()}>
+                    {item.proxyName || item.proxyId}
+                  </Link>
+                </ClipText>
               </td>
               <td>
-                <LogRequestLine item={item} />
+                <strong>{item.method}</strong>
+              </td>
+              <td>
+                <LogRequestLine item={item} clip showMethod={false} />
                 <div className="row-meta">
                   {item.contentType || 'no content-type'}
                   {' · '}
@@ -333,9 +357,7 @@ export function LogsPage() {
                 </div>
               </td>
               <td>
-                {item.protocol === 'soap' && item.soapAction ? (
-                  <span className="text-break">{item.soapAction}</span>
-                ) : null}
+                {item.protocol === 'soap' && item.soapAction ? <ClipText text={item.soapAction} /> : null}
               </td>
               <td>
                 <Badge bg={protocolBadge(item.protocol).bg} text={protocolBadge(item.protocol).text}>
@@ -343,10 +365,7 @@ export function LogsPage() {
                 </Badge>
               </td>
               <td>
-                <span className={`badge ${modeClass(item.mode)}`}>{modeBadge(item.mode).label}</span>
-                {item.mockName && (
-                  <MockNameLink item={item} onOpenMock={(row, mock) => row.proxyId && openMockInProxy(row.proxyId, mock)} />
-                )}
+                <LogModeCell item={item} onOpenMock={(row, mock) => row.proxyId && openMockInProxy(row.proxyId, mock)} />
               </td>
               <td>
                 <span className={`badge ${statusClass(item.statusCode)}`}>{item.statusCode ?? '-'}</span>
@@ -361,7 +380,7 @@ export function LogsPage() {
           ))}
           {(!logs.data || logs.data.items.length === 0) && (
             <tr>
-              <td colSpan={7}>{canQuery ? 'No logs in this range.' : 'Select at least one proxy.'}</td>
+              <td colSpan={8}>{canQuery ? 'No logs in this range.' : 'Select at least one proxy.'}</td>
             </tr>
           )}
         </tbody>
@@ -400,36 +419,24 @@ export function LogsPage() {
   )
 }
 
-function MockNameLink({
+function LogModeCell({
   item,
   onOpenMock,
 }: {
   item: LogListItemDto
   onOpenMock: (item: LogListItemDto, mock: MockDto) => void
 }) {
-  const mocks = useGetMocksQuery(item.proxyId ?? skipToken, frozenQuery)
-  if (!item.mockName) {
-    return null
-  }
-  const name = item.mockName
-  const mock = mocks.data?.find((entry) => entry.name.toLowerCase() === name.toLowerCase())
-  if (!mock) {
-    return <div className="row-meta">{name}</div>
-  }
+  const mocks = useGetMocksQuery(item.mockName ? (item.proxyId ?? skipToken) : skipToken, frozenQuery)
+  const mock = item.mockName
+    ? mocks.data?.find((entry) => entry.name.toLowerCase() === item.mockName?.toLowerCase())
+    : undefined
 
   return (
-    <div>
-      <Button
-        variant="link"
-        size="sm"
-        className="p-0"
-        onClick={(event) => {
-          event.stopPropagation()
-          onOpenMock(item, mock)
-        }}
-      >
-        {name}
-      </Button>
-    </div>
+    <LogModeBadge
+      mode={item.mode}
+      mockName={item.mockName}
+      mock={mock}
+      onOpenMock={mock ? (entry) => onOpenMock(item, entry) : undefined}
+    />
   )
 }
