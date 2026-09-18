@@ -1,71 +1,75 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Button, Col, Form, InputGroup, Modal, Row } from 'react-bootstrap'
-import type { MockDto, MockMatchDto } from '../store/types'
-import { FieldLabel, pathModeHelp } from './FieldHelp'
-import { HeaderEditor } from './HeaderEditor'
-import { ContentTypeTypeahead, MethodTypeahead } from './TypeaheadFields'
+import { useEffect, useState, type FormEvent } from "react";
+import { Button, Col, Form, InputGroup, Modal, Row } from "react-bootstrap";
+import type { MockDto, MockMatchDto } from "../store/types";
+import { FieldLabel, pathModeHelp } from "./FieldHelp";
+import { HeaderEditor } from "./HeaderEditor";
+import { ContentTypeTypeahead, MethodTypeahead } from "./TypeaheadFields";
 
 const blank = (type: string): MockDto => ({
-  name: '',
-  fileName: '',
+  name: "",
+  fileName: "",
   enabled: true,
   type,
-  match: { pathMode: 'exact', methods: type === 'rest' ? ['GET'] : ['POST'] },
-  response: { statusCode: 200, delayMs: 0, contentType: type === 'soap' ? 'text/xml' : 'application/json' },
-})
+  match: { pathMode: "exact", methods: type === "rest" ? ["GET"] : ["POST"] },
+  response: {
+    statusCode: 200,
+    delayMs: 0,
+    contentType: type === "soap" ? "text/xml" : "application/json",
+  },
+});
 
 interface Props {
-  show: boolean
-  initial?: MockDto | null
-  defaultType: string
-  isNew?: boolean
-  onSave: (mock: MockDto) => Promise<void>
-  onCancel: () => void
+  show: boolean;
+  initial?: MockDto | null;
+  defaultType: string;
+  isNew?: boolean;
+  onSave: (mock: MockDto) => Promise<void>;
+  onCancel: () => void;
 }
 
 export function MockEditor({ show, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
-  const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType))
-  const [useDelay, setUseDelay] = useState(false)
-  const [useHeaderMatch, setUseHeaderMatch] = useState(false)
-  const [useUrlMatch, setUseUrlMatch] = useState(false)
-  const [useAdvanced, setUseAdvanced] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType));
+  const [useDelay, setUseDelay] = useState(false);
+  const [useHeaderMatch, setUseHeaderMatch] = useState(false);
+  const [useUrlMatch, setUseUrlMatch] = useState(false);
+  const [useAdvanced, setUseAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (show) {
-      const next = initial ?? blank(defaultType)
-      setMock(next)
-      setUseDelay((next.response.delayMs ?? 0) > 0)
-      setUseHeaderMatch(hasHeaderMatch(next.match))
-      setUseUrlMatch(hasUrlMatch(next.match, mock.type === 'soap'))
-      setUseAdvanced(hasExtraFilters(next.match, next.type === 'soap'))
+      const next = initial ?? blank(defaultType);
+      setMock(next);
+      setUseDelay((next.response.delayMs ?? 0) > 0);
+      setUseHeaderMatch(hasHeaderMatch(next.match));
+      setUseUrlMatch(hasUrlMatch(next.match, mock.type === "soap"));
+      setUseAdvanced(hasExtraFilters(next.match, next.type === "soap"));
     }
-  }, [defaultType, initial, show])
+  }, [defaultType, initial, show]);
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
+    event.preventDefault();
+    setSaving(true);
     try {
       await onSave({
         ...mock,
-        match: persistMatch(mock.match, mock.type === 'soap', useAdvanced, useHeaderMatch),
+        match: persistMatch(mock.match, mock.type === "soap", useAdvanced, useHeaderMatch),
         response: {
           ...mock.response,
           delayMs: useDelay ? mock.response.delayMs : 0,
         },
-      })
+      });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
-  const isSoap = mock.type === 'soap'
-  const headerResetKey = `${show}:${initial?.name ?? 'new'}:${initial?.fileName ?? ''}:${initial?.type ?? defaultType}`
+  const isSoap = mock.type === "soap";
+  const headerResetKey = `${show}:${initial?.name ?? "new"}:${initial?.fileName ?? ""}:${initial?.type ?? defaultType}`;
 
   return (
     <Modal show={show} onHide={onCancel} size="lg" scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : 'New mock'}</Modal.Title>
+        <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : "New mock"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form id="mock-form" onSubmit={submit}>
@@ -78,15 +82,15 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 <Form.Select
                   value={mock.type}
                   onChange={(event) => {
-                    const type = event.target.value
+                    const type = event.target.value;
                     setMock({
                       ...mock,
                       type,
                       match:
-                        type === 'soap'
-                          ? { ...mock.match, path: null, pathMode: 'exact' }
+                        type === "soap"
+                          ? { ...mock.match, path: null, pathMode: "exact" }
                           : mock.match,
-                    })
+                    });
                   }}
                 >
                   <option value="rest">REST</option>
@@ -128,9 +132,12 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     </FieldLabel>
                     <Form.Control
                       required
-                      value={mock.match.soapAction ?? ''}
+                      value={mock.match.soapAction ?? ""}
                       onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, soapAction: event.target.value } })
+                        setMock({
+                          ...mock,
+                          match: { ...mock.match, soapAction: event.target.value },
+                        })
                       }
                     />
                   </Form.Group>
@@ -153,7 +160,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                         </FieldLabel>
                         <Form.Control
                           placeholder="/endpoint"
-                          value={mock.match.path ?? ''}
+                          value={mock.match.path ?? ""}
                           onChange={(event) =>
                             setMock({ ...mock, match: { ...mock.match, path: event.target.value } })
                           }
@@ -167,19 +174,31 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                         </FieldLabel>
                         <Form.Control
                           placeholder="key=value&amp;other=param"
-                          value={mock.match.query ? Object.entries(mock.match.query).map(([k, v]) => `${k}=${v}`).join('&') : ''}
+                          value={
+                            mock.match.query
+                              ? Object.entries(mock.match.query)
+                                  .map(([k, v]) => `${k}=${v}`)
+                                  .join("&")
+                              : ""
+                          }
                           onChange={(event) => {
-                            const pairs = event.target.value.split('&').filter(Boolean)
-                            const query: Record<string, string> = {}
+                            const pairs = event.target.value.split("&").filter(Boolean);
+                            const query: Record<string, string> = {};
                             for (const pair of pairs) {
-                              const eq = pair.indexOf('=')
+                              const eq = pair.indexOf("=");
                               if (eq === -1) {
-                                query[pair] = ''
+                                query[pair] = "";
                               } else {
-                                query[pair.slice(0, eq)] = pair.slice(eq + 1)
+                                query[pair.slice(0, eq)] = pair.slice(eq + 1);
                               }
                             }
-                            setMock({ ...mock, match: { ...mock.match, query: Object.keys(query).length > 0 ? query : null } })
+                            setMock({
+                              ...mock,
+                              match: {
+                                ...mock.match,
+                                query: Object.keys(query).length > 0 ? query : null,
+                              },
+                            });
                           }}
                         />
                       </Form.Group>
@@ -196,8 +215,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     </FieldLabel>
                     <Form.Control
                       placeholder="/accounts"
-                      value={mock.match.path ?? ''}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, path: event.target.value } })}
+                      value={mock.match.path ?? ""}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, path: event.target.value } })
+                      }
                     />
                   </Form.Group>
                 </Col>
@@ -206,7 +227,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
                     <Form.Select
                       value={mock.match.pathMode}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })
+                      }
                     >
                       <option value="exact">exact — this path only</option>
                       <option value="prefix">prefix — this path and below</option>
@@ -223,7 +246,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                       id="mock-methods"
                       multiple
                       selected={mock.match.methods ?? []}
-                      onChange={(methods) => setMock({ ...mock, match: { ...mock.match, methods } })}
+                      onChange={(methods) =>
+                        setMock({ ...mock, match: { ...mock.match, methods } })
+                      }
                       placeholder="Any method"
                     />
                   </Form.Group>
@@ -238,7 +263,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 checked={useHeaderMatch}
                 onChange={(event) => setUseHeaderMatch(event.target.checked)}
               />
-              <Form.Text>Require these request headers. Names and values are case-insensitive.</Form.Text>
+              <Form.Text>
+                Require these request headers. Names and values are case-insensitive.
+              </Form.Text>
             </Col>
             {useHeaderMatch && (
               <Col xs={12}>
@@ -262,7 +289,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 onChange={(event) => setUseAdvanced(event.target.checked)}
               />
               <Form.Text>
-                {isSoap ? 'Match on the SOAP body as well as SOAPAction.' : 'Match on the request body as well as the path.'}
+                {isSoap
+                  ? "Match on the SOAP body as well as SOAPAction."
+                  : "Match on the request body as well as the path."}
               </Form.Text>
             </Col>
             {useAdvanced && !isSoap && (
@@ -273,9 +302,12 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                       Body contains
                     </FieldLabel>
                     <Form.Control
-                      value={mock.match.bodyContains ?? ''}
+                      value={mock.match.bodyContains ?? ""}
                       onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, bodyContains: event.target.value } })
+                        setMock({
+                          ...mock,
+                          match: { ...mock.match, bodyContains: event.target.value },
+                        })
                       }
                     />
                   </Form.Group>
@@ -288,16 +320,22 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     <InputGroup>
                       <Form.Control
                         placeholder="$.user.id"
-                        value={mock.match.jsonPath ?? ''}
+                        value={mock.match.jsonPath ?? ""}
                         onChange={(event) =>
-                          setMock({ ...mock, match: { ...mock.match, jsonPath: event.target.value } })
+                          setMock({
+                            ...mock,
+                            match: { ...mock.match, jsonPath: event.target.value },
+                          })
                         }
                       />
                       <Form.Control
                         placeholder="42"
-                        value={mock.match.jsonPathEquals ?? ''}
+                        value={mock.match.jsonPathEquals ?? ""}
                         onChange={(event) =>
-                          setMock({ ...mock, match: { ...mock.match, jsonPathEquals: event.target.value } })
+                          setMock({
+                            ...mock,
+                            match: { ...mock.match, jsonPathEquals: event.target.value },
+                          })
                         }
                       />
                     </InputGroup>
@@ -310,8 +348,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     </FieldLabel>
                     <Form.Control
                       placeholder="//AccountId"
-                      value={mock.match.xpath ?? ''}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })}
+                      value={mock.match.xpath ?? ""}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })
+                      }
                     />
                   </Form.Group>
                 </Col>
@@ -325,9 +365,12 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                       Body contains
                     </FieldLabel>
                     <Form.Control
-                      value={mock.match.bodyContains ?? ''}
+                      value={mock.match.bodyContains ?? ""}
                       onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, bodyContains: event.target.value } })
+                        setMock({
+                          ...mock,
+                          match: { ...mock.match, bodyContains: event.target.value },
+                        })
                       }
                     />
                   </Form.Group>
@@ -338,9 +381,12 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                       Operation
                     </FieldLabel>
                     <Form.Control
-                      value={mock.match.operation ?? ''}
+                      value={mock.match.operation ?? ""}
                       onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, operation: event.target.value } })
+                        setMock({
+                          ...mock,
+                          match: { ...mock.match, operation: event.target.value },
+                        })
                       }
                     />
                   </Form.Group>
@@ -352,8 +398,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     </FieldLabel>
                     <Form.Control
                       placeholder="//GetAccount"
-                      value={mock.match.xpath ?? ''}
-                      onChange={(event) => setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })}
+                      value={mock.match.xpath ?? ""}
+                      onChange={(event) =>
+                        setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })
+                      }
                     />
                   </Form.Group>
                 </Col>
@@ -374,7 +422,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 }
               />
               {mock.response.block && (
-                <Form.Text>The client waits until it times out. Status and body are not sent.</Form.Text>
+                <Form.Text>
+                  The client waits until it times out. Status and body are not sent.
+                </Form.Text>
               )}
             </Col>
             <Col md={3}>
@@ -386,7 +436,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                   type="number"
                   value={mock.response.statusCode}
                   onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, statusCode: Number(event.target.value) } })
+                    setMock({
+                      ...mock,
+                      response: { ...mock.response, statusCode: Number(event.target.value) },
+                    })
                   }
                 />
               </Form.Group>
@@ -412,10 +465,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 label="Delay response"
                 checked={useDelay}
                 onChange={(event) => {
-                  const enabled = event.target.checked
-                  setUseDelay(enabled)
+                  const enabled = event.target.checked;
+                  setUseDelay(enabled);
                   if (enabled && (mock.response.delayMs ?? 0) <= 0) {
-                    setMock({ ...mock, response: { ...mock.response, delayMs: 250 } })
+                    setMock({ ...mock, response: { ...mock.response, delayMs: 250 } });
                   }
                 }}
               />
@@ -431,7 +484,10 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                     min={0}
                     value={mock.response.delayMs}
                     onChange={(event) =>
-                      setMock({ ...mock, response: { ...mock.response, delayMs: Number(event.target.value) } })
+                      setMock({
+                        ...mock,
+                        response: { ...mock.response, delayMs: Number(event.target.value) },
+                      })
                     }
                   />
                 </Form.Group>
@@ -444,7 +500,9 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 label="Response headers"
                 help="Extra headers sent with the mocked response. Content-Type is set above; you can still override it here."
                 value={mock.response.headers}
-                onChange={(headers) => setMock({ ...mock, response: { ...mock.response, headers } })}
+                onChange={(headers) =>
+                  setMock({ ...mock, response: { ...mock.response, headers } })
+                }
                 collapsible
               />
             </Col>
@@ -456,7 +514,7 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
                 <Form.Control
                   as="textarea"
                   rows={6}
-                  value={mock.response.body ?? ''}
+                  value={mock.response.body ?? ""}
                   onChange={(event) =>
                     setMock({ ...mock, response: { ...mock.response, body: event.target.value } })
                   }
@@ -475,18 +533,18 @@ export function MockEditor({ show, initial, defaultType, isNew = true, onSave, o
         </Button>
       </Modal.Footer>
     </Modal>
-  )
+  );
 }
 
 function hasHeaderMatch(match: MockMatchDto): boolean {
-  return Boolean(match.headers && Object.keys(match.headers).length > 0)
+  return Boolean(match.headers && Object.keys(match.headers).length > 0);
 }
 
 function hasUrlMatch(match: MockMatchDto, isSoap: boolean): boolean {
   if (!isSoap) {
-    return false
+    return false;
   }
-  return Boolean(match.path && match.path.trim())
+  return Boolean(match.path && match.path.trim());
 }
 
 function persistMatch(
@@ -498,34 +556,41 @@ function persistMatch(
   const next = {
     ...(useAdvanced ? match : basicMatch(match)),
     headers: useHeaderMatch ? match.headers : null,
-  }
+  };
   if (!isSoap) {
-    return next
+    return next;
   }
 
   return {
     ...next,
     methods: null,
     query: useHeaderMatch ? next.query : null,
-  }
+  };
 }
 
 function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
   // For SOAP with URL matching enabled, path/mode/query count as extra filters.
-  if (isSoap && match.pathMode && match.pathMode !== 'exact') {
-    return true
+  if (isSoap && match.pathMode && match.pathMode !== "exact") {
+    return true;
   }
 
   if (match.query && Object.keys(match.query).length > 0) {
-    return true
+    return true;
   }
 
   // SOAP with URL matching and a path set counts as having extra filters.
   if (isSoap && match.path && match.path.trim()) {
-    return true
+    return true;
   }
 
-  return Boolean(match.bodyContains || match.bodyRegex || match.jsonPath || match.jsonPathEquals || match.operation || match.xpath)
+  return Boolean(
+    match.bodyContains ||
+    match.bodyRegex ||
+    match.jsonPath ||
+    match.jsonPathEquals ||
+    match.operation ||
+    match.xpath,
+  );
 }
 
 function basicMatch(match: MockMatchDto): MockMatchDto {
@@ -538,5 +603,5 @@ function basicMatch(match: MockMatchDto): MockMatchDto {
     jsonPathEquals: null,
     operation: null,
     xpath: null,
-  }
+  };
 }

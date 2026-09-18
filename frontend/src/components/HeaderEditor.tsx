@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, ButtonGroup, Form, InputGroup } from 'react-bootstrap'
+import { useEffect, useMemo, useState } from "react";
+import { Button, ButtonGroup, Form, InputGroup } from "react-bootstrap";
 import {
   compactHeaders,
   headersToRows,
@@ -7,61 +7,69 @@ import {
   rowsToHeaders,
   stringifyHeaders,
   type HeaderRow,
-} from '../headers'
-import { FieldHelp, FieldLabel } from './FieldHelp'
+} from "../headers";
+import { FieldHelp, FieldLabel } from "./FieldHelp";
 
 interface Props {
-  id: string
-  resetKey: string
-  label: string
-  help: string
-  value: Record<string, string> | null | undefined
-  onChange: (headers: Record<string, string> | null) => void
-  collapsible?: boolean
+  id: string;
+  resetKey: string;
+  label: string;
+  help: string;
+  value: Record<string, string> | null | undefined;
+  onChange: (headers: Record<string, string> | null) => void;
+  collapsible?: boolean;
 }
 
-export function HeaderEditor({ id, resetKey, label, help, value, onChange, collapsible = false }: Props) {
-  const [mode, setMode] = useState<'fields' | 'json'>('fields')
-  const [open, setOpen] = useState(!collapsible)
-  const [rows, setRows] = useState<HeaderRow[]>(() => headersToRows(value))
-  const [jsonText, setJsonText] = useState(() => stringifyHeaders(value))
-  const [jsonError, setJsonError] = useState<string | null>(null)
+export function HeaderEditor({
+  id,
+  resetKey,
+  label,
+  help,
+  value,
+  onChange,
+  collapsible = false,
+}: Props) {
+  const [mode, setMode] = useState<"fields" | "json">("fields");
+  const [open, setOpen] = useState(!collapsible);
+  const [rows, setRows] = useState<HeaderRow[]>(() => headersToRows(value));
+  const [jsonText, setJsonText] = useState(() => stringifyHeaders(value));
+  const [jsonError, setJsonError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMode('fields')
-    setOpen(!collapsible)
-    setRows(headersToRows(value))
-    setJsonText(stringifyHeaders(value))
-    setJsonError(null)
-  }, [resetKey, collapsible])
+    setMode("fields");
+    setOpen(!collapsible);
+    setRows(headersToRows(value));
+    setJsonText(stringifyHeaders(value));
+    setJsonError(null);
+  }, [resetKey, collapsible]);
 
-  const nextId = useMemo(() => rows.reduce((max, row) => Math.max(max, row.id), 0) + 1, [rows])
-  const count = Object.keys(compactHeaders(value) ?? {}).length
-  const showEditor = !collapsible || open
+  const nextId = useMemo(() => rows.reduce((max, row) => Math.max(max, row.id), 0) + 1, [rows]);
+  const count = Object.keys(compactHeaders(value) ?? {}).length;
+  const showEditor = !collapsible || open;
 
   const setFieldRows = (next: HeaderRow[]) => {
-    setRows(next)
-    onChange(rowsToHeaders(next))
-  }
+    setRows(next);
+    onChange(rowsToHeaders(next));
+  };
 
   const switchToJson = () => {
-    setJsonText(stringifyHeaders(rowsToHeaders(rows)))
-    setJsonError(null)
-    setMode('json')
-  }
+    setJsonText(stringifyHeaders(rowsToHeaders(rows)));
+    setJsonError(null);
+    setMode("json");
+  };
 
   const switchToFields = () => {
-    const parsed = parseHeaderJson(jsonText)
-    if ('error' in parsed) {
-      setJsonError(parsed.error)
-      return
+    const parsed = parseHeaderJson(jsonText);
+    if ("error" in parsed) {
+      setJsonError(parsed.error);
+      return;
     }
 
-    setRows(headersToRows(parsed.headers))
-    onChange(parsed.headers)
-    setJsonError(null)
-    setMode('fields')
-  }
+    setRows(headersToRows(parsed.headers));
+    onChange(parsed.headers);
+    setJsonError(null);
+    setMode("fields");
+  };
 
   return (
     <Form.Group>
@@ -74,7 +82,7 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
               onClick={() => setOpen((current) => !current)}
               aria-expanded={open}
             >
-              <i className={`bi ${open ? 'bi-chevron-down' : 'bi-chevron-right'}`} aria-hidden />
+              <i className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`} aria-hidden />
               <strong>{label}</strong>
               {count > 0 && <span className="row-meta">{count}</span>}
             </button>
@@ -87,15 +95,15 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
           <ButtonGroup size="sm" className="ms-auto">
             <Button
               type="button"
-              variant={mode === 'fields' ? 'primary' : 'outline-primary'}
-              onClick={() => (mode === 'json' ? switchToFields() : undefined)}
+              variant={mode === "fields" ? "primary" : "outline-primary"}
+              onClick={() => (mode === "json" ? switchToFields() : undefined)}
             >
               Fields
             </Button>
             <Button
               type="button"
-              variant={mode === 'json' ? 'primary' : 'outline-primary'}
-              onClick={() => (mode === 'fields' ? switchToJson() : undefined)}
+              variant={mode === "json" ? "primary" : "outline-primary"}
+              onClick={() => (mode === "fields" ? switchToJson() : undefined)}
             >
               JSON
             </Button>
@@ -103,7 +111,7 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
         )}
       </div>
       {showEditor &&
-        (mode === 'fields' ? (
+        (mode === "fields" ? (
           <>
             {rows.map((row) => (
               <InputGroup className="mb-2" key={row.id}>
@@ -111,14 +119,22 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
                   placeholder="Name"
                   value={row.name}
                   onChange={(event) =>
-                    setFieldRows(rows.map((item) => (item.id === row.id ? { ...item, name: event.target.value } : item)))
+                    setFieldRows(
+                      rows.map((item) =>
+                        item.id === row.id ? { ...item, name: event.target.value } : item,
+                      ),
+                    )
                   }
                 />
                 <Form.Control
                   placeholder="Value"
                   value={row.value}
                   onChange={(event) =>
-                    setFieldRows(rows.map((item) => (item.id === row.id ? { ...item, value: event.target.value } : item)))
+                    setFieldRows(
+                      rows.map((item) =>
+                        item.id === row.id ? { ...item, value: event.target.value } : item,
+                      ),
+                    )
                   }
                 />
                 <Button
@@ -134,7 +150,7 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
               variant="outline-secondary"
               size="sm"
               type="button"
-              onClick={() => setFieldRows([...rows, { id: nextId, name: '', value: '' }])}
+              onClick={() => setFieldRows([...rows, { id: nextId, name: "", value: "" }])}
             >
               Add header
             </Button>
@@ -149,22 +165,24 @@ export function HeaderEditor({ id, resetKey, label, help, value, onChange, colla
               value={jsonText}
               isInvalid={Boolean(jsonError)}
               onChange={(event) => {
-                const text = event.target.value
-                setJsonText(text)
-                const parsed = parseHeaderJson(text)
-                if ('error' in parsed) {
-                  setJsonError(parsed.error)
-                  return
+                const text = event.target.value;
+                setJsonText(text);
+                const parsed = parseHeaderJson(text);
+                if ("error" in parsed) {
+                  setJsonError(parsed.error);
+                  return;
                 }
 
-                setJsonError(null)
-                onChange(parsed.headers)
+                setJsonError(null);
+                onChange(parsed.headers);
               }}
             />
             <Form.Control.Feedback type="invalid">{jsonError}</Form.Control.Feedback>
-            <Form.Text>Object of header names to values, for example {`{ "X-Test": "1" }`}</Form.Text>
+            <Form.Text>
+              Object of header names to values, for example {`{ "X-Test": "1" }`}
+            </Form.Text>
           </>
         ))}
     </Form.Group>
-  )
+  );
 }

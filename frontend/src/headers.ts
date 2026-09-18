@@ -1,168 +1,187 @@
-import type { LogDetailDto } from './store/types'
+import type { LogDetailDto } from "./store/types";
 
 export interface HeaderRow {
-  id: number
-  name: string
-  value: string
+  id: number;
+  name: string;
+  value: string;
 }
 
 export interface SendDraft {
-  protocol: 'rest' | 'soap'
-  method: string
-  path: string
-  query: string
-  headers: Record<string, string>
-  body: string
-  contentType: string
-  soapAction: string
-  authorization: string
+  protocol: "rest" | "soap";
+  method: string;
+  path: string;
+  query: string;
+  headers: Record<string, string>;
+  body: string;
+  contentType: string;
+  soapAction: string;
+  authorization: string;
 }
 
 const hopByHop = new Set([
-  'host',
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'proxy-connection',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'content-length',
-])
+  "host",
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "proxy-connection",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "content-length",
+]);
 
 export function parseHeaders(raw?: string | null): Record<string, string> {
   if (!raw?.trim()) {
-    return {}
+    return {};
   }
 
   try {
-    const parsed = JSON.parse(raw) as unknown
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return Object.fromEntries(
-        Object.entries(parsed).map(([key, value]) => [key, value == null ? '' : String(value)]),
-      )
+        Object.entries(parsed).map(([key, value]) => [key, value == null ? "" : String(value)]),
+      );
     }
   } catch {
-    return {}
+    return {};
   }
 
-  return {}
+  return {};
 }
 
 export function getHeader(headers: Record<string, string>, name: string): string | undefined {
-  const match = Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase())
-  return match?.[1]
+  const match = Object.entries(headers).find(([key]) => key.toLowerCase() === name.toLowerCase());
+  return match?.[1];
 }
 
-export function omitHeaders(headers: Record<string, string>, names: string[]): Record<string, string> {
-  const skip = new Set(names.map((name) => name.toLowerCase()))
+export function omitHeaders(
+  headers: Record<string, string>,
+  names: string[],
+): Record<string, string> {
+  const skip = new Set(names.map((name) => name.toLowerCase()));
   return Object.fromEntries(
-    Object.entries(headers).filter(([key]) => !hopByHop.has(key.toLowerCase()) && !skip.has(key.toLowerCase())),
-  )
+    Object.entries(headers).filter(
+      ([key]) => !hopByHop.has(key.toLowerCase()) && !skip.has(key.toLowerCase()),
+    ),
+  );
 }
 
-export function compactHeaders(headers: Record<string, string> | null | undefined): Record<string, string> | null {
+export function compactHeaders(
+  headers: Record<string, string> | null | undefined,
+): Record<string, string> | null {
   if (!headers) {
-    return null
+    return null;
   }
 
   const compact = Object.fromEntries(
     Object.entries(headers)
       .map(([key, value]) => [key.trim(), value] as const)
       .filter(([key]) => key.length > 0),
-  )
-  return Object.keys(compact).length > 0 ? compact : null
+  );
+  return Object.keys(compact).length > 0 ? compact : null;
 }
 
 export function headersToRows(headers: Record<string, string> | null | undefined): HeaderRow[] {
-  const entries = Object.entries(headers ?? {}).filter(([name]) => name.trim())
+  const entries = Object.entries(headers ?? {}).filter(([name]) => name.trim());
   if (entries.length === 0) {
-    return [{ id: 1, name: '', value: '' }]
+    return [{ id: 1, name: "", value: "" }];
   }
 
-  return entries.map(([name, value], index) => ({ id: index + 1, name, value }))
+  return entries.map(([name, value], index) => ({ id: index + 1, name, value }));
 }
 
 export function rowsToHeaders(rows: HeaderRow[]): Record<string, string> | null {
-  return compactHeaders(Object.fromEntries(rows.map((row) => [row.name, row.value])))
+  return compactHeaders(Object.fromEntries(rows.map((row) => [row.name, row.value])));
 }
 
 export function stringifyHeaders(headers: Record<string, string> | null | undefined): string {
-  const compact = compactHeaders(headers)
-  return JSON.stringify(compact ?? {}, null, 2)
+  const compact = compactHeaders(headers);
+  return JSON.stringify(compact ?? {}, null, 2);
 }
 
-export function parseHeaderJson(text: string): { headers: Record<string, string> | null } | { error: string } {
+export function parseHeaderJson(
+  text: string,
+): { headers: Record<string, string> | null } | { error: string } {
   if (!text.trim()) {
-    return { headers: null }
+    return { headers: null };
   }
 
   try {
-    const parsed = JSON.parse(text) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { error: 'Headers JSON must be an object of name/value pairs.' }
+    const parsed = JSON.parse(text) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { error: "Headers JSON must be an object of name/value pairs." };
     }
 
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (value != null && typeof value === 'object') {
-        return { error: 'Header values must be strings.' }
+      if (value != null && typeof value === "object") {
+        return { error: "Header values must be strings." };
       }
 
-      headers[key] = value == null ? '' : String(value)
+      headers[key] = value == null ? "" : String(value);
     }
 
-    return { headers: compactHeaders(headers) }
+    return { headers: compactHeaders(headers) };
   } catch {
-    return { error: 'Invalid JSON.' }
+    return { error: "Invalid JSON." };
   }
 }
 
 export function sendFromLog(log: LogDetailDto): SendDraft {
-  const isSoap = log.protocol === 'soap'
-  const requestHeaders = parseHeaders(log.requestHeaders)
-  const contentType = getHeader(requestHeaders, 'Content-Type') ?? (isSoap ? 'text/xml; charset=utf-8' : 'application/json')
-  const soapAction = getSoapAction(requestHeaders) ?? ''
-  const authorization = getHeader(requestHeaders, 'Authorization') ?? ''
-  const headers = omitHeaders(requestHeaders, ['Content-Type', 'SOAPAction', 'Authorization', 'Accept-Encoding'])
+  const isSoap = log.protocol === "soap";
+  const requestHeaders = parseHeaders(log.requestHeaders);
+  const contentType =
+    getHeader(requestHeaders, "Content-Type") ??
+    (isSoap ? "text/xml; charset=utf-8" : "application/json");
+  const soapAction = getSoapAction(requestHeaders) ?? "";
+  const authorization = getHeader(requestHeaders, "Authorization") ?? "";
+  const headers = omitHeaders(requestHeaders, [
+    "Content-Type",
+    "SOAPAction",
+    "Authorization",
+    "Accept-Encoding",
+  ]);
 
   return {
-    protocol: isSoap ? 'soap' : 'rest',
-    method: isSoap ? 'POST' : log.method || 'GET',
-    path: log.path || '/',
-    query: log.query?.replace(/^\?/, '') ?? '',
+    protocol: isSoap ? "soap" : "rest",
+    method: isSoap ? "POST" : log.method || "GET",
+    path: log.path || "/",
+    query: log.query?.replace(/^\?/, "") ?? "",
     headers,
-    body: log.requestBody ?? '',
+    body: log.requestBody ?? "",
     contentType,
     soapAction,
     authorization,
-  }
+  };
 }
 
 export function getSoapAction(headers: Record<string, string>): string | undefined {
-  const soapAction = getHeader(headers, 'SOAPAction')
+  const soapAction = getHeader(headers, "SOAPAction");
   if (soapAction?.trim()) {
-    return soapAction.trim().replace(/^"+|"+$/g, '')
+    return soapAction.trim().replace(/^"+|"+$/g, "");
   }
 
-  const contentType = getHeader(headers, 'Content-Type')
+  const contentType = getHeader(headers, "Content-Type");
   if (!contentType) {
-    return undefined
+    return undefined;
   }
 
-  for (const part of contentType.split(';')) {
-    const trimmed = part.trim()
-    const equals = trimmed.indexOf('=')
+  for (const part of contentType.split(";")) {
+    const trimmed = part.trim();
+    const equals = trimmed.indexOf("=");
     if (equals <= 0) {
-      continue
+      continue;
     }
 
-    if (trimmed.slice(0, equals).trim().toLowerCase() === 'action') {
-      return trimmed.slice(equals + 1).trim().replace(/^"+|"+$/g, '')
+    if (trimmed.slice(0, equals).trim().toLowerCase() === "action") {
+      return trimmed
+        .slice(equals + 1)
+        .trim()
+        .replace(/^"+|"+$/g, "");
     }
   }
 
-  return undefined
+  return undefined;
 }

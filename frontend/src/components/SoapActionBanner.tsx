@@ -12,10 +12,7 @@ export function LogRequestLine({
   showMethod = true,
   clip = false,
 }: {
-  item: Pick<
-    LogListItemDto,
-    "protocol" | "method" | "path" | "query" | "soapAction"
-  >;
+  item: Pick<LogListItemDto, "protocol" | "method" | "path" | "query" | "soapAction">;
   showSoapAction?: boolean;
   showMethod?: boolean;
   clip?: boolean;
@@ -26,9 +23,7 @@ export function LogRequestLine({
     <>
       {showMethod ? <strong>{item.method} </strong> : null}
       {item.path}
-      {item.query ? (
-        <span className="text-secondary">?{item.query}</span>
-      ) : null}
+      {item.query ? <span className="text-secondary">?{item.query}</span> : null}
     </>
   );
   const request = clip ? (

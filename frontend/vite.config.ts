@@ -1,10 +1,10 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 const apiProxy = {
-  '/api': 'http://127.0.0.1:5050',
-  '/swagger': 'http://127.0.0.1:5050',
-}
+  "/api": "http://127.0.0.1:5050",
+  "/swagger": "http://127.0.0.1:5050",
+};
 
 export default defineConfig({
   plugins: [react()],
@@ -13,9 +13,9 @@ export default defineConfig({
     proxy: apiProxy,
   },
   preview: {
-    host: '127.0.0.1',
+    host: "127.0.0.1",
     port: 5173,
     strictPort: true,
     proxy: apiProxy,
   },
-})
+});

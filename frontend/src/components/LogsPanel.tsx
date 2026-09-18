@@ -1,15 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Badge,
-  Button,
-  Col,
-  Collapse,
-  Form,
-  Row,
-  Stack,
-  Table,
-} from "react-bootstrap";
+import { Alert, Badge, Button, Col, Collapse, Form, Row, Stack, Table } from "react-bootstrap";
 import {
   formatBytes,
   formatDate,
@@ -62,13 +52,7 @@ const frozenQuery = {
   refetchOnReconnect: false,
 } as const;
 
-export function LogsPanel({
-  proxyId,
-  active,
-  mocks,
-  onOpenLog,
-  onOpenMock,
-}: Props) {
+export function LogsPanel({ proxyId, active, mocks, onOpenLog, onOpenMock }: Props) {
   const [paused, setPaused] = useState(false);
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [refreshMs, setRefreshMs] = useState(readRefreshMs);
@@ -139,10 +123,7 @@ export function LogsPanel({
     return () => window.clearInterval(id);
   }, [active, paused]);
 
-  const nextRefreshMs = Math.max(
-    0,
-    refreshMs - (now - (liveLogs.fulfilledTimeStamp ?? now)),
-  );
+  const nextRefreshMs = Math.max(0, refreshMs - (now - (liveLogs.fulfilledTimeStamp ?? now)));
 
   const total = logs.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -191,17 +172,10 @@ export function LogsPanel({
 
   return (
     <>
-      <Stack
-        direction="horizontal"
-        className="mb-3 flex-wrap gap-2 align-items-center"
-      >
+      <Stack direction="horizontal" className="mb-3 flex-wrap gap-2 align-items-center">
         <div>
-          <div className="fw-semibold">
-            Database {formatBytes(storage.data?.totalBytes)}
-          </div>
-          <div className="row-meta">
-            {storage.data?.entryCount ?? 0} entries on disk
-          </div>
+          <div className="fw-semibold">Database {formatBytes(storage.data?.totalBytes)}</div>
+          <div className="row-meta">{storage.data?.entryCount ?? 0} entries on disk</div>
         </div>
         <Badge
           bg={paused ? "warning" : "success"}
@@ -239,11 +213,7 @@ export function LogsPanel({
               Resume live
             </Button>
           ) : (
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={pauseUpdates}
-            >
+            <Button variant="outline-secondary" size="sm" onClick={pauseUpdates}>
               Pause
             </Button>
           )}
@@ -270,29 +240,20 @@ export function LogsPanel({
 
       {paused && (
         <div className="log-timeline-card mb-3">
-          <Stack
-            direction="horizontal"
-            className="mb-2 flex-wrap gap-2 align-items-center"
-          >
+          <Stack direction="horizontal" className="mb-2 flex-wrap gap-2 align-items-center">
             <strong>Timeline</strong>
-            <span className="row-meta">
-              Drag across the graph to inspect a time range
-            </span>
+            <span className="row-meta">Drag across the graph to inspect a time range</span>
             <div className="ms-auto d-flex flex-wrap gap-1">
-              {(["1h", "6h", "24h", "7d", "all"] as WindowPreset[]).map(
-                (preset) => (
-                  <Button
-                    key={preset}
-                    size="sm"
-                    variant={
-                      windowPreset === preset ? "primary" : "outline-secondary"
-                    }
-                    onClick={() => setWindowPreset(preset)}
-                  >
-                    {preset === "all" ? "All" : preset}
-                  </Button>
-                ),
-              )}
+              {(["1h", "6h", "24h", "7d", "all"] as WindowPreset[]).map((preset) => (
+                <Button
+                  key={preset}
+                  size="sm"
+                  variant={windowPreset === preset ? "primary" : "outline-secondary"}
+                  onClick={() => setWindowPreset(preset)}
+                >
+                  {preset === "all" ? "All" : preset}
+                </Button>
+              ))}
             </div>
           </Stack>
           {timeline.data ? (
@@ -317,8 +278,8 @@ export function LogsPanel({
 
       {paused && (
         <Alert variant="secondary">
-          Updates are paused. Browse history with the timeline and pagination,
-          or resume to follow the latest entries.
+          Updates are paused. Browse history with the timeline and pagination, or resume to follow
+          the latest entries.
         </Alert>
       )}
 
@@ -433,10 +394,7 @@ export function LogsPanel({
         </Collapse>
       </div>
 
-      <Stack
-        direction="horizontal"
-        className="mb-2 flex-wrap gap-2 align-items-center"
-      >
+      <Stack direction="horizontal" className="mb-2 flex-wrap gap-2 align-items-center">
         <div className="row-meta">
           {paused
             ? `Showing ${showingFrom}–${showingTo} of ${total}`
@@ -522,8 +480,7 @@ export function LogsPanel({
                   mode={item.mode}
                   mockName={item.mockName}
                   mock={mocks.find(
-                    (entry) =>
-                      entry.name.toLowerCase() === item.mockName?.toLowerCase(),
+                    (entry) => entry.name.toLowerCase() === item.mockName?.toLowerCase(),
                   )}
                   onOpenMock={onOpenMock}
                 />
@@ -543,9 +500,7 @@ export function LogsPanel({
           ))}
           {logs.data?.items.length === 0 && (
             <tr>
-              <td colSpan={7}>
-                {paused ? "No logs in this range." : "No logs yet."}
-              </td>
+              <td colSpan={7}>{paused ? "No logs in this range." : "No logs yet."}</td>
             </tr>
           )}
         </tbody>

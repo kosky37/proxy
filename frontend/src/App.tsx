@@ -1,9 +1,9 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { Layout } from './components/Layout'
-import { CertificatesPage } from './pages/CertificatesPage'
-import { LogsPage } from './pages/LogsPage'
-import { ProxiesPage } from './pages/ProxiesPage'
-import { ProxyDetailPage } from './pages/ProxyDetailPage'
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Layout } from "./components/Layout";
+import { CertificatesPage } from "./pages/CertificatesPage";
+import { LogsPage } from "./pages/LogsPage";
+import { ProxiesPage } from "./pages/ProxiesPage";
+import { ProxyDetailPage } from "./pages/ProxyDetailPage";
 
 export default function App() {
   return (
@@ -18,5 +18,5 @@ export default function App() {
         </Route>
       </Routes>
     </BrowserRouter>
-  )
+  );
 }

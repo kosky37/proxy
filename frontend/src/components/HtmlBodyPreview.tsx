@@ -1,5 +1,5 @@
 interface Props {
-  html: string
+  html: string;
 }
 
 export function HtmlBodyPreview({ html }: Props) {
@@ -11,5 +11,5 @@ export function HtmlBodyPreview({ html }: Props) {
       srcDoc={html}
       referrerPolicy="no-referrer"
     />
-  )
+  );
 }

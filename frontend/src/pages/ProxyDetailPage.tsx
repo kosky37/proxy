@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 import {
   Alert,
   Badge,
@@ -10,18 +10,18 @@ import {
   Stack,
   Table,
   Tooltip,
-} from 'react-bootstrap'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { TabToolbar } from '../components/FieldHelp'
-import { IgnoreEditor } from '../components/IgnoreEditor'
-import { LogDetailModal } from '../components/LogDetailModal'
-import { LogsPanel } from '../components/LogsPanel'
-import { ManualSendPanel } from '../components/ManualSendPanel'
-import { MockEditor } from '../components/MockEditor'
-import { MockSetEditor } from '../components/MockSetEditor'
-import { hasAdvancedMatch } from '../format'
-import { ignoreFromLog, mockFromLog } from '../mockFromLog'
-import { sendFromLog, type SendDraft } from '../headers'
+} from "react-bootstrap";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { TabToolbar } from "../components/FieldHelp";
+import { IgnoreEditor } from "../components/IgnoreEditor";
+import { LogDetailModal } from "../components/LogDetailModal";
+import { LogsPanel } from "../components/LogsPanel";
+import { ManualSendPanel } from "../components/ManualSendPanel";
+import { MockEditor } from "../components/MockEditor";
+import { MockSetEditor } from "../components/MockSetEditor";
+import { hasAdvancedMatch } from "../format";
+import { ignoreFromLog, mockFromLog } from "../mockFromLog";
+import { sendFromLog, type SendDraft } from "../headers";
 import {
   useApplyMockSetMutation,
   useCreateIgnoreMutation,
@@ -40,165 +40,166 @@ import {
   useUpdateIgnoreMutation,
   useUpdateMockMutation,
   useUpdateMockSetMutation,
-} from '../store/proxyApi'
-import type { IgnoredPathDto, LogDetailDto, MockDto, MockSetDto } from '../store/types'
+} from "../store/proxyApi";
+import type { IgnoredPathDto, LogDetailDto, MockDto, MockSetDto } from "../store/types";
 
-type Tab = 'send' | 'rest' | 'soap' | 'mock-sets' | 'ignores' | 'logs'
+type Tab = "send" | "rest" | "soap" | "mock-sets" | "ignores" | "logs";
 
 export function ProxyDetailPage() {
-  const { id = '' } = useParams()
-  const location = useLocation()
-  const navigate = useNavigate()
-  const proxy = useGetProxyQuery(id)
-  const mocks = useGetMocksQuery(id)
-  const ignores = useGetIgnoresQuery(id)
-  const mockSets = useGetMockSetsQuery(id)
-  const [tab, setTab] = useState<Tab>('logs')
-  const [editing, setEditing] = useState<MockDto | null | undefined>(undefined)
-  const [editingExisting, setEditingExisting] = useState(false)
-  const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined)
-  const [editingSet, setEditingSet] = useState<MockSetDto | null | undefined>(undefined)
-  const [logId, setLogId] = useState<number | null>(null)
-  const [sendDraft, setSendDraft] = useState<SendDraft | null>(null)
-  const logDetail = useGetLogQuery({ proxyId: id, entryId: logId ?? 0 }, { skip: logId == null })
-  const [setMocksEnabled] = useSetMocksEnabledMutation()
-  const [createMock] = useCreateMockMutation()
-  const [updateMock] = useUpdateMockMutation()
-  const [deleteMock] = useDeleteMockMutation()
-  const [toggleMock] = useToggleMockMutation()
-  const [createIgnore] = useCreateIgnoreMutation()
-  const [updateIgnore] = useUpdateIgnoreMutation()
-  const [deleteIgnore] = useDeleteIgnoreMutation()
-  const [createMockSet] = useCreateMockSetMutation()
-  const [updateMockSet] = useUpdateMockSetMutation()
-  const [deleteMockSet] = useDeleteMockSetMutation()
-  const [applyMockSet] = useApplyMockSetMutation()
+  const { id = "" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const proxy = useGetProxyQuery(id);
+  const mocks = useGetMocksQuery(id);
+  const ignores = useGetIgnoresQuery(id);
+  const mockSets = useGetMockSetsQuery(id);
+  const [tab, setTab] = useState<Tab>("logs");
+  const [editing, setEditing] = useState<MockDto | null | undefined>(undefined);
+  const [editingExisting, setEditingExisting] = useState(false);
+  const [editingIgnore, setEditingIgnore] = useState<IgnoredPathDto | null | undefined>(undefined);
+  const [editingSet, setEditingSet] = useState<MockSetDto | null | undefined>(undefined);
+  const [logId, setLogId] = useState<number | null>(null);
+  const [sendDraft, setSendDraft] = useState<SendDraft | null>(null);
+  const logDetail = useGetLogQuery({ proxyId: id, entryId: logId ?? 0 }, { skip: logId == null });
+  const [setMocksEnabled] = useSetMocksEnabledMutation();
+  const [createMock] = useCreateMockMutation();
+  const [updateMock] = useUpdateMockMutation();
+  const [deleteMock] = useDeleteMockMutation();
+  const [toggleMock] = useToggleMockMutation();
+  const [createIgnore] = useCreateIgnoreMutation();
+  const [updateIgnore] = useUpdateIgnoreMutation();
+  const [deleteIgnore] = useDeleteIgnoreMutation();
+  const [createMockSet] = useCreateMockSetMutation();
+  const [updateMockSet] = useUpdateMockSetMutation();
+  const [deleteMockSet] = useDeleteMockSetMutation();
+  const [applyMockSet] = useApplyMockSetMutation();
 
   useEffect(() => {
     const state = location.state as {
-      fromLog?: { action: 'mock' | 'send'; log: LogDetailDto }
-      openMock?: MockDto
-    } | null
+      fromLog?: { action: "mock" | "send"; log: LogDetailDto };
+      openMock?: MockDto;
+    } | null;
     if (state?.openMock) {
-      setEditingExisting(true)
-      setEditing(state.openMock)
-      setTab(state.openMock.type === 'soap' ? 'soap' : 'rest')
-      setLogId(null)
+      setEditingExisting(true);
+      setEditing(state.openMock);
+      setTab(state.openMock.type === "soap" ? "soap" : "rest");
+      setLogId(null);
     } else if (state?.fromLog) {
-      const fromLog = state.fromLog
-      if (fromLog.action === 'send') {
-        setSendDraft(sendFromLog(fromLog.log))
-        setTab('send')
-        setLogId(null)
+      const fromLog = state.fromLog;
+      if (fromLog.action === "send") {
+        setSendDraft(sendFromLog(fromLog.log));
+        setTab("send");
+        setLogId(null);
       } else {
-        setEditingExisting(false)
-        setEditing(mockFromLog(fromLog.log))
-        setTab(fromLog.log.protocol === 'soap' ? 'soap' : 'rest')
-        setLogId(null)
+        setEditingExisting(false);
+        setEditing(mockFromLog(fromLog.log));
+        setTab(fromLog.log.protocol === "soap" ? "soap" : "rest");
+        setLogId(null);
       }
     } else {
-      return
+      return;
     }
 
-    navigate(location.pathname, { replace: true, state: {} })
-  }, [location.pathname, location.state, navigate])
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   if (proxy.isLoading || !proxy.data) {
-    return <Alert variant="secondary">Loading…</Alert>
+    return <Alert variant="secondary">Loading…</Alert>;
   }
   if (proxy.isError) {
-    return <Alert variant="danger">Proxy not found.</Alert>
+    return <Alert variant="danger">Proxy not found.</Alert>;
   }
-
 
   const saveMock = async (mock: MockDto) => {
     if (editingExisting && editing?.name) {
-      await updateMock({ proxyId: id, name: editing.name, body: mock }).unwrap()
+      await updateMock({ proxyId: id, name: editing.name, body: mock }).unwrap();
     } else {
-      await createMock({ proxyId: id, body: mock }).unwrap()
+      await createMock({ proxyId: id, body: mock }).unwrap();
     }
-    setEditing(undefined)
-  }
+    setEditing(undefined);
+  };
 
   const saveIgnore = async (ignore: IgnoredPathDto) => {
-    const existingName = editingIgnore?.name
+    const existingName = editingIgnore?.name;
     const exists = Boolean(
       existingName &&
-        ignores.data?.some((item) => item.name.toLowerCase() === existingName.toLowerCase()),
-    )
+      ignores.data?.some((item) => item.name.toLowerCase() === existingName.toLowerCase()),
+    );
     if (exists && existingName) {
-      await updateIgnore({ proxyId: id, name: existingName, body: ignore }).unwrap()
+      await updateIgnore({ proxyId: id, name: existingName, body: ignore }).unwrap();
     } else {
-      await createIgnore({ proxyId: id, body: ignore }).unwrap()
+      await createIgnore({ proxyId: id, body: ignore }).unwrap();
     }
-    setEditingIgnore(undefined)
-  }
+    setEditingIgnore(undefined);
+  };
 
   const saveMockSet = async (set: MockSetDto) => {
-    const existingName = editingSet?.name
+    const existingName = editingSet?.name;
     const exists = Boolean(
       existingName &&
-        mockSets.data?.some((item) => item.name.toLowerCase() === existingName.toLowerCase()),
-    )
+      mockSets.data?.some((item) => item.name.toLowerCase() === existingName.toLowerCase()),
+    );
     if (exists && existingName) {
-      await updateMockSet({ proxyId: id, name: existingName, body: set }).unwrap()
+      await updateMockSet({ proxyId: id, name: existingName, body: set }).unwrap();
     } else {
-      await createMockSet({ proxyId: id, body: set }).unwrap()
+      await createMockSet({ proxyId: id, body: set }).unwrap();
     }
-    setEditingSet(undefined)
-  }
+    setEditingSet(undefined);
+  };
 
   const openExistingMock = (mock: MockDto) => {
-    setEditingExisting(true)
-    setEditing(mock)
-    setTab(mock.type === 'soap' ? 'soap' : 'rest')
-    setLogId(null)
-  }
+    setEditingExisting(true);
+    setEditing(mock);
+    setTab(mock.type === "soap" ? "soap" : "rest");
+    setLogId(null);
+  };
 
   const openMockFromSet = (mock: MockDto) => {
-    setEditingExisting(true)
-    setEditing(mock)
-  }
+    setEditingExisting(true);
+    setEditing(mock);
+  };
 
   const createMockFromLog = (log: LogDetailDto) => {
-    setEditingExisting(false)
-    setEditing(mockFromLog(log))
-    setTab(log.protocol === 'soap' ? 'soap' : 'rest')
-    setLogId(null)
-  }
+    setEditingExisting(false);
+    setEditing(mockFromLog(log));
+    setTab(log.protocol === "soap" ? "soap" : "rest");
+    setLogId(null);
+  };
 
   const createSendFromLog = (log: LogDetailDto) => {
-    setSendDraft(sendFromLog(log))
-    setTab('send')
-    setLogId(null)
-  }
+    setSendDraft(sendFromLog(log));
+    setTab("send");
+    setLogId(null);
+  };
 
   const createIgnoreFromLog = (log: LogDetailDto) => {
-    setEditingIgnore(ignoreFromLog(log))
-    setTab('ignores')
-    setLogId(null)
-  }
+    setEditingIgnore(ignoreFromLog(log));
+    setTab("ignores");
+    setLogId(null);
+  };
 
   const ignoreIsNew =
     editingIgnore == null ||
-    !ignores.data?.some((item) => item.name.toLowerCase() === editingIgnore.name.toLowerCase())
+    !ignores.data?.some((item) => item.name.toLowerCase() === editingIgnore.name.toLowerCase());
 
   const setIsNew =
     editingSet == null ||
-    !mockSets.data?.some((item) => item.name.toLowerCase() === editingSet.name.toLowerCase())
+    !mockSets.data?.some((item) => item.name.toLowerCase() === editingSet.name.toLowerCase());
 
   const existingLogMock = logDetail.data?.mockName
-    ? mocks.data?.find((item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase())
-    : undefined
+    ? mocks.data?.find(
+        (item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase(),
+      )
+    : undefined;
 
-  const restMocks = mocks.data?.filter((item) => item.type === 'rest') ?? []
-  const soapMocks = mocks.data?.filter((item) => item.type === 'soap') ?? []
+  const restMocks = mocks.data?.filter((item) => item.type === "rest") ?? [];
+  const soapMocks = mocks.data?.filter((item) => item.type === "soap") ?? [];
 
   return (
     <>
       <Stack direction="horizontal" className="mb-3 align-items-center flex-wrap gap-2">
         <Breadcrumb className="mb-0">
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }}>
+          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>
             Proxies
           </Breadcrumb.Item>
           <Breadcrumb.Item active>{proxy.data?.name}</Breadcrumb.Item>
@@ -213,7 +214,12 @@ export function ProxyDetailPage() {
         />
       </Stack>
 
-      <Nav variant="tabs" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'logs')} className="mb-3">
+      <Nav
+        variant="tabs"
+        activeKey={tab}
+        onSelect={(key) => setTab((key as Tab) ?? "logs")}
+        className="mb-3"
+      >
         <Nav.Item>
           <Nav.Link eventKey="logs">Logs</Nav.Link>
         </Nav.Item>
@@ -234,8 +240,7 @@ export function ProxyDetailPage() {
         </Nav.Item>
       </Nav>
 
-
-      {tab === 'send' && proxy.data && (
+      {tab === "send" && proxy.data && (
         <ManualSendPanel
           proxyId={id}
           destination={proxy.data.destination.address}
@@ -246,29 +251,29 @@ export function ProxyDetailPage() {
         />
       )}
 
-      {(tab === 'rest' || tab === 'soap') && (
+      {(tab === "rest" || tab === "soap") && (
         <>
           <TabToolbar
             help={
-              tab === 'soap'
-                ? 'Match SOAP requests by action or operation and return the configured response instead of forwarding.'
-                : 'Match REST requests by path and method and return the configured response instead of forwarding.'
+              tab === "soap"
+                ? "Match SOAP requests by action or operation and return the configured response instead of forwarding."
+                : "Match REST requests by path and method and return the configured response instead of forwarding."
             }
           >
             <Button
               onClick={() => {
-                setEditingExisting(false)
-                setEditing(null)
+                setEditingExisting(false);
+                setEditing(null);
               }}
             >
-              Add {tab === 'soap' ? 'SOAP' : 'REST'} mock
+              Add {tab === "soap" ? "SOAP" : "REST"} mock
             </Button>
           </TabToolbar>
           <MockTable
-            items={tab === 'rest' ? restMocks : soapMocks}
+            items={tab === "rest" ? restMocks : soapMocks}
             onEdit={(mock) => {
-              setEditingExisting(true)
-              setEditing(mock)
+              setEditingExisting(true);
+              setEditing(mock);
             }}
             onToggle={(name) => toggleMock({ proxyId: id, name })}
             onDelete={(name) => deleteMock({ proxyId: id, name })}
@@ -276,7 +281,7 @@ export function ProxyDetailPage() {
         </>
       )}
 
-      {tab === 'mock-sets' && (
+      {tab === "mock-sets" && (
         <>
           <TabToolbar help="Apply a set to enable those mocks and disable every other mock. Use this to switch between testing scenarios.">
             <Button onClick={() => setEditingSet(null)}>Add mock set</Button>
@@ -298,7 +303,7 @@ export function ProxyDetailPage() {
             </thead>
             <tbody>
               {mockSets.data?.map((set) => {
-                const active = isMockSetActive(set, mocks.data ?? [])
+                const active = isMockSetActive(set, mocks.data ?? []);
                 return (
                   <tr key={set.name}>
                     <td>
@@ -306,7 +311,11 @@ export function ProxyDetailPage() {
                       <div className="row-meta">{set.fileName}</div>
                     </td>
                     <td>
-                      <MockNameLinks names={set.mockNames} mocks={mocks.data ?? []} onOpenMock={openMockFromSet} />
+                      <MockNameLinks
+                        names={set.mockNames}
+                        mocks={mocks.data ?? []}
+                        onOpenMock={openMockFromSet}
+                      />
                     </td>
                     <td>{active && <Badge bg="success">Active</Badge>}</td>
                     <td className="text-end">
@@ -318,7 +327,11 @@ export function ProxyDetailPage() {
                         >
                           Apply
                         </Button>
-                        <Button variant="outline-primary" size="sm" onClick={() => setEditingSet(set)}>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => setEditingSet(set)}
+                        >
                           Edit
                         </Button>
                         <Button
@@ -331,7 +344,7 @@ export function ProxyDetailPage() {
                       </Stack>
                     </td>
                   </tr>
-                )
+                );
               })}
               {mockSets.data?.length === 0 && (
                 <tr>
@@ -343,7 +356,7 @@ export function ProxyDetailPage() {
         </>
       )}
 
-      {tab === 'ignores' && (
+      {tab === "ignores" && (
         <>
           <TabToolbar help="Matching requests are still proxied or mocked, but they are not written to logs.">
             <Button onClick={() => setEditingIgnore(null)}>Add ignore</Button>
@@ -373,10 +386,14 @@ export function ProxyDetailPage() {
                     <code>{ignore.path}</code>
                   </td>
                   <td>{ignore.pathMode}</td>
-                  <td>{ignore.methods?.length ? ignore.methods.join(', ') : 'any'}</td>
+                  <td>{ignore.methods?.length ? ignore.methods.join(", ") : "any"}</td>
                   <td className="text-end">
                     <Stack direction="horizontal" gap={1} className="justify-content-end">
-                      <Button variant="outline-primary" size="sm" onClick={() => setEditingIgnore(ignore)}>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setEditingIgnore(ignore)}
+                      >
                         Edit
                       </Button>
                       <Button
@@ -392,7 +409,9 @@ export function ProxyDetailPage() {
               ))}
               {ignores.data?.length === 0 && (
                 <tr>
-                  <td colSpan={5}>No ignored paths. Add one to keep noisy requests out of the log.</td>
+                  <td colSpan={5}>
+                    No ignored paths. Add one to keep noisy requests out of the log.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -400,7 +419,7 @@ export function ProxyDetailPage() {
         </>
       )}
 
-      {tab === 'logs' && (
+      {tab === "logs" && (
         <LogsPanel
           proxyId={id}
           active
@@ -442,21 +461,23 @@ export function ProxyDetailPage() {
         show={editing !== undefined}
         initial={editing}
         isNew={!editingExisting}
-        defaultType={editing?.type ?? (tab === 'soap' ? 'soap' : 'rest')}
+        defaultType={editing?.type ?? (tab === "soap" ? "soap" : "rest")}
         onSave={saveMock}
         onCancel={() => setEditing(undefined)}
       />
     </>
-  )
+  );
 }
 
 function isMockSetActive(set: MockSetDto, mocks: MockDto[]) {
   const enabled = mocks
     .filter((mock) => mock.enabled)
     .map((mock) => mock.name.toLowerCase())
-    .sort()
-  const selected = set.mockNames.map((name) => name.toLowerCase()).sort()
-  return enabled.length === selected.length && enabled.every((name, index) => name === selected[index])
+    .sort();
+  const selected = set.mockNames.map((name) => name.toLowerCase()).sort();
+  return (
+    enabled.length === selected.length && enabled.every((name, index) => name === selected[index])
+  );
 }
 
 function MockNameLinks({
@@ -464,30 +485,36 @@ function MockNameLinks({
   mocks,
   onOpenMock,
 }: {
-  names: string[]
-  mocks: MockDto[]
-  onOpenMock: (mock: MockDto) => void
+  names: string[];
+  mocks: MockDto[];
+  onOpenMock: (mock: MockDto) => void;
 }) {
   if (names.length === 0) {
-    return <span className="row-meta">none (apply disables all mocks)</span>
+    return <span className="row-meta">none (apply disables all mocks)</span>;
   }
 
   return (
     <Stack direction="horizontal" gap={2} className="flex-wrap">
       {names.map((name) => {
-        const mock = mocks.find((item) => item.name.toLowerCase() === name.toLowerCase())
+        const mock = mocks.find((item) => item.name.toLowerCase() === name.toLowerCase());
         return mock ? (
-          <Button key={name} variant="link" size="sm" className="p-0" onClick={() => onOpenMock(mock)}>
+          <Button
+            key={name}
+            variant="link"
+            size="sm"
+            className="p-0"
+            onClick={() => onOpenMock(mock)}
+          >
             {mock.name}
           </Button>
         ) : (
           <span key={name} className="row-meta">
             {name}
           </span>
-        )
+        );
       })}
     </Stack>
-  )
+  );
 }
 
 function MockIcon({
@@ -496,16 +523,16 @@ function MockIcon({
   activeClass,
   title,
 }: {
-  on: boolean
-  icon: string
-  activeClass: string
-  title: string
+  on: boolean;
+  icon: string;
+  activeClass: string;
+  title: string;
 }) {
   return (
     <OverlayTrigger overlay={<Tooltip>{title}</Tooltip>}>
-      <i className={`bi ${icon} ${on ? activeClass : 'is-off'}`} aria-label={title} />
+      <i className={`bi ${icon} ${on ? activeClass : "is-off"}`} aria-label={title} />
     </OverlayTrigger>
-  )
+  );
 }
 
 function MockTable({
@@ -514,10 +541,10 @@ function MockTable({
   onToggle,
   onDelete,
 }: {
-  items: MockDto[]
-  onEdit: (mock: MockDto) => void
-  onToggle: (name: string) => void
-  onDelete: (name: string) => void
+  items: MockDto[];
+  onEdit: (mock: MockDto) => void;
+  onToggle: (name: string) => void;
+  onDelete: (name: string) => void;
 }) {
   return (
     <Table striped responsive className="align-middle mocks-table">
@@ -541,12 +568,12 @@ function MockTable({
       </thead>
       <tbody>
         {items.map((mock) => {
-          const delayed = (mock.response.delayMs ?? 0) > 0
-          const blocked = mock.response.block === true
-          const advanced = hasAdvancedMatch(mock.match)
-          const methods = mock.match.methods?.filter(Boolean) ?? []
+          const delayed = (mock.response.delayMs ?? 0) > 0;
+          const blocked = mock.response.block === true;
+          const advanced = hasAdvancedMatch(mock.match);
+          const methods = mock.match.methods?.filter(Boolean) ?? [];
           return (
-            <tr key={mock.name} className={mock.enabled ? undefined : 'text-secondary'}>
+            <tr key={mock.name} className={mock.enabled ? undefined : "text-secondary"}>
               <td>
                 {mock.name}
                 <div className="row-meta">{mock.fileName}</div>
@@ -566,11 +593,11 @@ function MockTable({
               </td>
               <td>
                 <code>
-                  {mock.type === 'soap'
-                    ? mock.match.soapAction || mock.match.operation || '*'
-                    : mock.match.path || '*'}
+                  {mock.type === "soap"
+                    ? mock.match.soapAction || mock.match.operation || "*"
+                    : mock.match.path || "*"}
                 </code>
-                {mock.type !== 'soap' && mock.match.pathMode && mock.match.pathMode !== 'exact' && (
+                {mock.type !== "soap" && mock.match.pathMode && mock.match.pathMode !== "exact" && (
                   <div className="row-meta">{mock.match.pathMode}</div>
                 )}
               </td>
@@ -578,35 +605,35 @@ function MockTable({
                 <div className="mock-icons">
                   <MockIcon
                     on={mock.enabled}
-                    icon={mock.enabled ? 'bi-check-circle-fill' : 'bi-pause-circle'}
-                    activeClass={mock.enabled ? 'text-success' : 'text-secondary'}
-                    title={mock.enabled ? 'Enabled' : 'Disabled'}
+                    icon={mock.enabled ? "bi-check-circle-fill" : "bi-pause-circle"}
+                    activeClass={mock.enabled ? "text-success" : "text-secondary"}
+                    title={mock.enabled ? "Enabled" : "Disabled"}
                   />
                   <MockIcon
                     on={delayed}
                     icon="bi-hourglass-split"
                     activeClass="text-warning"
-                    title={delayed ? `Delayed ${mock.response.delayMs} ms` : 'No delay'}
+                    title={delayed ? `Delayed ${mock.response.delayMs} ms` : "No delay"}
                   />
                   <MockIcon
                     on={blocked}
                     icon="bi-slash-circle"
                     activeClass="text-danger"
-                    title={blocked ? 'Blocks the request' : 'Responds normally'}
+                    title={blocked ? "Blocks the request" : "Responds normally"}
                   />
                   <MockIcon
                     on={advanced}
                     icon="bi-sliders"
                     activeClass="text-info"
-                    title={advanced ? 'Uses extra match rules' : 'Path matching only'}
+                    title={advanced ? "Uses extra match rules" : "Path matching only"}
                   />
                 </div>
               </td>
-              <td>{blocked ? 'Block' : mock.response.statusCode}</td>
+              <td>{blocked ? "Block" : mock.response.statusCode}</td>
               <td className="text-end">
                 <Stack direction="horizontal" gap={1} className="justify-content-end">
                   <Button variant="outline-secondary" size="sm" onClick={() => onToggle(mock.name)}>
-                    {mock.enabled ? 'Disable' : 'Enable'}
+                    {mock.enabled ? "Disable" : "Enable"}
                   </Button>
                   <Button variant="outline-primary" size="sm" onClick={() => onEdit(mock)}>
                     Edit
@@ -617,7 +644,7 @@ function MockTable({
                 </Stack>
               </td>
             </tr>
-          )
+          );
         })}
         {items.length === 0 && (
           <tr>
@@ -626,5 +653,5 @@ function MockTable({
         )}
       </tbody>
     </Table>
-  )
+  );
 }

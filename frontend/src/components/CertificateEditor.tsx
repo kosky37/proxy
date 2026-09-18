@@ -1,96 +1,97 @@
-﻿import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Alert, Button, Col, Form, InputGroup, Modal, Row, Spinner } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+﻿import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Alert, Button, Col, Form, InputGroup, Modal, Row, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
 import {
   useGenerateServerCertificateMutation,
   useGetCertificatesQuery,
   useGetWindowsStoreCertificatesQuery,
   useUploadCertificateMutation,
-} from '../store/proxyApi'
-import type { CertificateDto } from '../store/types'
+} from "../store/proxyApi";
+import type { CertificateDto } from "../store/types";
 
 const blank = (): CertificateDto => ({
-  name: '',
-  fileName: '',
-  type: 'client',
-  source: 'file',
-  pfxPath: '',
-  password: '',
-  storeName: 'My',
-  storeLocation: 'CurrentUser',
-  thumbprint: '',
-})
+  name: "",
+  fileName: "",
+  type: "client",
+  source: "file",
+  pfxPath: "",
+  password: "",
+  storeName: "My",
+  storeLocation: "CurrentUser",
+  thumbprint: "",
+});
 
 interface Props {
-  show: boolean
-  initial?: CertificateDto | null
-  onSave: (certificate: CertificateDto) => Promise<void>
-  onCancel: () => void
+  show: boolean;
+  initial?: CertificateDto | null;
+  onSave: (certificate: CertificateDto) => Promise<void>;
+  onCancel: () => void;
 }
 
 function apiErrorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === 'object' && 'data' in error) {
-    const data = (error as { data?: { message?: string } }).data
+  if (error && typeof error === "object" && "data" in error) {
+    const data = (error as { data?: { message?: string } }).data;
     if (data?.message) {
-      return data.message
+      return data.message;
     }
   }
-  return fallback
+  return fallback;
 }
 
 export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
-  const fileInput = useRef<HTMLInputElement>(null)
-  const [certificate, setCertificate] = useState<CertificateDto>(initial ?? blank())
-  const [saving, setSaving] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hosts, setHosts] = useState('localhost\n127.0.0.1')
-  const [rootCertificateName, setRootCertificateName] = useState('')
-  const [validityYears, setValidityYears] = useState(2)
-  const [upload, uploadState] = useUploadCertificateMutation()
-  const [generateServer] = useGenerateServerCertificateMutation()
-  const isNew = !initial?.name
-  const source = certificate.source === 'windowsStore'
-    ? 'windowsStore'
-    : certificate.source === 'generate'
-      ? 'generate'
-      : 'file'
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [certificate, setCertificate] = useState<CertificateDto>(initial ?? blank());
+  const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hosts, setHosts] = useState("localhost\n127.0.0.1");
+  const [rootCertificateName, setRootCertificateName] = useState("");
+  const [validityYears, setValidityYears] = useState(2);
+  const [upload, uploadState] = useUploadCertificateMutation();
+  const [generateServer] = useGenerateServerCertificateMutation();
+  const isNew = !initial?.name;
+  const source =
+    certificate.source === "windowsStore"
+      ? "windowsStore"
+      : certificate.source === "generate"
+        ? "generate"
+        : "file";
   const windowsStore = useGetWindowsStoreCertificatesQuery(
-    { location: certificate.storeLocation ?? 'CurrentUser', store: certificate.storeName ?? 'My' },
-    { skip: !show || source !== 'windowsStore' },
-  )
-  const catalog = useGetCertificatesQuery(undefined, { skip: !show || source !== 'generate' })
-  const roots = catalog.data?.filter((item) => item.type === 'root') ?? []
+    { location: certificate.storeLocation ?? "CurrentUser", store: certificate.storeName ?? "My" },
+    { skip: !show || source !== "windowsStore" },
+  );
+  const catalog = useGetCertificatesQuery(undefined, { skip: !show || source !== "generate" });
+  const roots = catalog.data?.filter((item) => item.type === "root") ?? [];
 
   useEffect(() => {
     if (show) {
-      setCertificate(initial ?? blank())
-      setShowPassword(false)
-      setError(null)
-      setHosts('localhost\n127.0.0.1')
-      setRootCertificateName('')
-      setValidityYears(2)
+      setCertificate(initial ?? blank());
+      setShowPassword(false);
+      setError(null);
+      setHosts("localhost\n127.0.0.1");
+      setRootCertificateName("");
+      setValidityYears(2);
     }
-  }, [initial, show])
+  }, [initial, show]);
 
   const pickFile = async (file: File | undefined) => {
     if (!file) {
-      return
+      return;
     }
 
-    const uploaded = await upload({ file, name: certificate.name }).unwrap()
-    setCertificate((current) => ({ ...current, pfxPath: uploaded.pfxPath ?? '', source: 'file' }))
-  }
+    const uploaded = await upload({ file, name: certificate.name }).unwrap();
+    setCertificate((current) => ({ ...current, pfxPath: uploaded.pfxPath ?? "", source: "file" }));
+  };
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
-    setError(null)
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
     try {
-      if (source === 'generate') {
+      if (source === "generate") {
         if (!rootCertificateName) {
-          setError('Select a root certificate.')
-          return
+          setError("Select a root certificate.");
+          return;
         }
 
         await generateServer({
@@ -102,31 +103,32 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
             .filter(Boolean),
           password: certificate.password,
           validityYears,
-        }).unwrap()
-        onCancel()
-        return
+        }).unwrap();
+        onCancel();
+        return;
       }
 
       await onSave({
         ...certificate,
         source,
-        pfxPath: source === 'file' ? certificate.pfxPath : null,
-        password: source === 'file' ? certificate.password : null,
-        storeName: source === 'windowsStore' ? certificate.storeName || 'My' : null,
-        storeLocation: source === 'windowsStore' ? certificate.storeLocation || 'CurrentUser' : null,
-        thumbprint: source === 'windowsStore' ? certificate.thumbprint : null,
-      })
+        pfxPath: source === "file" ? certificate.pfxPath : null,
+        password: source === "file" ? certificate.password : null,
+        storeName: source === "windowsStore" ? certificate.storeName || "My" : null,
+        storeLocation:
+          source === "windowsStore" ? certificate.storeLocation || "CurrentUser" : null,
+        thumbprint: source === "windowsStore" ? certificate.thumbprint : null,
+      });
     } catch (caught) {
-      setError(apiErrorMessage(caught, 'Could not save the certificate.'))
+      setError(apiErrorMessage(caught, "Could not save the certificate."));
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>{initial?.name ? `Edit ${initial.name}` : 'New certificate'}</Modal.Title>
+        <Modal.Title>{initial?.name ? `Edit ${initial.name}` : "New certificate"}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form id="certificate-form" onSubmit={submit}>
@@ -152,12 +154,13 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                 <Form.Select
                   value={certificate.type}
                   onChange={(event) => {
-                    const type = event.target.value
+                    const type = event.target.value;
                     setCertificate({
                       ...certificate,
                       type,
-                      source: type !== 'server' && source === 'generate' ? 'file' : certificate.source,
-                    })
+                      source:
+                        type !== "server" && source === "generate" ? "file" : certificate.source,
+                    });
                   }}
                 >
                   <option value="client">Client</option>
@@ -174,7 +177,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                     setCertificate({
                       ...certificate,
                       source: event.target.value,
-                      type: event.target.value === 'generate' ? 'server' : certificate.type,
+                      type: event.target.value === "generate" ? "server" : certificate.type,
                     })
                   }
                 >
@@ -185,7 +188,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
               </Form.Group>
             </Col>
 
-            {source === 'file' ? (
+            {source === "file" ? (
               <>
                 <Col xs={12}>
                   <Form.Group>
@@ -194,7 +197,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                       <Form.Control
                         required
                         placeholder="client.pfx"
-                        value={certificate.pfxPath ?? ''}
+                        value={certificate.pfxPath ?? ""}
                         onChange={(event) =>
                           setCertificate({ ...certificate, pfxPath: event.target.value })
                         }
@@ -213,8 +216,8 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                       accept=".pfx,.p12,.pem,.crt,.cer"
                       hidden
                       onChange={(event) => {
-                        void pickFile(event.currentTarget.files?.[0])
-                        event.currentTarget.value = ''
+                        void pickFile(event.currentTarget.files?.[0]);
+                        event.currentTarget.value = "";
                       }}
                     />
                     {uploadState.isLoading && (
@@ -229,8 +232,8 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                     <Form.Label>Password</Form.Label>
                     <InputGroup>
                       <Form.Control
-                        type={showPassword ? 'text' : 'password'}
-                        value={certificate.password ?? ''}
+                        type={showPassword ? "text" : "password"}
+                        value={certificate.password ?? ""}
                         onChange={(event) =>
                           setCertificate({ ...certificate, password: event.target.value })
                         }
@@ -241,13 +244,13 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                         type="button"
                         onClick={() => setShowPassword((current) => !current)}
                       >
-                        {showPassword ? 'Hide' : 'Show'}
+                        {showPassword ? "Hide" : "Show"}
                       </Button>
                     </InputGroup>
                   </Form.Group>
                 </Col>
               </>
-            ) : source === 'generate' ? (
+            ) : source === "generate" ? (
               <>
                 <Col xs={12}>
                   <Form.Group>
@@ -271,7 +274,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                     </Form.Select>
                     {roots.length === 0 && !catalog.isLoading && (
                       <Form.Text>
-                        Generate a root certificate on the{' '}
+                        Generate a root certificate on the{" "}
                         <Link to="/certificates">Certificates</Link> page first.
                       </Form.Text>
                     )}
@@ -309,8 +312,8 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                     <Form.Label>Password</Form.Label>
                     <InputGroup>
                       <Form.Control
-                        type={showPassword ? 'text' : 'password'}
-                        value={certificate.password ?? ''}
+                        type={showPassword ? "text" : "password"}
+                        value={certificate.password ?? ""}
                         onChange={(event) =>
                           setCertificate({ ...certificate, password: event.target.value })
                         }
@@ -321,7 +324,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                         type="button"
                         onClick={() => setShowPassword((current) => !current)}
                       >
-                        {showPassword ? 'Hide' : 'Show'}
+                        {showPassword ? "Hide" : "Show"}
                       </Button>
                     </InputGroup>
                     <Form.Text>Protects the generated private key file.</Form.Text>
@@ -334,12 +337,12 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                   <Form.Group>
                     <Form.Label>Store location</Form.Label>
                     <Form.Select
-                      value={certificate.storeLocation ?? 'CurrentUser'}
+                      value={certificate.storeLocation ?? "CurrentUser"}
                       onChange={(event) =>
                         setCertificate({
                           ...certificate,
                           storeLocation: event.target.value,
-                          thumbprint: '',
+                          thumbprint: "",
                         })
                       }
                     >
@@ -352,12 +355,12 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                   <Form.Group>
                     <Form.Label>Store name</Form.Label>
                     <Form.Select
-                      value={certificate.storeName ?? 'My'}
+                      value={certificate.storeName ?? "My"}
                       onChange={(event) =>
                         setCertificate({
                           ...certificate,
                           storeName: event.target.value,
-                          thumbprint: '',
+                          thumbprint: "",
                         })
                       }
                     >
@@ -384,7 +387,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                     )}
                     <Form.Select
                       required
-                      value={certificate.thumbprint ?? ''}
+                      value={certificate.thumbprint ?? ""}
                       onChange={(event) =>
                         setCertificate({ ...certificate, thumbprint: event.target.value })
                       }
@@ -393,7 +396,7 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
                       {windowsStore.data?.map((item) => (
                         <option key={item.thumbprint} value={item.thumbprint}>
                           {(item.friendlyName || item.subject) +
-                            (item.hasPrivateKey ? '' : ' (no private key)') +
+                            (item.hasPrivateKey ? "" : " (no private key)") +
                             ` — ${item.thumbprint.slice(0, 8)}…`}
                         </option>
                       ))}
@@ -414,9 +417,9 @@ export function CertificateEditor({ show, initial, onSave, onCancel }: Props) {
           Cancel
         </Button>
         <Button type="submit" form="certificate-form" disabled={saving}>
-          {source === 'generate' ? 'Generate' : 'Save'}
+          {source === "generate" ? "Generate" : "Save"}
         </Button>
       </Modal.Footer>
     </Modal>
-  )
+  );
 }

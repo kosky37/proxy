@@ -1,40 +1,40 @@
-﻿import { useState } from 'react'
-import { Badge, Button, Stack, Table } from 'react-bootstrap'
-import { CertificateEditor } from '../components/CertificateEditor'
-import { RootCertificatePanel } from '../components/RootCertificatePanel'
+﻿import { useState } from "react";
+import { Badge, Button, Stack, Table } from "react-bootstrap";
+import { CertificateEditor } from "../components/CertificateEditor";
+import { RootCertificatePanel } from "../components/RootCertificatePanel";
 import {
   useCreateCertificateMutation,
   useDeleteCertificateMutation,
   useGetCertificatesQuery,
   useUpdateCertificateMutation,
-} from '../store/proxyApi'
-import type { CertificateDto } from '../store/types'
+} from "../store/proxyApi";
+import type { CertificateDto } from "../store/types";
 
 export function CertificatesPage() {
-  const certificates = useGetCertificatesQuery()
-  const [editing, setEditing] = useState<CertificateDto | null | undefined>(undefined)
-  const [revealed, setRevealed] = useState<Record<string, boolean>>({})
-  const [createCertificate] = useCreateCertificateMutation()
-  const [updateCertificate] = useUpdateCertificateMutation()
-  const [deleteCertificate] = useDeleteCertificateMutation()
-  const catalog = certificates.data ?? []
-  const leafCertificates = catalog.filter((item) => item.type !== 'root')
+  const certificates = useGetCertificatesQuery();
+  const [editing, setEditing] = useState<CertificateDto | null | undefined>(undefined);
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [createCertificate] = useCreateCertificateMutation();
+  const [updateCertificate] = useUpdateCertificateMutation();
+  const [deleteCertificate] = useDeleteCertificateMutation();
+  const catalog = certificates.data ?? [];
+  const leafCertificates = catalog.filter((item) => item.type !== "root");
 
   const save = async (certificate: CertificateDto) => {
     if (editing?.name) {
-      await updateCertificate({ name: editing.name, body: certificate }).unwrap()
+      await updateCertificate({ name: editing.name, body: certificate }).unwrap();
     } else {
-      await createCertificate(certificate).unwrap()
+      await createCertificate(certificate).unwrap();
     }
-    setEditing(undefined)
-  }
+    setEditing(undefined);
+  };
 
   const locationLabel = (certificate: CertificateDto) => {
-    if (certificate.source === 'windowsStore') {
-      return `${certificate.storeLocation ?? 'CurrentUser'}/${certificate.storeName ?? 'My'}`
+    if (certificate.source === "windowsStore") {
+      return `${certificate.storeLocation ?? "CurrentUser"}/${certificate.storeName ?? "My"}`;
     }
-    return certificate.pfxPath || '—'
-  }
+    return certificate.pfxPath || "—";
+  };
 
   return (
     <>
@@ -64,20 +64,20 @@ export function CertificatesPage() {
         </thead>
         <tbody>
           {leafCertificates.map((certificate) => {
-            const isStore = certificate.source === 'windowsStore'
-            const showSecret = revealed[certificate.name] === true
+            const isStore = certificate.source === "windowsStore";
+            const showSecret = revealed[certificate.name] === true;
             return (
               <tr key={certificate.name}>
                 <td>{certificate.name}</td>
                 <td>
                   <Badge
-                    bg={certificate.type === 'server' ? 'warning' : 'primary'}
-                    text={certificate.type === 'server' ? 'dark' : undefined}
+                    bg={certificate.type === "server" ? "warning" : "primary"}
+                    text={certificate.type === "server" ? "dark" : undefined}
                   >
-                    {certificate.type === 'server' ? 'Server' : 'Client'}
+                    {certificate.type === "server" ? "Server" : "Client"}
                   </Badge>
                 </td>
-                <td>{isStore ? 'Windows store' : 'File'}</td>
+                <td>{isStore ? "Windows store" : "File"}</td>
                 <td>
                   <code>{locationLabel(certificate)}</code>
                 </td>
@@ -86,7 +86,7 @@ export function CertificatesPage() {
                     <span className="row-meta">n/a</span>
                   ) : certificate.password ? (
                     <Stack direction="horizontal" gap={2} className="align-items-center">
-                      <code>{showSecret ? certificate.password : '••••••••'}</code>
+                      <code>{showSecret ? certificate.password : "••••••••"}</code>
                       <Button
                         variant="link"
                         size="sm"
@@ -98,7 +98,7 @@ export function CertificatesPage() {
                           }))
                         }
                       >
-                        {showSecret ? 'Hide' : 'Show'}
+                        {showSecret ? "Hide" : "Show"}
                       </Button>
                     </Stack>
                   ) : (
@@ -107,7 +107,11 @@ export function CertificatesPage() {
                 </td>
                 <td className="text-end">
                   <Stack direction="horizontal" gap={1} className="justify-content-end">
-                    <Button variant="outline-primary" size="sm" onClick={() => setEditing(certificate)}>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setEditing(certificate)}
+                    >
                       Edit
                     </Button>
                     <Button
@@ -120,7 +124,7 @@ export function CertificatesPage() {
                   </Stack>
                 </td>
               </tr>
-            )
+            );
           })}
           {leafCertificates.length === 0 && (
             <tr>
@@ -139,5 +143,5 @@ export function CertificatesPage() {
         onCancel={() => setEditing(undefined)}
       />
     </>
-  )
+  );
 }

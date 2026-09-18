@@ -1,5 +1,5 @@
-@import 'bootstrap/dist/css/bootstrap.min.css';
-@import 'bootstrap-icons/font/bootstrap-icons.css';
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
 
 :root {
   --log-status-2xx: #198754;
@@ -376,7 +376,8 @@ pre {
   color: #fff;
 }
 
-.log-collapse-toggle {
+.log-collapse-toggle,
+.section-collapse-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -384,9 +385,11 @@ pre {
   border: 0;
   background: transparent;
   color: inherit;
+  text-align: left;
 }
 
-.log-collapse-toggle > .bi {
+.log-collapse-toggle > .bi,
+.section-collapse-toggle > .bi {
   font-size: 0.75rem;
   color: var(--bs-secondary-color);
 }

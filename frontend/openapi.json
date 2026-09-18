@@ -8,9 +8,7 @@
   "paths": {
     "/api/health": {
       "get": {
-        "tags": [
-          "Health"
-        ],
+        "tags": ["Health"],
         "responses": {
           "200": {
             "description": "OK",
@@ -37,9 +35,7 @@
     },
     "/api/proxies/{proxyId}/logs": {
       "get": {
-        "tags": [
-          "Logs"
-        ],
+        "tags": ["Logs"],
         "parameters": [
           {
             "name": "proxyId",
@@ -159,9 +155,7 @@
     },
     "/api/proxies/{proxyId}/logs/{entryId}": {
       "get": {
-        "tags": [
-          "Logs"
-        ],
+        "tags": ["Logs"],
         "parameters": [
           {
             "name": "proxyId",
@@ -227,9 +221,7 @@
     },
     "/api/proxies/{proxyId}/stats": {
       "get": {
-        "tags": [
-          "Logs"
-        ],
+        "tags": ["Logs"],
         "parameters": [
           {
             "name": "proxyId",
@@ -286,9 +278,7 @@
     },
     "/api/proxies/{proxyId}/mocks": {
       "get": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -352,9 +342,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -450,9 +438,7 @@
     },
     "/api/proxies/{proxyId}/mocks/{name}": {
       "get": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -515,9 +501,7 @@
         }
       },
       "put": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -599,9 +583,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -649,9 +631,7 @@
     },
     "/api/proxies/{proxyId}/mocks/{name}/toggle": {
       "post": {
-        "tags": [
-          "Mocks"
-        ],
+        "tags": ["Mocks"],
         "parameters": [
           {
             "name": "proxyId",
@@ -716,9 +696,7 @@
     },
     "/api/proxies": {
       "get": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "responses": {
           "200": {
             "description": "OK",
@@ -752,9 +730,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "requestBody": {
           "content": {
             "application/json": {
@@ -820,9 +796,7 @@
     },
     "/api/proxies/{id}": {
       "get": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "parameters": [
           {
             "name": "id",
@@ -877,9 +851,7 @@
         }
       },
       "put": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "parameters": [
           {
             "name": "id",
@@ -953,9 +925,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "parameters": [
           {
             "name": "id",
@@ -995,9 +965,7 @@
     },
     "/api/proxies/{id}/mocks-enabled": {
       "put": {
-        "tags": [
-          "Proxies"
-        ],
+        "tags": ["Proxies"],
         "parameters": [
           {
             "name": "id",
@@ -1089,9 +1057,7 @@
         "additionalProperties": false
       },
       "DestinationDto": {
-        "required": [
-          "address"
-        ],
+        "required": ["address"],
         "type": "object",
         "properties": {
           "address": {
@@ -1108,9 +1074,7 @@
         "additionalProperties": false
       },
       "HealthDto": {
-        "required": [
-          "status"
-        ],
+        "required": ["status"],
         "type": "object",
         "properties": {
           "status": {
@@ -1121,9 +1085,7 @@
         "additionalProperties": false
       },
       "ListenDto": {
-        "required": [
-          "url"
-        ],
+        "required": ["url"],
         "type": "object",
         "properties": {
           "url": {
@@ -1148,12 +1110,7 @@
         "additionalProperties": false
       },
       "LogDetailDto": {
-        "required": [
-          "method",
-          "mode",
-          "path",
-          "protocol"
-        ],
+        "required": ["method", "mode", "path", "protocol"],
         "type": "object",
         "properties": {
           "id": {
@@ -1227,10 +1184,7 @@
         "additionalProperties": false
       },
       "LogListDto": {
-        "required": [
-          "items",
-          "total"
-        ],
+        "required": ["items", "total"],
         "type": "object",
         "properties": {
           "items": {
@@ -1248,12 +1202,7 @@
         "additionalProperties": false
       },
       "LogListItemDto": {
-        "required": [
-          "method",
-          "mode",
-          "path",
-          "protocol"
-        ],
+        "required": ["method", "mode", "path", "protocol"],
         "type": "object",
         "properties": {
           "id": {
@@ -1305,11 +1254,7 @@
         "additionalProperties": false
       },
       "MockDto": {
-        "required": [
-          "fileName",
-          "name",
-          "type"
-        ],
+        "required": ["fileName", "name", "type"],
         "type": "object",
         "properties": {
           "name": {
@@ -1466,15 +1411,10 @@
             "nullable": true
           }
         },
-        "additionalProperties": { }
+        "additionalProperties": {}
       },
       "ProxyDetailDto": {
-        "required": [
-          "destination",
-          "id",
-          "listen",
-          "name"
-        ],
+        "required": ["destination", "id", "listen", "name"],
         "type": "object",
         "properties": {
           "id": {
@@ -1505,12 +1445,7 @@
         "additionalProperties": false
       },
       "ProxyListItemDto": {
-        "required": [
-          "destinationAddress",
-          "id",
-          "listenUrl",
-          "name"
-        ],
+        "required": ["destinationAddress", "id", "listenUrl", "name"],
         "type": "object",
         "properties": {
           "id": {
@@ -1579,11 +1514,7 @@
         "additionalProperties": false
       },
       "UpsertProxyRequest": {
-        "required": [
-          "destination",
-          "listen",
-          "name"
-        ],
+        "required": ["destination", "listen", "name"],
         "type": "object",
         "properties": {
           "id": {

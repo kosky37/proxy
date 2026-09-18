@@ -57,9 +57,7 @@ export function LogDetailModal({
       onExited={() => setRaw(false)}
     >
       <Modal.Header closeButton>
-        <Modal.Title>
-          {log ? <LogRequestLine item={log} showSoapAction /> : null}
-        </Modal.Title>
+        <Modal.Title>{log ? <LogRequestLine item={log} showSoapAction /> : null}</Modal.Title>
       </Modal.Header>
       {log && (
         <Modal.Body>
@@ -67,12 +65,8 @@ export function LogDetailModal({
             <Badge bg={kind.bg} text={kind.text}>
               {kind.label}
             </Badge>
-            <span className={`badge ${modeClass(log.mode)}`}>
-              {modeBadge(log.mode).label}
-            </span>
-            <span className={`badge ${statusClass(log.statusCode)}`}>
-              {log.statusCode ?? "-"}
-            </span>
+            <span className={`badge ${modeClass(log.mode)}`}>{modeBadge(log.mode).label}</span>
+            <span className={`badge ${statusClass(log.statusCode)}`}>{log.statusCode ?? "-"}</span>
             <span>{log.durationMs} ms</span>
             {log.proxyName && <span>{log.proxyName}</span>}
             {log.mockName && <span>Mock: {log.mockName}</span>}
@@ -162,9 +156,10 @@ function HttpMessage({
   allowHtmlPreview?: boolean;
 }) {
   const [htmlPreview, setHtmlPreview] = useState(false);
-  const headerFields = Object.entries(parseHeaders(headers)).map(
-    ([name, value]) => ({ name, value }),
-  );
+  const headerFields = Object.entries(parseHeaders(headers)).map(([name, value]) => ({
+    name,
+    value,
+  }));
   const contentType = getHeader(parseHeaderMap(headers), "Content-Type");
   const html = allowHtmlPreview && looksLikeHtml(body, contentType);
   const bodyNodes = raw || htmlPreview ? null : parseBody(body);
@@ -263,10 +258,7 @@ function FieldBlock({
           className="log-collapse-toggle"
           onClick={() => setOpen((value) => !value)}
         >
-          <i
-            className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`}
-            aria-hidden
-          />
+          <i className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`} aria-hidden />
           <strong>{title}</strong>
           <span className="row-meta">{fields.length}</span>
         </button>
@@ -284,13 +276,7 @@ function FieldBlock({
   );
 }
 
-function FieldTable({
-  fields,
-  empty,
-}: {
-  fields: ParsedField[];
-  empty: string;
-}) {
+function FieldTable({ fields, empty }: { fields: ParsedField[]; empty: string }) {
   return (
     <Table bordered size="sm" className="log-headers-table mb-0">
       <colgroup>
@@ -329,22 +315,14 @@ function FieldTable({
   );
 }
 
-function TruncatedText({
-  value,
-  code = false,
-}: {
-  value: string;
-  code?: boolean;
-}) {
+function TruncatedText({ value, code = false }: { value: string; code?: boolean }) {
   const content = code ? <code>{value}</code> : value;
   if (!value) {
     return content;
   }
 
   return (
-    <OverlayTrigger
-      overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}
-    >
+    <OverlayTrigger overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}>
       <span className="log-headers-text">{content}</span>
     </OverlayTrigger>
   );
@@ -379,10 +357,7 @@ function parseHeaders(raw?: string | null): Record<string, string> {
     const parsed = JSON.parse(raw) as unknown;
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       return Object.fromEntries(
-        Object.entries(parsed).map(([key, value]) => [
-          key,
-          value == null ? "" : String(value),
-        ]),
+        Object.entries(parsed).map(([key, value]) => [key, value == null ? "" : String(value)]),
       );
     }
   } catch {

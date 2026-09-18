@@ -1,21 +1,24 @@
-import type { ReactNode } from 'react'
-import { Form, OverlayTrigger, Stack, Tooltip } from 'react-bootstrap'
+import type { ReactNode } from "react";
+import { Form, OverlayTrigger, Stack, Tooltip } from "react-bootstrap";
 
 export const pathModeHelp =
-  'Exact: only this path. Example: /accounts matches /accounts, not /accounts/1. Prefix: this path and anything under it, so /accounts also matches /accounts/1. Template: {name} stands for one segment, so /accounts/{id} matches /accounts/42 but not /accounts/42/orders.'
+  "Exact: only this path. Example: /accounts matches /accounts, not /accounts/1. Prefix: this path and anything under it, so /accounts also matches /accounts/1. Template: {name} stands for one segment, so /accounts/{id} matches /accounts/42 but not /accounts/42/orders.";
 
 export function FieldHelp({
   text,
-  placement = 'right',
+  placement = "right",
 }: {
-  text: string
-  placement?: 'top' | 'bottom' | 'left' | 'right'
+  text: string;
+  placement?: "top" | "bottom" | "left" | "right";
 }) {
   return (
-    <OverlayTrigger placement={placement} overlay={<Tooltip className="tooltip-wide">{text}</Tooltip>}>
+    <OverlayTrigger
+      placement={placement}
+      overlay={<Tooltip className="tooltip-wide">{text}</Tooltip>}
+    >
       <i className="bi bi-info-circle field-help" tabIndex={0} aria-label="More information" />
     </OverlayTrigger>
-  )
+  );
 }
 
 export function TabToolbar({ help, children }: { help: string; children: ReactNode }) {
@@ -26,7 +29,7 @@ export function TabToolbar({ help, children }: { help: string; children: ReactNo
         <FieldHelp text={help} placement="left" />
       </span>
     </Stack>
-  )
+  );
 }
 
 export function FieldLabel({ children, help }: { children: ReactNode; help: string }) {
@@ -35,5 +38,5 @@ export function FieldLabel({ children, help }: { children: ReactNode; help: stri
       <span>{children}</span>
       <FieldHelp text={help} />
     </Form.Label>
-  )
+  );
 }

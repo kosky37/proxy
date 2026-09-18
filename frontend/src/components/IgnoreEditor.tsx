@@ -1,49 +1,49 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Button, Col, Form, Modal, Row } from 'react-bootstrap'
-import type { IgnoredPathDto } from '../store/types'
-import { FieldLabel, pathModeHelp } from './FieldHelp'
-import { MethodTypeahead } from './TypeaheadFields'
+import { useEffect, useState, type FormEvent } from "react";
+import { Button, Col, Form, Modal, Row } from "react-bootstrap";
+import type { IgnoredPathDto } from "../store/types";
+import { FieldLabel, pathModeHelp } from "./FieldHelp";
+import { MethodTypeahead } from "./TypeaheadFields";
 
 const blank = (): IgnoredPathDto => ({
-  name: '',
-  fileName: '',
-  path: '',
-  pathMode: 'exact',
+  name: "",
+  fileName: "",
+  path: "",
+  pathMode: "exact",
   methods: [],
-})
+});
 
 interface Props {
-  show: boolean
-  initial?: IgnoredPathDto | null
-  isNew?: boolean
-  onSave: (ignore: IgnoredPathDto) => Promise<void>
-  onCancel: () => void
+  show: boolean;
+  initial?: IgnoredPathDto | null;
+  isNew?: boolean;
+  onSave: (ignore: IgnoredPathDto) => Promise<void>;
+  onCancel: () => void;
 }
 
 export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, onCancel }: Props) {
-  const [ignore, setIgnore] = useState<IgnoredPathDto>(initial ?? blank())
-  const [saving, setSaving] = useState(false)
+  const [ignore, setIgnore] = useState<IgnoredPathDto>(initial ?? blank());
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (show) {
-      setIgnore(initial ?? blank())
+      setIgnore(initial ?? blank());
     }
-  }, [initial, show])
+  }, [initial, show]);
 
   const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    setSaving(true)
+    event.preventDefault();
+    setSaving(true);
     try {
-      await onSave(ignore)
+      await onSave(ignore);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   return (
     <Modal show={show} onHide={onCancel}>
       <Modal.Header closeButton>
-        <Modal.Title>{isNew ? 'New ignore' : `Edit ${initial?.name}`}</Modal.Title>
+        <Modal.Title>{isNew ? "New ignore" : `Edit ${initial?.name}`}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form id="ignore-form" onSubmit={submit}>
@@ -107,5 +107,5 @@ export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, on
         </Button>
       </Modal.Footer>
     </Modal>
-  )
+  );
 }

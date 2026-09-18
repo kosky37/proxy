@@ -22,11 +22,7 @@ export function Layout() {
     <>
       <Navbar expand bg="body-tertiary" className="border-bottom">
         <Container fluid>
-          <Navbar.Brand
-            as={Link}
-            to="/"
-            className="d-flex align-items-center gap-2"
-          >
+          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
             <img src="/favicon.svg" alt="" className="app-logo" />
             ProxyMockTool
           </Navbar.Brand>
@@ -41,10 +37,7 @@ export function Layout() {
               Logs
             </Nav.Link>
           </Nav>
-          <Badge
-            bg={health.data?.status === "ok" ? "success" : "secondary"}
-            className="me-3"
-          >
+          <Badge bg={health.data?.status === "ok" ? "success" : "secondary"} className="me-3">
             API {health.data?.status ?? "offline"}
           </Badge>
           <Button variant="outline-secondary" size="sm" onClick={toggleTheme}>

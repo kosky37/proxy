@@ -1,15 +1,15 @@
-﻿import { Card, Col, Form, Row, Stack } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
-import type { CertificateDto, UpsertProxyRequest } from '../store/types'
+﻿import { Card, Col, Form, Row, Stack } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import type { CertificateDto, UpsertProxyRequest } from "../store/types";
 
 interface Props {
-  form: UpsertProxyRequest
-  onChange: (next: UpsertProxyRequest) => void
-  certificates?: CertificateDto[]
+  form: UpsertProxyRequest;
+  onChange: (next: UpsertProxyRequest) => void;
+  certificates?: CertificateDto[];
   /** Show folder id field (create only). */
-  showId?: boolean
+  showId?: boolean;
   /** Show enabled switch, delays, and log settings (edit / full settings). */
-  showAdvanced?: boolean
+  showAdvanced?: boolean;
 }
 
 export function ProxySettingsFields({
@@ -19,9 +19,9 @@ export function ProxySettingsFields({
   showId = false,
   showAdvanced = true,
 }: Props) {
-  const set = (next: UpsertProxyRequest) => onChange(next)
-  const serverCerts = certificates.filter((item) => item.type === 'server')
-  const clientCerts = certificates.filter((item) => item.type === 'client')
+  const set = (next: UpsertProxyRequest) => onChange(next);
+  const serverCerts = certificates.filter((item) => item.type === "server");
+  const clientCerts = certificates.filter((item) => item.type === "client");
 
   return (
     <Stack gap={3}>
@@ -34,7 +34,7 @@ export function ProxySettingsFields({
                 <Form.Group>
                   <Form.Label>Id</Form.Label>
                   <Form.Control
-                    value={form.id ?? ''}
+                    value={form.id ?? ""}
                     placeholder="folder-name"
                     onChange={(event) => set({ ...form, id: event.target.value })}
                   />
@@ -87,7 +87,7 @@ export function ProxySettingsFields({
                 <Form.Group>
                   <Form.Label>Path prefix</Form.Label>
                   <Form.Control
-                    value={form.listen.pathPrefix ?? ''}
+                    value={form.listen.pathPrefix ?? ""}
                     placeholder="/api"
                     onChange={(event) =>
                       set({
@@ -104,7 +104,7 @@ export function ProxySettingsFields({
                 <Form.Group>
                   <Form.Label>Server certificate</Form.Label>
                   <Form.Select
-                    value={form.listen.serverCertificateId ?? ''}
+                    value={form.listen.serverCertificateId ?? ""}
                     onChange={(event) =>
                       set({
                         ...form,
@@ -123,7 +123,7 @@ export function ProxySettingsFields({
                     ))}
                   </Form.Select>
                   <Form.Text>
-                    HTTPS certificate for this listener. Defined on the{' '}
+                    HTTPS certificate for this listener. Defined on the{" "}
                     <Link to="/certificates">Certificates</Link> page.
                   </Form.Text>
                 </Form.Group>
@@ -166,7 +166,7 @@ export function ProxySettingsFields({
                 <Form.Group>
                   <Form.Label>Client certificate</Form.Label>
                   <Form.Select
-                    value={form.destination.clientCertificateId ?? ''}
+                    value={form.destination.clientCertificateId ?? ""}
                     onChange={(event) =>
                       set({
                         ...form,
@@ -185,7 +185,7 @@ export function ProxySettingsFields({
                     ))}
                   </Form.Select>
                   <Form.Text>
-                    Presented to the destination. Defined on the{' '}
+                    Presented to the destination. Defined on the{" "}
                     <Link to="/certificates">Certificates</Link> page.
                   </Form.Text>
                 </Form.Group>
@@ -226,7 +226,9 @@ export function ProxySettingsFields({
                       set({ ...form, logRetentionDays: Number(event.target.value) })
                     }
                   />
-                  <Form.Text>0 keeps logs forever. Older entries are deleted automatically.</Form.Text>
+                  <Form.Text>
+                    0 keeps logs forever. Older entries are deleted automatically.
+                  </Form.Text>
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -253,5 +255,5 @@ export function ProxySettingsFields({
         </Card>
       )}
     </Stack>
-  )
+  );
 }

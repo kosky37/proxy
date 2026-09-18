@@ -107,16 +107,11 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Mocks"],
       }),
-      getApiProxies: build.query<GetApiProxiesApiResponse, GetApiProxiesApiArg>(
-        {
-          query: () => ({ url: `/api/proxies` }),
-          providesTags: ["Proxies"],
-        },
-      ),
-      postApiProxies: build.mutation<
-        PostApiProxiesApiResponse,
-        PostApiProxiesApiArg
-      >({
+      getApiProxies: build.query<GetApiProxiesApiResponse, GetApiProxiesApiArg>({
+        query: () => ({ url: `/api/proxies` }),
+        providesTags: ["Proxies"],
+      }),
+      postApiProxies: build.mutation<PostApiProxiesApiResponse, PostApiProxiesApiArg>({
         query: (queryArg) => ({
           url: `/api/proxies`,
           method: "POST",
@@ -124,17 +119,11 @@ const injectedRtkApi = api
         }),
         invalidatesTags: ["Proxies"],
       }),
-      getApiProxiesById: build.query<
-        GetApiProxiesByIdApiResponse,
-        GetApiProxiesByIdApiArg
-      >({
+      getApiProxiesById: build.query<GetApiProxiesByIdApiResponse, GetApiProxiesByIdApiArg>({
         query: (queryArg) => ({ url: `/api/proxies/${queryArg.id}` }),
         providesTags: ["Proxies"],
       }),
-      putApiProxiesById: build.mutation<
-        PutApiProxiesByIdApiResponse,
-        PutApiProxiesByIdApiArg
-      >({
+      putApiProxiesById: build.mutation<PutApiProxiesByIdApiResponse, PutApiProxiesByIdApiArg>({
         query: (queryArg) => ({
           url: `/api/proxies/${queryArg.id}`,
           method: "PUT",
@@ -169,8 +158,7 @@ const injectedRtkApi = api
 export { injectedRtkApi as generatedProxyApi };
 export type GetApiHealthApiResponse = /** status 200 OK */ HealthDto;
 export type GetApiHealthApiArg = void;
-export type GetApiProxiesByProxyIdLogsApiResponse =
-  /** status 200 OK */ LogListDto;
+export type GetApiProxiesByProxyIdLogsApiResponse = /** status 200 OK */ LogListDto;
 export type GetApiProxiesByProxyIdLogsApiArg = {
   proxyId: string;
   from?: string;
@@ -182,36 +170,30 @@ export type GetApiProxiesByProxyIdLogsApiArg = {
   skip?: number;
   take?: number;
 };
-export type GetApiProxiesByProxyIdLogsAndEntryIdApiResponse =
-  /** status 200 OK */ LogDetailDto;
+export type GetApiProxiesByProxyIdLogsAndEntryIdApiResponse = /** status 200 OK */ LogDetailDto;
 export type GetApiProxiesByProxyIdLogsAndEntryIdApiArg = {
   proxyId: string;
   entryId: number;
 };
-export type GetApiProxiesByProxyIdStatsApiResponse =
-  /** status 200 OK */ ProxyStatsDto;
+export type GetApiProxiesByProxyIdStatsApiResponse = /** status 200 OK */ ProxyStatsDto;
 export type GetApiProxiesByProxyIdStatsApiArg = {
   proxyId: string;
 };
-export type GetApiProxiesByProxyIdMocksApiResponse =
-  /** status 200 OK */ MockDto[];
+export type GetApiProxiesByProxyIdMocksApiResponse = /** status 200 OK */ MockDto[];
 export type GetApiProxiesByProxyIdMocksApiArg = {
   proxyId: string;
 };
-export type PostApiProxiesByProxyIdMocksApiResponse =
-  /** status 201 Created */ MockDto;
+export type PostApiProxiesByProxyIdMocksApiResponse = /** status 201 Created */ MockDto;
 export type PostApiProxiesByProxyIdMocksApiArg = {
   proxyId: string;
   mockDto: MockDto;
 };
-export type GetApiProxiesByProxyIdMocksAndNameApiResponse =
-  /** status 200 OK */ MockDto;
+export type GetApiProxiesByProxyIdMocksAndNameApiResponse = /** status 200 OK */ MockDto;
 export type GetApiProxiesByProxyIdMocksAndNameApiArg = {
   proxyId: string;
   name: string;
 };
-export type PutApiProxiesByProxyIdMocksAndNameApiResponse =
-  /** status 200 OK */ MockDto;
+export type PutApiProxiesByProxyIdMocksAndNameApiResponse = /** status 200 OK */ MockDto;
 export type PutApiProxiesByProxyIdMocksAndNameApiArg = {
   proxyId: string;
   name: string;
@@ -222,16 +204,14 @@ export type DeleteApiProxiesByProxyIdMocksAndNameApiArg = {
   proxyId: string;
   name: string;
 };
-export type PostApiProxiesByProxyIdMocksAndNameToggleApiResponse =
-  /** status 200 OK */ MockDto;
+export type PostApiProxiesByProxyIdMocksAndNameToggleApiResponse = /** status 200 OK */ MockDto;
 export type PostApiProxiesByProxyIdMocksAndNameToggleApiArg = {
   proxyId: string;
   name: string;
 };
 export type GetApiProxiesApiResponse = /** status 200 OK */ ProxyListItemDto[];
 export type GetApiProxiesApiArg = void;
-export type PostApiProxiesApiResponse =
-  /** status 201 Created */ ProxyDetailDto;
+export type PostApiProxiesApiResponse = /** status 201 Created */ ProxyDetailDto;
 export type PostApiProxiesApiArg = {
   upsertProxyRequest: UpsertProxyRequest;
 };
@@ -248,8 +228,7 @@ export type DeleteApiProxiesByIdApiResponse = unknown;
 export type DeleteApiProxiesByIdApiArg = {
   id: string;
 };
-export type PutApiProxiesByIdMocksEnabledApiResponse =
-  /** status 200 OK */ ProxyDetailDto;
+export type PutApiProxiesByIdMocksEnabledApiResponse = /** status 200 OK */ ProxyDetailDto;
 export type PutApiProxiesByIdMocksEnabledApiArg = {
   id: string;
   mocksEnabledRequest: MocksEnabledRequest;

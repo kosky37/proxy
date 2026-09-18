@@ -1,8 +1,8 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export const emptySplitApi = createApi({
-  reducerPath: 'proxyApi',
-  baseQuery: fetchBaseQuery({ baseUrl: '/' }),
-  tagTypes: ['Proxies', 'Mocks', 'Logs', 'Certificates', 'Ignores', 'MockSets'],
+  reducerPath: "proxyApi",
+  baseQuery: fetchBaseQuery({ baseUrl: "/" }),
+  tagTypes: ["Proxies", "Mocks", "Logs", "Certificates", "Ignores", "MockSets"],
   endpoints: () => ({}),
-})
+});

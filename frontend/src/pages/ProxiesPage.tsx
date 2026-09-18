@@ -1,16 +1,8 @@
-﻿import { useEffect, useState, type FormEvent } from 'react'
-import {
-  Alert,
-  Badge,
-  Button,
-  Form,
-  Modal,
-  Stack,
-  Table,
-} from 'react-bootstrap'
-import { Link } from 'react-router-dom'
-import { CopyButton } from '../components/CopyButton'
-import { ProxySettingsFields } from '../components/ProxySettingsFields'
+﻿import { useEffect, useState, type FormEvent } from "react";
+import { Alert, Badge, Button, Form, Modal, Stack, Table } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import { CopyButton } from "../components/CopyButton";
+import { ProxySettingsFields } from "../components/ProxySettingsFields";
 import {
   useCreateProxyMutation,
   useDeleteProxyMutation,
@@ -19,16 +11,16 @@ import {
   useGetProxiesQuery,
   useSetMocksEnabledMutation,
   useUpdateProxyMutation,
-} from '../store/proxyApi'
-import type { UpsertProxyRequest } from '../store/types'
+} from "../store/proxyApi";
+import type { UpsertProxyRequest } from "../store/types";
 
 const emptyForm: UpsertProxyRequest = {
-  id: '',
-  name: 'Gateway',
+  id: "",
+  name: "Gateway",
   enabled: true,
-  listen: { url: 'https://127.0.0.1:8085', serverCertificateId: null },
+  listen: { url: "https://127.0.0.1:8085", serverCertificateId: null },
   destination: {
-    address: 'https://domain-gateway.uat.mille.pl:8085',
+    address: "https://domain-gateway.uat.mille.pl:8085",
     acceptAnyServerCertificate: false,
     clientCertificateId: null,
   },
@@ -36,25 +28,25 @@ const emptyForm: UpsertProxyRequest = {
   passthroughDelayMs: 0,
   logRetentionDays: 7,
   bodyLogLimitBytes: 1_048_576,
-}
+};
 
 export function ProxiesPage() {
-  const { data, isLoading, error, refetch } = useGetProxiesQuery()
-  const certificates = useGetCertificatesQuery()
-  const [createProxy, createState] = useCreateProxyMutation()
-  const [updateProxy, updateState] = useUpdateProxyMutation()
-  const [deleteProxy] = useDeleteProxyMutation()
-  const [setMocksEnabled] = useSetMocksEnabledMutation()
-  const [showCreate, setShowCreate] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [form, setForm] = useState(emptyForm)
-  const editingProxy = useGetProxyQuery(editId ?? '', { skip: !editId })
+  const { data, isLoading, error, refetch } = useGetProxiesQuery();
+  const certificates = useGetCertificatesQuery();
+  const [createProxy, createState] = useCreateProxyMutation();
+  const [updateProxy, updateState] = useUpdateProxyMutation();
+  const [deleteProxy] = useDeleteProxyMutation();
+  const [setMocksEnabled] = useSetMocksEnabledMutation();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const editingProxy = useGetProxyQuery(editId ?? "", { skip: !editId });
 
   useEffect(() => {
     if (showCreate) {
-      setForm(emptyForm)
+      setForm(emptyForm);
     }
-  }, [showCreate])
+  }, [showCreate]);
 
   useEffect(() => {
     if (editingProxy.data) {
@@ -67,27 +59,27 @@ export function ProxiesPage() {
         passthroughDelayMs: editingProxy.data.passthroughDelayMs,
         logRetentionDays: editingProxy.data.logRetentionDays ?? 7,
         bodyLogLimitBytes: editingProxy.data.bodyLogLimitBytes ?? 1_048_576,
-      })
+      });
     }
-  }, [editingProxy.data])
+  }, [editingProxy.data]);
 
   const onCreate = async (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     await createProxy({
       ...form,
       id: form.id || undefined,
-    }).unwrap()
-    setShowCreate(false)
-  }
+    }).unwrap();
+    setShowCreate(false);
+  };
 
   const onSaveEdit = async (event: FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
     if (!editId) {
-      return
+      return;
     }
-    await updateProxy({ id: editId, body: form }).unwrap()
-    setEditId(null)
-  }
+    await updateProxy({ id: editId, body: form }).unwrap();
+    setEditId(null);
+  };
 
   return (
     <>
@@ -139,9 +131,7 @@ export function ProxiesPage() {
                   <code>{proxy.listenUrl}</code>
                   <CopyButton value={proxy.listenUrl} label="Copy listen URL" />
                 </div>
-                {proxy.listenPathPrefix && (
-                  <div className="row-meta">{proxy.listenPathPrefix}</div>
-                )}
+                {proxy.listenPathPrefix && <div className="row-meta">{proxy.listenPathPrefix}</div>}
               </td>
               <td>
                 <div className="copyable-cell">
@@ -210,7 +200,7 @@ export function ProxiesPage() {
 
       <Modal show={Boolean(editId)} onHide={() => setEditId(null)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Edit {editingProxy.data?.name ?? 'proxy'}</Modal.Title>
+          <Modal.Title>Edit {editingProxy.data?.name ?? "proxy"}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {editingProxy.isLoading && <Alert variant="secondary">Loading…</Alert>}
@@ -240,5 +230,5 @@ export function ProxiesPage() {
         </Modal.Footer>
       </Modal>
     </>
-  )
+  );
 }
