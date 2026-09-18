@@ -180,6 +180,39 @@ public class RequestLogStoreTests
     }
 
     [Fact]
+    public async Task Sorts_logs_by_the_requested_column()
+    {
+        var folder = Directory.CreateTempSubdirectory("proxy-logs-sort-").FullName;
+        var store = new SqliteRequestLogStore();
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            await store.WriteAsync("demo", folder, Entry(now.AddMinutes(-3), "/b", status: 500));
+            await store.WriteAsync("demo", folder, Entry(now.AddMinutes(-2), "/c", status: 200));
+            await store.WriteAsync("demo", folder, Entry(now.AddMinutes(-1), "/a", status: 404));
+
+            var byPath = await store.QueryAsync("demo", folder, new LogQuery { Sort = LogSort.Path, Take = 50 });
+            byPath.Items.Select(item => item.Path).Should().Equal("/a", "/b", "/c");
+
+            var byStatusDescending = await store.QueryAsync("demo", folder, new LogQuery
+            {
+                Sort = LogSort.Status,
+                Descending = true,
+                Take = 50
+            });
+            byStatusDescending.Items.Select(item => item.StatusCode ?? 0).Should().Equal(500, 404, 200);
+
+            // Without an explicit sort the newest entry still comes first.
+            var newestFirst = await store.QueryAsync("demo", folder, new LogQuery { Take = 50 });
+            newestFirst.Items.Select(item => item.Path).Should().Equal("/a", "/c", "/b");
+        }
+        finally
+        {
+            DeleteFolder(folder);
+        }
+    }
+
+    [Fact]
     public async Task Timeline_splits_buckets_by_mode_and_status()
     {
         var folder = Directory.CreateTempSubdirectory("proxy-logs-").FullName;

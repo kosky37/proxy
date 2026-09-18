@@ -20,7 +20,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddProxyPlatform(builder.Configuration, builder.Environment.ContentRootPath);
 
-var corsOrigins = builder.Configuration.GetSection("App:CorsOrigins").Get<string[]>() ?? ["http://localhost:5173"];
+var corsOrigins = builder.Configuration.GetSection("App:CorsOrigins").Get<string[]>() ?? ["http://localhost:9311"];
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

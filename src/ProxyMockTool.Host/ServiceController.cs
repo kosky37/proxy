@@ -6,9 +6,9 @@ namespace ProxyMockTool.Host;
 
 internal sealed class ServiceController : IDisposable
 {
-    public const int ApiPort = 5050;
-    public const int UiPort = 5173;
-    public const string UiUrl = "http://127.0.0.1:5173/";
+    public const int ApiPort = 9310;
+    public const int UiPort = 9311;
+    public const string UiUrl = "http://127.0.0.1:9311/";
 
     private readonly AppPaths _paths;
     private readonly object _gate = new();
@@ -72,7 +72,7 @@ internal sealed class ServiceController : IDisposable
         if (!WaitForPort(ApiPort, TimeSpan.FromSeconds(30)))
         {
             StopApi();
-            throw new InvalidOperationException("Backend did not start on port 5050.");
+            throw new InvalidOperationException($"Backend did not start on port {ApiPort}.");
         }
     }
 
@@ -128,7 +128,7 @@ internal sealed class ServiceController : IDisposable
         if (!WaitForPort(UiPort, TimeSpan.FromSeconds(45)))
         {
             StopFrontend();
-            throw new InvalidOperationException("Frontend did not start on port 5173.");
+            throw new InvalidOperationException($"Frontend did not start on port {UiPort}.");
         }
     }
 

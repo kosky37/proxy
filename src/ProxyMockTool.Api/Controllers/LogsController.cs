@@ -32,6 +32,8 @@ public sealed class LogsController : ControllerBase
         [FromQuery] string? mode,
         [FromQuery] int? statusCode,
         [FromQuery] string? protocol,
+        [FromQuery] string? sort,
+        [FromQuery] bool descending = false,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50,
         CancellationToken cancellationToken = default)
@@ -52,6 +54,8 @@ public sealed class LogsController : ControllerBase
             Mode = Enum.TryParse<RequestMode>(mode, true, out var parsedMode) ? parsedMode : null,
             StatusCode = statusCode,
             Protocol = ParseProtocol(protocol),
+            Sort = sort,
+            Descending = descending,
             Skip = skip,
             Take = take
         }, cancellationToken);

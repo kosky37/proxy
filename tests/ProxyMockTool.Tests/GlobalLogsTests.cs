@@ -50,6 +50,51 @@ public class GlobalLogsTests
         graph.GetProperty("buckets").EnumerateArray().Sum(item => item.GetProperty("count").GetInt32()).Should().Be(3);
     }
 
+    [Fact]
+    public async Task Sorts_merged_logs_by_the_requested_column()
+    {
+        await using var factory = new ProxyApiFactory();
+        using var client = factory.CreateClient();
+        await CreateProxy(client, "alpha", "Alpha");
+        await CreateProxy(client, "beta", "Beta");
+
+        var store = new SqliteRequestLogStore();
+        var now = DateTimeOffset.UtcNow;
+        var alphaFolder = Path.Combine(factory.DataRoot, "alpha");
+        var betaFolder = Path.Combine(factory.DataRoot, "beta");
+        await store.WriteAsync("alpha", alphaFolder, Entry(now.AddMinutes(-3), "/b", "PATCH"));
+        await store.WriteAsync("alpha", alphaFolder, Entry(now.AddMinutes(-1), "/a"));
+        await store.WriteAsync("beta", betaFolder, Entry(now.AddMinutes(-2), "/d"));
+        await store.WriteAsync("beta", betaFolder, Entry(now, "/c", "POST"));
+
+        var from = Uri.EscapeDataString(now.AddHours(-1).ToString("O"));
+        var to = Uri.EscapeDataString(now.AddMinutes(1).ToString("O"));
+
+        using var byPathDescending = await client.GetAsync(
+            $"/api/logs?proxyIds=alpha&proxyIds=beta&from={from}&to={to}&sort=path&descending=true");
+        byPathDescending.StatusCode.Should().Be(HttpStatusCode.OK);
+        var paths = ParseList(await byPathDescending.Content.ReadAsStringAsync())
+            .GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("path").GetString());
+        paths.Should().Equal("/d", "/c", "/b", "/a");
+
+        // Sorting applies to the merged result, so a page still holds the right rows.
+        using var byMethod = await client.GetAsync(
+            $"/api/logs?proxyIds=alpha&proxyIds=beta&from={from}&to={to}&sort=method&take=2");
+        var page = ParseList(await byMethod.Content.ReadAsStringAsync());
+        page.GetProperty("total").GetInt32().Should().Be(4);
+        page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("method").GetString())
+            .Should().Equal("GET", "GET");
+
+        // Sorting by proxy groups the entries per proxy and keeps them newest first inside a group.
+        using var byProxy = await client.GetAsync(
+            $"/api/logs?proxyIds=alpha&proxyIds=beta&from={from}&to={to}&sort=proxy");
+        ParseList(await byProxy.Content.ReadAsStringAsync())
+            .GetProperty("items").EnumerateArray()
+            .Select(item => item.GetProperty("path").GetString())
+            .Should().Equal("/a", "/b", "/c", "/d");
+    }
+
     private static async Task CreateProxy(HttpClient client, string id, string name)
     {
         var payload = $$"""
@@ -69,10 +114,10 @@ public class GlobalLogsTests
 
     private static JsonElement ParseList(string json) => JsonDocument.Parse(json).RootElement;
 
-    private static RequestLogEntry Entry(DateTimeOffset timestamp, string path) => new()
+    private static RequestLogEntry Entry(DateTimeOffset timestamp, string path, string method = "GET") => new()
     {
         TimestampUtc = timestamp,
-        Method = "GET",
+        Method = method,
         Path = path,
         StatusCode = 200
     };

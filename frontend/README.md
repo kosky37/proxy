@@ -1,14 +1,14 @@
 # Admin UI
 
 React + Ant Design single-page app for ProxyMockTool. It talks to the API on
-`http://127.0.0.1:5050` through the Vite dev-server proxy and is served on
-`http://127.0.0.1:5173`, the port the desktop host opens.
+`http://127.0.0.1:9310` through the Vite dev-server proxy and is served on
+`http://127.0.0.1:9311`, the port the desktop host opens.
 
 ## Commands
 
 ```powershell
 npm install                        # dependencies
-npm run dev                        # dev server on 127.0.0.1:5173
+npm run dev                        # dev server on 127.0.0.1:9311
 npm run build                      # tsc -b && vite build
 npm run lint                       # oxlint
 ```

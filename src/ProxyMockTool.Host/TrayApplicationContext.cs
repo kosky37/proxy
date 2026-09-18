@@ -17,7 +17,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _rebuildUi;
     private readonly ToolStripMenuItem _restartAll;
     private readonly ToolStripMenuItem _devUi;
+    private readonly ToolStripMenuItem _startupItem;
     private bool _busy;
+    private bool _syncingStartup;
 
     public TrayApplicationContext()
     {
@@ -36,6 +38,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _restartAll = Item("Restart backend & frontend", () => _controller?.RestartAll(SetStatus));
         _devUi = new ToolStripMenuItem("Development server") { CheckOnClick = true };
         _devUi.CheckedChanged += (_, _) => OnDevServerToggled();
+        _startupItem = new ToolStripMenuItem("Start with Windows") { CheckOnClick = true };
+        _startupItem.CheckedChanged += (_, _) => OnStartupToggled();
 
         var backend = new ToolStripMenuItem("Backend");
         backend.DropDownItems.AddRange(_startApi, _stopApi, _restartApi, _rebuildApi);
@@ -53,6 +57,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(backend);
         menu.Items.Add(frontend);
         menu.Items.Add(_restartAll);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(_startupItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_statusItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -140,6 +146,42 @@ internal sealed class TrayApplicationContext : ApplicationContext
         Run("Restart frontend", () => controller.RestartFrontend(SetStatus));
     }
 
+    private void OnStartupToggled()
+    {
+        if (_syncingStartup)
+        {
+            return;
+        }
+
+        var enable = _startupItem.Checked;
+        try
+        {
+            if (enable)
+            {
+                StartupRegistration.Enable();
+            }
+            else
+            {
+                StartupRegistration.Disable();
+            }
+
+            _icon.ShowBalloonTip(
+                4000,
+                "ProxyMockTool",
+                enable
+                    ? "ProxyMockTool will start with Windows."
+                    : "ProxyMockTool will no longer start with Windows.",
+                ToolTipIcon.Info);
+        }
+        catch (Exception exception)
+        {
+            _syncingStartup = true;
+            _startupItem.Checked = !enable;
+            _syncingStartup = false;
+            _icon.ShowBalloonTip(8000, "ProxyMockTool", exception.Message, ToolTipIcon.Error);
+        }
+    }
+
     private void Run(string title, Action action)
     {
         if (_busy)
@@ -210,6 +252,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _rebuildUi.Enabled = ready;
             _restartAll.Enabled = ready && controller is { OwnsApi: true, OwnsFrontend: true };
             _devUi.Enabled = ready;
+
+            // Reading the registry is cheap, so the check always reflects the real startup entry.
+            _syncingStartup = true;
+            _startupItem.Checked = StartupRegistration.IsEnabled;
+            _syncingStartup = false;
+            _startupItem.Enabled = !_busy;
         }
 
         InvokeOnMenu(Apply);

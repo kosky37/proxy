@@ -31,6 +31,8 @@ public sealed class GlobalLogsController : ControllerBase
         [FromQuery] string? mode,
         [FromQuery] int? statusCode,
         [FromQuery] string? protocol,
+        [FromQuery] string? sort,
+        [FromQuery] bool descending = false,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50,
         CancellationToken cancellationToken = default)
@@ -44,6 +46,10 @@ public sealed class GlobalLogsController : ControllerBase
         var pageSkip = Math.Max(skip, 0);
         var pageTake = take <= 0 ? 50 : Math.Min(take, 200);
         var perProxyTake = Math.Min(pageSkip + pageTake, 2000);
+        var sortKey = LogSort.Normalize(sort);
+        var order = LogSort.Descending(sort, descending);
+        // Grouping by proxy keeps each proxy's own order, so the store sorts by time as usual.
+        var groupByProxy = sortKey == LogSort.Proxy;
         var query = new LogQuery
         {
             FromUtc = from,
@@ -54,6 +60,8 @@ public sealed class GlobalLogsController : ControllerBase
             Mode = Enum.TryParse<RequestMode>(mode, true, out var parsedMode) ? parsedMode : null,
             StatusCode = statusCode,
             Protocol = ParseProtocol(protocol),
+            Sort = groupByProxy ? null : sort,
+            Descending = descending,
             Skip = 0,
             Take = perProxyTake
         };
@@ -64,11 +72,13 @@ public sealed class GlobalLogsController : ControllerBase
             return (proxy, result);
         }));
 
-        var items = parts
-            .SelectMany(part => part.result.Items.Select(entry =>
-                DtoMapper.ToListItem(entry, part.proxy.Id, part.proxy.Definition.Name)))
-            .OrderByDescending(item => item.TimestampUtc)
-            .ThenByDescending(item => item.Id)
+        var items = (groupByProxy
+                ? SortByProxy(parts, order)
+                : Sort(
+                    parts.SelectMany(part => part.result.Items.Select(entry =>
+                        DtoMapper.ToListItem(entry, part.proxy.Id, part.proxy.Definition.Name))),
+                    sortKey,
+                    order))
             .Skip(pageSkip)
             .Take(pageTake)
             .ToList();
@@ -102,6 +112,49 @@ public sealed class GlobalLogsController : ControllerBase
 
         return Ok(DtoMapper.ToDto(MergeTimelines(timelines, from, to, buckets)));
     }
+
+    private static IEnumerable<LogListItemDto> Sort(
+        IEnumerable<LogListItemDto> items,
+        string sortKey,
+        bool descending)
+    {
+        // Each proxy is already sorted by the store, so merging with the same key keeps
+        // the global order correct for the requested page.
+        var ordered = sortKey switch
+        {
+            LogSort.Method => OrderBy(items, item => item.Method, descending),
+            LogSort.Path => OrderBy(items, item => item.Path, descending),
+            LogSort.Protocol => OrderBy(items, item => item.Protocol, descending),
+            LogSort.Mode => OrderBy(items, item => item.Mode, descending),
+            LogSort.Status => OrderBy(items, item => item.StatusCode, descending),
+            LogSort.Duration => OrderBy(items, item => item.DurationMs, descending),
+            _ => OrderBy(items, item => item.TimestampUtc, descending)
+        };
+
+        return descending ? ordered.ThenByDescending(item => item.Id) : ordered.ThenBy(item => item.Id);
+    }
+
+    /// <summary>
+    /// Groups the merged list by proxy name. Within one proxy the store order is kept,
+    /// i.e. newest first.
+    /// </summary>
+    private static IEnumerable<LogListItemDto> SortByProxy(
+        IEnumerable<(LoadedProxy proxy, LogListResult result)> parts,
+        bool descending)
+    {
+        var ordered = descending
+            ? parts.OrderByDescending(part => part.proxy.Definition.Name, StringComparer.OrdinalIgnoreCase)
+            : parts.OrderBy(part => part.proxy.Definition.Name, StringComparer.OrdinalIgnoreCase);
+
+        return ordered.SelectMany(part => part.result.Items.Select(entry =>
+            DtoMapper.ToListItem(entry, part.proxy.Id, part.proxy.Definition.Name)));
+    }
+
+    private static IOrderedEnumerable<LogListItemDto> OrderBy<TKey>(
+        IEnumerable<LogListItemDto> items,
+        Func<LogListItemDto, TKey> key,
+        bool descending) =>
+        descending ? items.OrderByDescending(key) : items.OrderBy(key);
 
     private IReadOnlyList<LoadedProxy> ResolveProxies(string[]? proxyIds)
     {

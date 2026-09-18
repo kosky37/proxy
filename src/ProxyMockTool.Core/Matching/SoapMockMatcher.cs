@@ -19,16 +19,9 @@ public static class SoapMockMatcher
             return false;
         }
 
-        if (match.Query is { Count: > 0 })
+        if (!QueryMatcher.Matches(match.Query, request.Query))
         {
-            foreach (var (key, expected) in match.Query)
-            {
-                if (!request.Query.TryGetValue(key, out var actual) ||
-                    !actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
+            return false;
         }
 
         var actualAction = SoapEnvelope.GetSoapAction(request.Headers);

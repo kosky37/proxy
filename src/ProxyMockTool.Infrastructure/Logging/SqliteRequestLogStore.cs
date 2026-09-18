@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Data;
+using System.Linq.Expressions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ProxyMockTool.Core.Contracts;
@@ -28,9 +29,8 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
         var items = Filter(db.Logs.AsNoTracking(), query);
         var total = await items.CountAsync(cancellationToken);
         var take = query.Take <= 0 ? 50 : Math.Min(query.Take, 2000);
-        var page = await items
-            .OrderByDescending(item => item.TimestampUtc)
-            .ThenByDescending(item => item.Id)
+        var ordered = Order(items, query);
+        var page = await ordered
             .Skip(Math.Max(query.Skip, 0))
             .Take(take)
             .ToListAsync(cancellationToken);
@@ -282,6 +282,31 @@ public sealed class SqliteRequestLogStore : IRequestLogStore
 
         return names;
     }
+
+    private static IQueryable<RequestLogRecord> Order(IQueryable<RequestLogRecord> logs, LogQuery query)
+    {
+        var descending = LogSort.Descending(query.Sort, query.Descending);
+        var ordered = LogSort.Normalize(query.Sort) switch
+        {
+            LogSort.Method => SortBy(logs, item => item.Method, descending),
+            LogSort.Path => SortBy(logs, item => item.Path, descending),
+            LogSort.Protocol => SortBy(logs, item => item.Protocol, descending),
+            LogSort.Mode => SortBy(logs, item => item.Mode, descending),
+            LogSort.Status => SortBy(logs, item => item.StatusCode, descending),
+            LogSort.Duration => SortBy(logs, item => item.DurationMs, descending),
+            _ => SortBy(logs, item => item.TimestampUtc, descending)
+        };
+
+        return descending
+            ? ordered.ThenByDescending(item => item.Id)
+            : ordered.ThenBy(item => item.Id);
+    }
+
+    private static IOrderedQueryable<RequestLogRecord> SortBy<TKey>(
+        IQueryable<RequestLogRecord> logs,
+        Expression<Func<RequestLogRecord, TKey>> key,
+        bool descending) =>
+        descending ? logs.OrderByDescending(key) : logs.OrderBy(key);
 
     private static IQueryable<RequestLogRecord> Filter(IQueryable<RequestLogRecord> logs, LogQuery query)
     {

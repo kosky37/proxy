@@ -36,6 +36,7 @@ import {
   type LogWindowPreset,
 } from "../format";
 import { statusColor } from "../logColors";
+import { logSortFromSorter, logSorter, logSortParams, type LogSort } from "../logSort";
 import {
   useGetGlobalLogTimelineQuery,
   useGetGlobalLogsQuery,
@@ -57,6 +58,7 @@ export function LogsPage() {
   const [preset, setPreset] = useState<Exclude<LogWindowPreset, "all">>("24h");
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<LogSort | null>(null);
   const [filter, setFilter] = useState<LogFilter>(emptyLogFilter);
   const [openLog, setOpenLog] = useState<{ proxyId: string; entryId: number } | null>(null);
 
@@ -86,6 +88,7 @@ export function LogsPage() {
       ...queryFilter,
       from: listRange.from,
       to: listRange.to,
+      ...logSortParams(sort),
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
     },
@@ -146,16 +149,17 @@ export function LogsPage() {
           <span className="app-cell-tight">{item.proxyName || item.proxyId}</span>
         </Link>
       ),
+      ...logSorter("proxy", sort),
     },
     {
       title: "Method",
       dataIndex: "method",
       width: 90,
       render: (method: string) => <strong>{method}</strong>,
+      ...logSorter("method", sort),
     },
     {
       title: "Request",
-      key: "request",
       render: (_value, item) => (
         <div>
           <LogRequestLine item={item} clip showMethod={false} />
@@ -166,6 +170,7 @@ export function LogsPage() {
           </div>
         </div>
       ),
+      ...logSorter("path", sort),
     },
     {
       title: "SOAPAction",
@@ -180,6 +185,7 @@ export function LogsPage() {
       dataIndex: "protocol",
       width: 80,
       render: (protocol: string) => <ProtocolTag protocol={protocol} />,
+      ...logSorter("protocol", sort),
     },
     {
       title: "Mode",
@@ -191,12 +197,14 @@ export function LogsPage() {
           onOpenMock={(row, mock) => row.proxyId && openMockInProxy(row.proxyId, mock)}
         />
       ),
+      ...logSorter("mode", sort),
     },
     {
       title: "Status",
       dataIndex: "statusCode",
       width: 80,
       render: (status: number | null) => <Tag color={statusColor(status)}>{status ?? "-"}</Tag>,
+      ...logSorter("status", sort),
     },
     {
       title: "Time",
@@ -210,6 +218,7 @@ export function LogsPage() {
           </div>
         </div>
       ),
+      ...logSorter("time", sort),
     },
   ];
 
@@ -341,7 +350,7 @@ export function LogsPage() {
           showIcon
           style={{ marginBottom: 12 }}
           message="Could not load logs"
-          description="Is the API running on port 5050?"
+          description="Is the API running on port 9310?"
         />
       )}
 
@@ -354,6 +363,10 @@ export function LogsPage() {
         dataSource={logs.data?.items ?? []}
         pagination={false}
         tableLayout="fixed"
+        onChange={(_pagination, _filters, sorter) => {
+          setSort(logSortFromSorter(sorter));
+          setPage(0);
+        }}
         onRow={(item) => ({
           onClick: () => item.proxyId && setOpenLog({ proxyId: item.proxyId, entryId: item.id }),
           style: { cursor: "pointer" },

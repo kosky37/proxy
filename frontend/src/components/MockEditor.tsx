@@ -45,6 +45,16 @@ const SOAP_OPERATION_HELP: HelpDoc = {
   note: "Use it when SOAPAction is missing or unreliable. Requires parsing the XML envelope.",
 };
 
+const QUERY_HELP: HelpDoc = {
+  summary: "Requires these query parameters on the request URL.",
+  points: [
+    { text: "Each parameter is compared on its own, so the order in the URL does not matter." },
+    { text: "Extra parameters the caller adds are ignored." },
+    { label: "Any value", text: "Leave a value empty to only require that the parameter is present." },
+    { label: "Example", code: "/search?page=2&q=ada  →  q = ada, page = 2" },
+  ],
+};
+
 const SOAP_XPATH_HELP: HelpDoc = {
   summary: "Matches when an XPath query finds something in the SOAP envelope.",
   points: [
@@ -86,6 +96,7 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType));
   const [useDelay, setUseDelay] = useState(false);
   const [useHeaderMatch, setUseHeaderMatch] = useState(false);
+  const [useQueryMatch, setUseQueryMatch] = useState(false);
   const [useUrlMatch, setUseUrlMatch] = useState(false);
   const [useAdvanced, setUseAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -99,8 +110,9 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
     setMock(next);
     setUseDelay((next.response.delayMs ?? 0) > 0);
     setUseHeaderMatch(hasHeaderMatch(next.match));
-    setUseUrlMatch(hasUrlMatch(next.match, next.type === "soap"));
-    setUseAdvanced(hasExtraFilters(next.match, next.type === "soap"));
+    setUseQueryMatch(hasQueryMatch(next.match));
+    setUseUrlMatch(hasUrlMatch(next.match));
+    setUseAdvanced(hasExtraFilters(next.match));
     setError(null);
   }, [defaultType, initial, open]);
 
@@ -125,7 +137,7 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
     try {
       await onSave({
         ...mock,
-        match: persistMatch(mock.match, isSoap, useAdvanced, useHeaderMatch, useUrlMatch),
+        match: persistMatch(mock.match, isSoap, useAdvanced, useHeaderMatch, useUrlMatch, useQueryMatch),
         response: { ...mock.response, delayMs: useDelay ? mock.response.delayMs : 0 },
       });
     } catch {
@@ -134,12 +146,6 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
       setSaving(false);
     }
   };
-
-  const queryText = mock.match.query
-    ? Object.entries(mock.match.query)
-        .map(([key, value]) => `${key}=${value}`)
-        .join("&")
-    : "";
 
   return (
     <Modal
@@ -240,15 +246,16 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
                     onChange={(event) => patchMatch({ path: event.target.value })}
                   />
                 </Col>
-                <Col xs={24} md={12}>
-                  <FieldLabel help="Query parameters to match. Leave empty to ignore the query string.">
-                    Query
-                  </FieldLabel>
-                  <Input
-                    style={{ marginTop: 4 }}
-                    placeholder="key=value&other=param"
-                    value={queryText}
-                    onChange={(event) => patchMatch({ query: parseQuery(event.target.value) })}
+                <Col span={24}>
+                  <HeaderEditor
+                    resetKey={`${headerResetKey}:query`}
+                    label="Query parameters"
+                    help={QUERY_HELP}
+                    itemNoun="query parameter"
+                    namePlaceholder="Parameter"
+                    valuePlaceholder="Value (empty = any)"
+                    value={mock.match.query}
+                    onChange={(query) => patchMatch({ query })}
                   />
                 </Col>
               </>
@@ -298,6 +305,37 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
                 />
               </div>
             </Col>
+          </>
+        )}
+
+        {!isSoap && (
+          <>
+            <Col xs={24}>
+              <Switch
+                size="small"
+                checked={useQueryMatch}
+                onChange={setUseQueryMatch}
+                style={{ marginRight: 8 }}
+              />
+              <span>Match by query parameters</span>
+              <Typography.Text className="app-subtle" style={{ marginLeft: 8 }}>
+                Require these query parameters. They are matched one by one, in any order.
+              </Typography.Text>
+            </Col>
+            {useQueryMatch && (
+              <Col xs={24}>
+                <HeaderEditor
+                  resetKey={`${headerResetKey}:query`}
+                  label="Query parameters"
+                  help={QUERY_HELP}
+                  itemNoun="query parameter"
+                  namePlaceholder="Parameter"
+                  valuePlaceholder="Value (empty = any)"
+                  value={mock.match.query}
+                  onChange={(query) => patchMatch({ query })}
+                />
+              </Col>
+            )}
           </>
         )}
 
@@ -530,28 +568,17 @@ export function MockEditor({ open, initial, defaultType, isNew = true, onSave, o
   );
 }
 
-function parseQuery(text: string): Record<string, string> | null {
-  const query: Record<string, string> = {};
-  for (const pair of text.split("&").filter(Boolean)) {
-    const eq = pair.indexOf("=");
-    if (eq === -1) {
-      query[pair] = "";
-    } else {
-      query[pair.slice(0, eq)] = pair.slice(eq + 1);
-    }
-  }
-  return Object.keys(query).length > 0 ? query : null;
-}
-
 function hasHeaderMatch(match: MockMatchDto): boolean {
   return Boolean(match.headers && Object.keys(match.headers).length > 0);
 }
 
-function hasUrlMatch(match: MockMatchDto, isSoap: boolean): boolean {
-  if (!isSoap) {
-    return false;
-  }
-  return Boolean(match.path && match.path.trim());
+function hasQueryMatch(match: MockMatchDto): boolean {
+  return Boolean(match.query && Object.keys(match.query).length > 0);
+}
+
+/** SOAP mocks match by URL through one switch that covers both the path and the query. */
+function hasUrlMatch(match: MockMatchDto): boolean {
+  return Boolean(match.path?.trim()) || hasQueryMatch(match);
 }
 
 function persistMatch(
@@ -560,10 +587,12 @@ function persistMatch(
   useAdvanced: boolean,
   useHeaderMatch: boolean,
   useUrlMatch: boolean,
+  useQueryMatch: boolean,
 ): MockMatchDto {
   const next: MockMatchDto = {
     ...(useAdvanced ? match : basicMatch(match)),
     headers: useHeaderMatch ? match.headers : null,
+    query: (isSoap ? useUrlMatch : useQueryMatch) ? match.query : null,
   };
   if (!isSoap) {
     return next;
@@ -572,24 +601,11 @@ function persistMatch(
   return {
     ...next,
     methods: null,
-    query: useUrlMatch ? next.query : null,
     path: useUrlMatch ? next.path : null,
   };
 }
 
-function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
-  if (isSoap && match.pathMode && match.pathMode !== "exact") {
-    return true;
-  }
-
-  if (match.query && Object.keys(match.query).length > 0) {
-    return true;
-  }
-
-  if (isSoap && match.path && match.path.trim()) {
-    return true;
-  }
-
+function hasExtraFilters(match: MockMatchDto): boolean {
   return Boolean(
     match.bodyContains ||
     match.bodyRegex ||
@@ -603,7 +619,6 @@ function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
 function basicMatch(match: MockMatchDto): MockMatchDto {
   return {
     ...match,
-    query: null,
     bodyContains: null,
     bodyRegex: null,
     jsonPath: null,

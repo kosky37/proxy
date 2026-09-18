@@ -41,7 +41,7 @@ export function Layout() {
           <HelpTooltip
             help={
               online
-                ? "API reachable on port 5050."
+                ? "API reachable on port 9310."
                 : "API not reachable — start the host or the API project."
             }
           >

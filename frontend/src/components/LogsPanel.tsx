@@ -22,6 +22,7 @@ import {
   type LogWindowPreset,
 } from "../format";
 import { statusColor } from "../logColors";
+import { logSortFromSorter, logSorter, logSortParams, type LogSort, type LogSortField } from "../logSort";
 import {
   useClearLogsMutation,
   useGetLogStorageQuery,
@@ -109,6 +110,7 @@ export const LogsPanel = memo(function LogsPanel({
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [refreshMs, setRefreshMs] = useState(readRefreshMs);
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<LogSort | null>(null);
   const [windowPreset, setWindowPreset] = useState<LogWindowPreset>("24h");
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [filter, setFilter] = useState<LogFilter>(emptyLogFilter);
@@ -146,6 +148,7 @@ export const LogsPanel = memo(function LogsPanel({
       ...queryFilter,
       from: range?.from,
       to: range?.to,
+      ...logSortParams(sort),
       skip: page * PAGE_SIZE,
       take: PAGE_SIZE,
     },
@@ -180,6 +183,7 @@ export const LogsPanel = memo(function LogsPanel({
     setPaused(false);
     setPausedAt(null);
     setRange(null);
+    setSort(null);
     setPage(0);
   };
 
@@ -209,13 +213,16 @@ export const LogsPanel = memo(function LogsPanel({
     });
   };
 
-  const columns: ColumnsType<LogListItemDto> = useMemo(
-    () => [
+  const columns: ColumnsType<LogListItemDto> = useMemo(() => {
+    // Live entries are the newest ones only, so sorting is offered while the view is paused.
+    const sortable = (field: LogSortField) => (paused ? logSorter(field, sort) : {});
+    return [
       {
         title: "Method",
         dataIndex: "method",
         width: 90,
         render: (method: string) => <strong>{method}</strong>,
+        ...sortable("method"),
       },
       {
         title: "Request",
@@ -230,6 +237,7 @@ export const LogsPanel = memo(function LogsPanel({
             </div>
           </div>
         ),
+        ...sortable("path"),
       },
       {
         title: "SOAPAction",
@@ -244,6 +252,7 @@ export const LogsPanel = memo(function LogsPanel({
         dataIndex: "protocol",
         width: 80,
         render: (protocol: string) => <ProtocolTag protocol={protocol} />,
+        ...sortable("protocol"),
       },
       {
         title: "Mode",
@@ -257,12 +266,14 @@ export const LogsPanel = memo(function LogsPanel({
             onOpenMock={onOpenMock}
           />
         ),
+        ...sortable("mode"),
       },
       {
         title: "Status",
         dataIndex: "statusCode",
         width: 80,
         render: (status: number | null) => <Tag color={statusColor(status)}>{status ?? "-"}</Tag>,
+        ...sortable("status"),
       },
       {
         title: "Time",
@@ -276,10 +287,10 @@ export const LogsPanel = memo(function LogsPanel({
             </div>
           </div>
         ),
+        ...sortable("time"),
       },
-    ],
-    [mocks, onOpenMock],
-  );
+    ];
+  }, [mocks, onOpenMock, paused, sort]);
 
   return (
     <>
@@ -393,7 +404,7 @@ export const LogsPanel = memo(function LogsPanel({
           showIcon
           style={{ marginBottom: 12 }}
           message="Updates are paused"
-          description="Browse history with the timeline and pagination, or resume to follow the latest entries."
+          description="Browse history with the timeline, column sorting, and pagination, or resume to follow the latest entries."
         />
       )}
 
@@ -424,6 +435,10 @@ export const LogsPanel = memo(function LogsPanel({
         dataSource={logs.data?.items ?? []}
         pagination={false}
         tableLayout="fixed"
+        onChange={(_pagination, _filters, sorter) => {
+          setSort(logSortFromSorter(sorter));
+          setPage(0);
+        }}
         onRow={(item) => ({
           onClick: () => onOpenLog(item.id),
           style: { cursor: "pointer" },
@@ -441,7 +456,7 @@ export const LogsPanel = memo(function LogsPanel({
 
       {!paused && total > 0 && (
         <Typography.Text className="app-subtle">
-          Pause the live view to browse older entries and to select a time range.
+          Pause the live view to browse older entries, sort by column, and select a time range.
         </Typography.Text>
       )}
     </>

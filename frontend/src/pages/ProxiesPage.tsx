@@ -225,7 +225,7 @@ export function ProxiesPage() {
           showIcon
           style={{ marginBottom: 16 }}
           message="Could not load proxies"
-          description="Is the API running on port 5050?"
+          description="Is the API running on port 9310?"
         />
       )}
 

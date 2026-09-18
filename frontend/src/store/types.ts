@@ -205,6 +205,8 @@ export interface LogQueryArgs {
   statusCode?: number;
   from?: string;
   to?: string;
+  sort?: string;
+  descending?: boolean;
   skip?: number;
   take?: number;
 }
@@ -219,6 +221,8 @@ export interface GlobalLogQueryArgs {
   statusCode?: number;
   from?: string;
   to?: string;
+  sort?: string;
+  descending?: boolean;
   skip?: number;
   take?: number;
 }

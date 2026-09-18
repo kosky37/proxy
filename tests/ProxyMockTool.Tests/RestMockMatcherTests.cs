@@ -90,6 +90,65 @@ public class RestMockMatcherTests
     }
 
     [Fact]
+    public void Matches_query_parameters_in_any_order_and_ignores_extra_parameters()
+    {
+        var mock = new MockDefinition
+        {
+            Match = new MockMatch
+            {
+                Path = "/search",
+                Query = new Dictionary<string, string> { ["page"] = "2", ["q"] = "ada" }
+            }
+        };
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("GET", "/search", query: new Dictionary<string, string>
+            {
+                ["q"] = "ada",
+                ["page"] = "2",
+                ["sort"] = "asc"
+            })).Should().BeTrue();
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("GET", "/search", query: new Dictionary<string, string>
+            {
+                ["q"] = "grace",
+                ["page"] = "2"
+            })).Should().BeFalse();
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("GET", "/search", query: new Dictionary<string, string> { ["q"] = "ada" })).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Query_parameter_names_are_case_insensitive_and_an_empty_value_only_requires_presence()
+    {
+        var mock = new MockDefinition
+        {
+            Match = new MockMatch
+            {
+                Path = "/search",
+                Query = new Dictionary<string, string> { ["Debug"] = "", ["q"] = "ADA" }
+            }
+        };
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("GET", "/search", query: new Dictionary<string, string>
+            {
+                ["debug"] = "1",
+                ["Q"] = "ada"
+            })).Should().BeTrue();
+
+        RestMockMatcher.Matches(
+            mock,
+            Snapshot("GET", "/search", query: new Dictionary<string, string> { ["q"] = "ada" })).Should().BeFalse();
+    }
+
+    [Fact]
     public void Engine_skips_disabled_mocks_and_uses_filename_order()
     {
         var proxy = new LoadedProxy
@@ -135,12 +194,13 @@ public class RestMockMatcherTests
         string method,
         string path,
         string body = "",
-        Dictionary<string, string>? headers = null) =>
+        Dictionary<string, string>? headers = null,
+        Dictionary<string, string>? query = null) =>
         new()
         {
             Method = method,
             Path = path,
-            Query = new Dictionary<string, string>(),
+            Query = query ?? new Dictionary<string, string>(),
             Headers = headers ?? new Dictionary<string, string>(),
             Body = body
         };

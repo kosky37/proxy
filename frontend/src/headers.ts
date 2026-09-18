@@ -103,6 +103,7 @@ export function stringifyHeaders(headers: Record<string, string> | null | undefi
 
 export function parseHeaderJson(
   text: string,
+  itemNoun = "header",
 ): { headers: Record<string, string> | null } | { error: string } {
   if (!text.trim()) {
     return { headers: null };
@@ -111,13 +112,13 @@ export function parseHeaderJson(
   try {
     const parsed = JSON.parse(text) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { error: "Headers JSON must be an object of name/value pairs." };
+      return { error: `${capitalize(`${itemNoun}s`)} JSON must be an object of name/value pairs.` };
     }
 
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(parsed)) {
       if (value != null && typeof value === "object") {
-        return { error: "Header values must be strings." };
+        return { error: `${capitalize(itemNoun)} values must be strings.` };
       }
 
       headers[key] = value == null ? "" : String(value);
@@ -127,6 +128,10 @@ export function parseHeaderJson(
   } catch {
     return { error: "Invalid JSON." };
   }
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 export function sendFromLog(log: LogDetailDto): SendDraft {

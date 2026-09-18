@@ -16,11 +16,25 @@ interface Props {
   label: string;
   help: HelpContent;
   value: Record<string, string> | null | undefined;
-  onChange: (headers: Record<string, string> | null) => void;
+  onChange: (value: Record<string, string> | null) => void;
   collapsible?: boolean;
+  /** Singular noun for buttons and JSON errors, e.g. "header" or "query parameter". */
+  itemNoun?: string;
+  namePlaceholder?: string;
+  valuePlaceholder?: string;
 }
 
-export function HeaderEditor({ resetKey, label, help, value, onChange, collapsible = false }: Props) {
+export function HeaderEditor({
+  resetKey,
+  label,
+  help,
+  value,
+  onChange,
+  collapsible = false,
+  itemNoun = "header",
+  namePlaceholder = "Name",
+  valuePlaceholder = "Value",
+}: Props) {
   const [mode, setMode] = useState<"fields" | "json">("fields");
   const [open, setOpen] = useState(!collapsible);
   const [rows, setRows] = useState<HeaderRow[]>(() => headersToRows(value));
@@ -50,7 +64,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
   };
 
   const switchToFields = () => {
-    const parsed = parseHeaderJson(jsonText);
+    const parsed = parseHeaderJson(jsonText, itemNoun);
     if ("error" in parsed) {
       setJsonError(parsed.error);
       return;
@@ -69,7 +83,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
           {rows.map((row) => (
             <Space.Compact key={row.id} style={{ width: "100%" }}>
               <Input
-                placeholder="Name"
+                placeholder={namePlaceholder}
                 style={{ width: "35%" }}
                 value={row.name}
                 onChange={(event) =>
@@ -81,7 +95,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
                 }
               />
               <Input
-                placeholder="Value"
+                placeholder={valuePlaceholder}
                 value={row.value}
                 onChange={(event) =>
                   setFieldRows(
@@ -93,7 +107,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
               />
               <Button
                 icon={<DeleteOutlined />}
-                aria-label="Remove header"
+                aria-label={`Remove ${itemNoun}`}
                 onClick={() => setFieldRows(rows.filter((item) => item.id !== row.id))}
               />
             </Space.Compact>
@@ -108,7 +122,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
               ])
             }
           >
-            Add header
+            Add {itemNoun}
           </Button>
         </>
       ) : (
@@ -121,7 +135,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
             onChange={(event) => {
               const text = event.target.value;
               setJsonText(text);
-              const parsed = parseHeaderJson(text);
+              const parsed = parseHeaderJson(text, itemNoun);
               if ("error" in parsed) {
                 setJsonError(parsed.error);
                 return;
@@ -133,7 +147,7 @@ export function HeaderEditor({ resetKey, label, help, value, onChange, collapsib
           />
           {jsonError && <Alert type="error" message={jsonError} showIcon />}
           <Typography.Text className="app-subtle">
-            Object of header names to values, for example {'{ "X-Test": "1" }'}
+            Object of {itemNoun}s, for example {'{ "X-Test": "1" }'}
           </Typography.Text>
         </>
       )}
