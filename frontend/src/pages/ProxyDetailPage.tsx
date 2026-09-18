@@ -1,27 +1,29 @@
-import { useEffect, useState } from "react";
+import { PauseCircleOutlined, PlayCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import {
   Alert,
-  Badge,
+  App,
   Breadcrumb,
   Button,
-  Form,
-  Nav,
-  OverlayTrigger,
-  Stack,
+  Segmented,
+  Space,
+  Switch,
   Table,
-  Tooltip,
-} from "react-bootstrap";
+  Tag,
+} from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { TabToolbar } from "../components/FieldHelp";
 import { IgnoreEditor } from "../components/IgnoreEditor";
+import { HelpTooltip, type HelpDoc } from "../components/FieldHelp";
 import { LogDetailModal } from "../components/LogDetailModal";
 import { LogsPanel } from "../components/LogsPanel";
 import { ManualSendPanel } from "../components/ManualSendPanel";
 import { MockEditor } from "../components/MockEditor";
 import { MockSetEditor } from "../components/MockSetEditor";
+import { TabToolbar } from "../components/PageHeader";
 import { hasAdvancedMatch } from "../format";
-import { ignoreFromLog, mockFromLog } from "../mockFromLog";
 import { sendFromLog, type SendDraft } from "../headers";
+import { ignoreFromLog, mockFromLog } from "../mockFromLog";
 import {
   useApplyMockSetMutation,
   useCreateIgnoreMutation,
@@ -43,12 +45,71 @@ import {
 } from "../store/proxyApi";
 import type { IgnoredPathDto, LogDetailDto, MockDto, MockSetDto } from "../store/types";
 
-type Tab = "send" | "rest" | "soap" | "mock-sets" | "ignores" | "logs";
+type Tab = "logs" | "mock-sets" | "rest" | "soap" | "ignores" | "send";
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "logs", label: "Logs" },
+  { key: "mock-sets", label: "Mock sets" },
+  { key: "rest", label: "REST mocks" },
+  { key: "soap", label: "SOAP mocks" },
+  { key: "ignores", label: "Ignores" },
+  { key: "send", label: "Send" },
+];
+
+const REST_MOCK_HELP: HelpDoc = {
+  summary: "Answer matching REST requests instead of forwarding them.",
+  points: [
+    {
+      label: "Match",
+      text: "Path, method, query, headers, and body rules must all match.",
+    },
+    {
+      label: "Response",
+      text: "The configured status, headers, and body go back to the client and the request is logged as `mock`.",
+    },
+  ],
+};
+
+const SOAP_MOCK_HELP: HelpDoc = {
+  summary: "Answer matching SOAP requests instead of forwarding them.",
+  points: [
+    {
+      label: "Match",
+      text: "The `SOAPAction` header or the operation inside the envelope, plus any optional body rules.",
+    },
+    {
+      label: "Response",
+      text: "The configured XML envelope goes back to the client and the request is logged as `mock`.",
+    },
+  ],
+};
+
+const MOCK_SET_HELP: HelpDoc = {
+  summary: "Applying a set switches the proxy to a testing scenario.",
+  points: [
+    { label: "Listed mocks", text: "Enabled." },
+    { label: "All other mocks", text: "Disabled." },
+  ],
+  note: "Applying an empty set disables every mock in the proxy.",
+};
+
+const IGNORE_HELP: HelpDoc = {
+  summary: "Matching requests are handled normally but stay out of the log.",
+  points: [
+    { label: "Traffic", text: "The request is still mocked or forwarded as usual." },
+    { label: "Log", text: "Nothing is written for a matching path, which keeps noisy polling endpoints out of the list." },
+  ],
+};
+
+function mockTabHelp(tab: Tab): HelpDoc {
+  return tab === "soap" ? SOAP_MOCK_HELP : REST_MOCK_HELP;
+}
 
 export function ProxyDetailPage() {
   const { id = "" } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { modal, message } = App.useApp();
   const proxy = useGetProxyQuery(id);
   const mocks = useGetMocksQuery(id);
   const ignores = useGetIgnoresQuery(id);
@@ -73,6 +134,14 @@ export function ProxyDetailPage() {
   const [updateMockSet] = useUpdateMockSetMutation();
   const [deleteMockSet] = useDeleteMockSetMutation();
   const [applyMockSet] = useApplyMockSetMutation();
+
+  const mockList = useMemo(() => mocks.data ?? [], [mocks.data]);
+  const openExistingMock = useCallback((mock: MockDto) => {
+    setEditingExisting(true);
+    setEditing(mock);
+    setTab(mock.type === "soap" ? "soap" : "rest");
+    setLogId(null);
+  }, []);
 
   useEffect(() => {
     const state = location.state as {
@@ -104,17 +173,19 @@ export function ProxyDetailPage() {
   }, [location.pathname, location.state, navigate]);
 
   if (proxy.isLoading || !proxy.data) {
-    return <Alert variant="secondary">Loading…</Alert>;
+    return <Alert type="info" showIcon message="Loading proxy…" />;
   }
   if (proxy.isError) {
-    return <Alert variant="danger">Proxy not found.</Alert>;
+    return <Alert type="error" showIcon message="Proxy not found." />;
   }
 
   const saveMock = async (mock: MockDto) => {
     if (editingExisting && editing?.name) {
       await updateMock({ proxyId: id, name: editing.name, body: mock }).unwrap();
+      message.success(`Saved ${mock.name}.`);
     } else {
       await createMock({ proxyId: id, body: mock }).unwrap();
+      message.success(`Created ${mock.name}.`);
     }
     setEditing(undefined);
   };
@@ -130,6 +201,7 @@ export function ProxyDetailPage() {
     } else {
       await createIgnore({ proxyId: id, body: ignore }).unwrap();
     }
+    message.success(`Saved ignore ${ignore.name}.`);
     setEditingIgnore(undefined);
   };
 
@@ -144,14 +216,8 @@ export function ProxyDetailPage() {
     } else {
       await createMockSet({ proxyId: id, body: set }).unwrap();
     }
+    message.success(`Saved mock set ${set.name}.`);
     setEditingSet(undefined);
-  };
-
-  const openExistingMock = (mock: MockDto) => {
-    setEditingExisting(true);
-    setEditing(mock);
-    setTab(mock.type === "soap" ? "soap" : "rest");
-    setLogId(null);
   };
 
   const openMockFromSet = (mock: MockDto) => {
@@ -187,60 +253,288 @@ export function ProxyDetailPage() {
     !mockSets.data?.some((item) => item.name.toLowerCase() === editingSet.name.toLowerCase());
 
   const existingLogMock = logDetail.data?.mockName
-    ? mocks.data?.find(
-        (item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase(),
-      )
+    ? mocks.data?.find((item) => item.name.toLowerCase() === logDetail.data?.mockName?.toLowerCase())
     : undefined;
 
   const restMocks = mocks.data?.filter((item) => item.type === "rest") ?? [];
   const soapMocks = mocks.data?.filter((item) => item.type === "soap") ?? [];
 
+  const confirmDeleteMock = (mock: MockDto) => {
+    modal.confirm({
+      title: `Delete mock ${mock.name}?`,
+      content: "The mock file is removed from the proxy folder.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: () => deleteMock({ proxyId: id, name: mock.name }),
+    });
+  };
+
+  const confirmDeleteIgnore = (ignore: IgnoredPathDto) => {
+    modal.confirm({
+      title: `Delete ignore ${ignore.name}?`,
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: () => deleteIgnore({ proxyId: id, name: ignore.name }),
+    });
+  };
+
+  const confirmDeleteSet = (set: MockSetDto) => {
+    modal.confirm({
+      title: `Delete mock set ${set.name}?`,
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: () => deleteMockSet({ proxyId: id, name: set.name }),
+    });
+  };
+
+  const mockColumns = (): ColumnsType<MockDto> => [
+    {
+      title: "Name",
+      dataIndex: "name",
+      width: 220,
+      render: (name: string, mock) => (
+        <div>
+          <div>{name}</div>
+          <div className="app-subtle">{mock.fileName}</div>
+        </div>
+      ),
+    },
+    {
+      title: "Methods",
+      key: "methods",
+      width: 150,
+      render: (_value, mock) => {
+        const methods = mock.match.methods?.filter(Boolean) ?? [];
+        return methods.length > 0 ? (
+          <Space size={4} wrap>
+            {methods.map((method) => (
+              <Tag key={method}>{method}</Tag>
+            ))}
+          </Space>
+        ) : (
+          <span className="app-subtle">any</span>
+        );
+      },
+    },
+    {
+      title: "Match",
+      key: "match",
+      render: (_value, mock) => (
+        <div>
+          <code className="app-code">
+            {mock.type === "soap"
+              ? mock.match.soapAction || mock.match.operation || "*"
+              : mock.match.path || "*"}
+          </code>
+          {mock.type !== "soap" && mock.match.pathMode && mock.match.pathMode !== "exact" && (
+            <div className="app-subtle">{mock.match.pathMode}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Flags",
+      key: "flags",
+      width: 240,
+      render: (_value, mock) => <MockFlags mock={mock} />,
+    },
+    {
+      title: "Status",
+      key: "status",
+      width: 90,
+      render: (_value, mock) =>
+        mock.response.block === true ? <Tag color="red">Block</Tag> : <span>{mock.response.statusCode}</span>,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 230,
+      align: "right",
+      render: (_value, mock) => (
+        <Space size={4}>
+          <HelpTooltip
+            help={
+              mock.enabled
+                ? "Pause this mock. It stays on disk but **stops matching** until it is enabled again."
+                : "Let this mock match requests again."
+            }
+          >
+            <Button
+              size="small"
+              icon={mock.enabled ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+              onClick={() => void toggleMock({ proxyId: id, name: mock.name })}
+            >
+              {mock.enabled ? "Disable" : "Enable"}
+            </Button>
+          </HelpTooltip>
+          <Button
+            size="small"
+            onClick={() => {
+              setEditingExisting(true);
+              setEditing(mock);
+            }}
+          >
+            Edit
+          </Button>
+          <Button size="small" danger onClick={() => confirmDeleteMock(mock)}>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const setColumns: ColumnsType<MockSetDto> = [
+    {
+      title: "Name",
+      dataIndex: "name",
+      render: (name: string, set) => (
+        <div>
+          <div>{name}</div>
+          <div className="app-subtle">{set.fileName}</div>
+        </div>
+      ),
+    },
+    {
+      title: "Mocks",
+      key: "mocks",
+      render: (_value, set) => {
+        if (set.mockNames.length === 0) {
+          return <span className="app-subtle">none (apply disables all mocks)</span>;
+        }
+
+        return (
+          <Space size={8} wrap>
+            {set.mockNames.map((name) => {
+              const mock = mocks.data?.find(
+                (item) => item.name.toLowerCase() === name.toLowerCase(),
+              );
+              return mock ? (
+                <Button
+                  key={name}
+                  type="link"
+                  size="small"
+                  style={{ padding: 0 }}
+                  onClick={() => openMockFromSet(mock)}
+                >
+                  {name}
+                </Button>
+              ) : (
+                <span key={name} className="app-subtle">
+                  {name}
+                </span>
+              );
+            })}
+          </Space>
+        );
+      },
+    },
+    {
+      title: "Status",
+      key: "status",
+      width: 100,
+      render: (_value, set) =>
+        isMockSetActive(set, mocks.data ?? []) ? <Tag color="green">Active</Tag> : null,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 220,
+      align: "right",
+      render: (_value, set) => (
+        <Space size={4}>
+          <HelpTooltip
+            help={{
+              summary: "Enable exactly these mocks and disable every other mock.",
+              note: "Use it to switch the proxy between testing scenarios.",
+            }}
+          >
+            <Button
+              size="small"
+              type="primary"
+              onClick={() => void applyMockSet({ proxyId: id, name: set.name })}
+            >
+              Apply
+            </Button>
+          </HelpTooltip>
+          <Button size="small" onClick={() => setEditingSet(set)}>
+            Edit
+          </Button>
+          <Button size="small" danger onClick={() => confirmDeleteSet(set)}>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const ignoreColumns: ColumnsType<IgnoredPathDto> = [
+    { title: "Name", dataIndex: "name", width: 200 },
+    {
+      title: "Path",
+      dataIndex: "path",
+      render: (path: string) => <code className="app-code">{path}</code>,
+    },
+    { title: "Mode", dataIndex: "pathMode", width: 110 },
+    {
+      title: "Methods",
+      key: "methods",
+      width: 150,
+      render: (_value, ignore) =>
+        ignore.methods?.length ? ignore.methods.join(", ") : <span className="app-subtle">any</span>,
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 170,
+      align: "right",
+      render: (_value, ignore) => (
+        <Space size={4}>
+          <Button size="small" onClick={() => setEditingIgnore(ignore)}>
+            Edit
+          </Button>
+          <Button size="small" danger onClick={() => confirmDeleteIgnore(ignore)}>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <>
-      <Stack direction="horizontal" className="mb-3 align-items-center flex-wrap gap-2">
-        <Breadcrumb className="mb-0">
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>
-            Proxies
-          </Breadcrumb.Item>
-          <Breadcrumb.Item active>{proxy.data?.name}</Breadcrumb.Item>
-        </Breadcrumb>
-        <Form.Check
-          type="switch"
-          id="mocks-enabled"
-          className="ms-auto"
-          label="Mocks enabled"
-          checked={proxy.data?.mocksEnabled ?? false}
-          onChange={(event) => setMocksEnabled({ id, mocksEnabled: event.target.checked })}
+      <div className="app-page-header">
+        <Breadcrumb
+          items={[
+            { title: <Link to="/">Proxies</Link> },
+            { title: proxy.data.name },
+          ]}
         />
-      </Stack>
+        <div className="app-row" style={{ gap: 12, marginLeft: "auto", flexWrap: "wrap" }}>
+          <span className="app-row" style={{ gap: 6 }}>
+            <Switch
+              size="small"
+              checked={proxy.data.mocksEnabled}
+              onChange={(mocksEnabled) => void setMocksEnabled({ id, mocksEnabled })}
+            />
+            <span>Mocks enabled</span>
+          </span>
+          <span className="app-subtle">
+            {proxy.data.listen.url}
+            {proxy.data.listen.pathPrefix ? ` (prefix ${proxy.data.listen.pathPrefix})` : ""} →{" "}
+            {proxy.data.destination.address}
+          </span>
+        </div>
+      </div>
 
-      <Nav
-        variant="tabs"
-        activeKey={tab}
-        onSelect={(key) => setTab((key as Tab) ?? "logs")}
-        className="mb-3"
-      >
-        <Nav.Item>
-          <Nav.Link eventKey="logs">Logs</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="mock-sets">Mock sets</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="rest">REST mocks</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="soap">SOAP mocks</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="ignores">Ignores</Nav.Link>
-        </Nav.Item>
-        <Nav.Item>
-          <Nav.Link eventKey="send">Send</Nav.Link>
-        </Nav.Item>
-      </Nav>
+      <Segmented
+        style={{ marginBottom: 16 }}
+        value={tab}
+        options={TABS.map((item) => ({ value: item.key, label: item.label }))}
+        onChange={(value) => setTab(value as Tab)}
+      />
 
-      {tab === "send" && proxy.data && (
+      {tab === "send" && (
         <ManualSendPanel
           proxyId={id}
           destination={proxy.data.destination.address}
@@ -253,14 +547,10 @@ export function ProxyDetailPage() {
 
       {(tab === "rest" || tab === "soap") && (
         <>
-          <TabToolbar
-            help={
-              tab === "soap"
-                ? "Match SOAP requests by action or operation and return the configured response instead of forwarding."
-                : "Match REST requests by path and method and return the configured response instead of forwarding."
-            }
-          >
+          <TabToolbar help={mockTabHelp(tab)}>
             <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={() => {
                 setEditingExisting(false);
                 setEditing(null);
@@ -269,153 +559,64 @@ export function ProxyDetailPage() {
               Add {tab === "soap" ? "SOAP" : "REST"} mock
             </Button>
           </TabToolbar>
-          <MockTable
-            items={tab === "rest" ? restMocks : soapMocks}
-            onEdit={(mock) => {
-              setEditingExisting(true);
-              setEditing(mock);
+          <Table<MockDto>
+            rowKey="name"
+            size="small"
+            loading={mocks.isLoading}
+            columns={mockColumns()}
+            dataSource={tab === "rest" ? restMocks : soapMocks}
+            pagination={false}
+            tableLayout="fixed"
+            rowClassName={(mock) => (mock.enabled ? "" : "mock-row-disabled")}
+            locale={{
+              emptyText:
+                tab === "rest"
+                  ? "No REST mocks yet. Add one to answer requests without the destination."
+                  : "No SOAP mocks yet. Add one to answer XML envelope requests.",
             }}
-            onToggle={(name) => toggleMock({ proxyId: id, name })}
-            onDelete={(name) => deleteMock({ proxyId: id, name })}
           />
         </>
       )}
 
       {tab === "mock-sets" && (
         <>
-          <TabToolbar help="Apply a set to enable those mocks and disable every other mock. Use this to switch between testing scenarios.">
-            <Button onClick={() => setEditingSet(null)}>Add mock set</Button>
+          <TabToolbar help={MOCK_SET_HELP}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditingSet(null)}>
+              Add mock set
+            </Button>
           </TabToolbar>
-          <Table striped responsive className="align-middle mock-sets-table">
-            <colgroup>
-              <col />
-              <col />
-              <col className="col-status" />
-              <col className="col-actions-wide" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Mocks</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {mockSets.data?.map((set) => {
-                const active = isMockSetActive(set, mocks.data ?? []);
-                return (
-                  <tr key={set.name}>
-                    <td>
-                      {set.name}
-                      <div className="row-meta">{set.fileName}</div>
-                    </td>
-                    <td>
-                      <MockNameLinks
-                        names={set.mockNames}
-                        mocks={mocks.data ?? []}
-                        onOpenMock={openMockFromSet}
-                      />
-                    </td>
-                    <td>{active && <Badge bg="success">Active</Badge>}</td>
-                    <td className="text-end">
-                      <Stack direction="horizontal" gap={1} className="justify-content-end">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => applyMockSet({ proxyId: id, name: set.name })}
-                        >
-                          Apply
-                        </Button>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => setEditingSet(set)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline-danger"
-                          size="sm"
-                          onClick={() => deleteMockSet({ proxyId: id, name: set.name })}
-                        >
-                          Delete
-                        </Button>
-                      </Stack>
-                    </td>
-                  </tr>
-                );
-              })}
-              {mockSets.data?.length === 0 && (
-                <tr>
-                  <td colSpan={4}>No mock sets. Add one to switch between testing scenarios.</td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+          <Table<MockSetDto>
+            rowKey="name"
+            size="small"
+            loading={mockSets.isLoading}
+            columns={setColumns}
+            dataSource={mockSets.data ?? []}
+            pagination={false}
+            tableLayout="fixed"
+            locale={{ emptyText: "No mock sets yet. Add one to enable a group of mocks in a single click." }}
+          />
         </>
       )}
 
       {tab === "ignores" && (
         <>
-          <TabToolbar help="Matching requests are still proxied or mocked, but they are not written to logs.">
-            <Button onClick={() => setEditingIgnore(null)}>Add ignore</Button>
+          <TabToolbar help={IGNORE_HELP}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditingIgnore(null)}>
+              Add ignore
+            </Button>
           </TabToolbar>
-          <Table striped responsive className="align-middle ignores-table">
-            <colgroup>
-              <col />
-              <col />
-              <col className="col-mode" />
-              <col className="col-methods" />
-              <col className="col-actions" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Path</th>
-                <th>Mode</th>
-                <th>Methods</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {ignores.data?.map((ignore) => (
-                <tr key={ignore.name}>
-                  <td>{ignore.name}</td>
-                  <td>
-                    <code>{ignore.path}</code>
-                  </td>
-                  <td>{ignore.pathMode}</td>
-                  <td>{ignore.methods?.length ? ignore.methods.join(", ") : "any"}</td>
-                  <td className="text-end">
-                    <Stack direction="horizontal" gap={1} className="justify-content-end">
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => setEditingIgnore(ignore)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => deleteIgnore({ proxyId: id, name: ignore.name })}
-                      >
-                        Delete
-                      </Button>
-                    </Stack>
-                  </td>
-                </tr>
-              ))}
-              {ignores.data?.length === 0 && (
-                <tr>
-                  <td colSpan={5}>
-                    No ignored paths. Add one to keep noisy requests out of the log.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+          <Table<IgnoredPathDto>
+            rowKey="name"
+            size="small"
+            loading={ignores.isLoading}
+            columns={ignoreColumns}
+            dataSource={ignores.data ?? []}
+            pagination={false}
+            tableLayout="fixed"
+            locale={{
+              emptyText: "No ignored paths. Add one to keep noisy requests out of the log.",
+            }}
+          />
         </>
       )}
 
@@ -423,14 +624,15 @@ export function ProxyDetailPage() {
         <LogsPanel
           proxyId={id}
           active
-          mocks={mocks.data ?? []}
+          mocks={mockList}
           onOpenLog={setLogId}
           onOpenMock={openExistingMock}
         />
       )}
 
       <LogDetailModal
-        show={logId != null}
+        open={logId != null}
+        loading={logDetail.isFetching}
         log={logDetail.data ?? null}
         existingMock={existingLogMock}
         onClose={() => setLogId(null)}
@@ -441,7 +643,7 @@ export function ProxyDetailPage() {
       />
 
       <MockSetEditor
-        show={editingSet !== undefined}
+        open={editingSet !== undefined}
         initial={editingSet}
         isNew={setIsNew}
         mocks={mocks.data ?? []}
@@ -450,7 +652,7 @@ export function ProxyDetailPage() {
       />
 
       <IgnoreEditor
-        show={editingIgnore !== undefined}
+        open={editingIgnore !== undefined}
         initial={editingIgnore}
         isNew={ignoreIsNew}
         onSave={saveIgnore}
@@ -458,7 +660,7 @@ export function ProxyDetailPage() {
       />
 
       <MockEditor
-        show={editing !== undefined}
+        open={editing !== undefined}
         initial={editing}
         isNew={!editingExisting}
         defaultType={editing?.type ?? (tab === "soap" ? "soap" : "rest")}
@@ -469,189 +671,40 @@ export function ProxyDetailPage() {
   );
 }
 
-function isMockSetActive(set: MockSetDto, mocks: MockDto[]) {
-  const enabled = mocks
+function isMockSetActive(set: MockSetDto, mocks: MockDto[]) {  const enabled = mocks
     .filter((mock) => mock.enabled)
     .map((mock) => mock.name.toLowerCase())
     .sort();
   const selected = set.mockNames.map((name) => name.toLowerCase()).sort();
-  return (
-    enabled.length === selected.length && enabled.every((name, index) => name === selected[index])
-  );
+  return enabled.length === selected.length && enabled.every((name, index) => name === selected[index]);
 }
 
-function MockNameLinks({
-  names,
-  mocks,
-  onOpenMock,
-}: {
-  names: string[];
-  mocks: MockDto[];
-  onOpenMock: (mock: MockDto) => void;
-}) {
-  if (names.length === 0) {
-    return <span className="row-meta">none (apply disables all mocks)</span>;
+function MockFlags({ mock }: { mock: MockDto }) {
+  const delayed = (mock.response.delayMs ?? 0) > 0;
+  const blocked = mock.response.block === true;
+  const advanced = hasAdvancedMatch(mock.match);
+  const flags: string[] = [];
+  if (delayed) {
+    flags.push(`delay ${mock.response.delayMs} ms`);
+  }
+  if (blocked) {
+    flags.push("blocks request");
+  }
+  if (advanced) {
+    flags.push("extra match rules");
   }
 
   return (
-    <Stack direction="horizontal" gap={2} className="flex-wrap">
-      {names.map((name) => {
-        const mock = mocks.find((item) => item.name.toLowerCase() === name.toLowerCase());
-        return mock ? (
-          <Button
-            key={name}
-            variant="link"
-            size="sm"
-            className="p-0"
-            onClick={() => onOpenMock(mock)}
-          >
-            {mock.name}
-          </Button>
-        ) : (
-          <span key={name} className="row-meta">
-            {name}
-          </span>
-        );
-      })}
-    </Stack>
-  );
-}
-
-function MockIcon({
-  on,
-  icon,
-  activeClass,
-  title,
-}: {
-  on: boolean;
-  icon: string;
-  activeClass: string;
-  title: string;
-}) {
-  return (
-    <OverlayTrigger overlay={<Tooltip>{title}</Tooltip>}>
-      <i className={`bi ${icon} ${on ? activeClass : "is-off"}`} aria-label={title} />
-    </OverlayTrigger>
-  );
-}
-
-function MockTable({
-  items,
-  onEdit,
-  onToggle,
-  onDelete,
-}: {
-  items: MockDto[];
-  onEdit: (mock: MockDto) => void;
-  onToggle: (name: string) => void;
-  onDelete: (name: string) => void;
-}) {
-  return (
-    <Table striped responsive className="align-middle mocks-table">
-      <colgroup>
-        <col />
-        <col className="col-methods" />
-        <col />
-        <col className="col-flags" />
-        <col className="col-status" />
-        <col className="col-actions-wide" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Methods</th>
-          <th>Match</th>
-          <th>Flags</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((mock) => {
-          const delayed = (mock.response.delayMs ?? 0) > 0;
-          const blocked = mock.response.block === true;
-          const advanced = hasAdvancedMatch(mock.match);
-          const methods = mock.match.methods?.filter(Boolean) ?? [];
-          return (
-            <tr key={mock.name} className={mock.enabled ? undefined : "text-secondary"}>
-              <td>
-                {mock.name}
-                <div className="row-meta">{mock.fileName}</div>
-              </td>
-              <td>
-                {methods.length > 0 ? (
-                  <Stack direction="horizontal" gap={1} className="flex-wrap">
-                    {methods.map((method) => (
-                      <Badge key={method} bg="secondary">
-                        {method}
-                      </Badge>
-                    ))}
-                  </Stack>
-                ) : (
-                  <span className="row-meta">any</span>
-                )}
-              </td>
-              <td>
-                <code>
-                  {mock.type === "soap"
-                    ? mock.match.soapAction || mock.match.operation || "*"
-                    : mock.match.path || "*"}
-                </code>
-                {mock.type !== "soap" && mock.match.pathMode && mock.match.pathMode !== "exact" && (
-                  <div className="row-meta">{mock.match.pathMode}</div>
-                )}
-              </td>
-              <td>
-                <div className="mock-icons">
-                  <MockIcon
-                    on={mock.enabled}
-                    icon={mock.enabled ? "bi-check-circle-fill" : "bi-pause-circle"}
-                    activeClass={mock.enabled ? "text-success" : "text-secondary"}
-                    title={mock.enabled ? "Enabled" : "Disabled"}
-                  />
-                  <MockIcon
-                    on={delayed}
-                    icon="bi-hourglass-split"
-                    activeClass="text-warning"
-                    title={delayed ? `Delayed ${mock.response.delayMs} ms` : "No delay"}
-                  />
-                  <MockIcon
-                    on={blocked}
-                    icon="bi-slash-circle"
-                    activeClass="text-danger"
-                    title={blocked ? "Blocks the request" : "Responds normally"}
-                  />
-                  <MockIcon
-                    on={advanced}
-                    icon="bi-sliders"
-                    activeClass="text-info"
-                    title={advanced ? "Uses extra match rules" : "Path matching only"}
-                  />
-                </div>
-              </td>
-              <td>{blocked ? "Block" : mock.response.statusCode}</td>
-              <td className="text-end">
-                <Stack direction="horizontal" gap={1} className="justify-content-end">
-                  <Button variant="outline-secondary" size="sm" onClick={() => onToggle(mock.name)}>
-                    {mock.enabled ? "Disable" : "Enable"}
-                  </Button>
-                  <Button variant="outline-primary" size="sm" onClick={() => onEdit(mock)}>
-                    Edit
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => onDelete(mock.name)}>
-                    Delete
-                  </Button>
-                </Stack>
-              </td>
-            </tr>
-          );
-        })}
-        {items.length === 0 && (
-          <tr>
-            <td colSpan={6}>No mocks in this group.</td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
+    <Space size={4} wrap>
+      <Tag color={mock.enabled ? "green" : "default"}>
+        {mock.enabled ? "enabled" : "disabled"}
+      </Tag>
+      {flags.map((flag) => (
+        <Tag key={flag} color={blocked && flag === "blocks request" ? "red" : "blue"}>
+          {flag}
+        </Tag>
+      ))}
+      {flags.length === 0 && <span className="app-subtle">path only</span>}
+    </Space>
   );
 }

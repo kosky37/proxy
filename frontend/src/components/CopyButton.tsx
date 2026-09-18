@@ -1,12 +1,15 @@
+import { CheckOutlined, CopyOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 import { useState } from "react";
-import { Button } from "react-bootstrap";
+import { HelpTooltip } from "./FieldHelp";
 
 interface Props {
   value?: string | null;
   label?: string;
+  text?: string;
 }
 
-export function CopyButton({ value, label = "Copy" }: Props) {
+export function CopyButton({ value, label = "Copy", text }: Props) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -16,16 +19,20 @@ export function CopyButton({ value, label = "Copy" }: Props) {
   };
 
   return (
-    <Button
-      variant="link"
-      size="sm"
-      className="copy-icon-button p-0"
-      onClick={copy}
-      disabled={!value}
-      title={copied ? "Copied" : label}
-      aria-label={copied ? "Copied" : label}
-    >
-      <i className={`bi ${copied ? "bi-check-lg" : "bi-clipboard"}`} />
-    </Button>
+    <HelpTooltip help={copied ? "Copied." : label}>
+      <Button
+        type="text"
+        size="small"
+        aria-label={copied ? "Copied" : label}
+        disabled={!value}
+        icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+        onClick={(event) => {
+          event.stopPropagation();
+          void copy();
+        }}
+      >
+        {text}
+      </Button>
+    </HelpTooltip>
   );
 }

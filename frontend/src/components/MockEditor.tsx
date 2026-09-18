@@ -1,9 +1,64 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Button, Col, Form, InputGroup, Modal, Row } from "react-bootstrap";
+import { Col, Divider, Input, InputNumber, Modal, Row, Segmented, Space, Switch, Typography } from "antd";
+import { useEffect, useState } from "react";
 import type { MockDto, MockMatchDto } from "../store/types";
-import { FieldLabel, pathModeHelp } from "./FieldHelp";
 import { HeaderEditor } from "./HeaderEditor";
-import { ContentTypeTypeahead, MethodTypeahead } from "./TypeaheadFields";
+import { FieldHelp, FieldLabel, pathModeHelp, type HelpDoc } from "./FieldHelp";
+import { ContentTypeSelect, MethodSelect } from "./Selects";
+
+const humanizeHelp: HelpDoc = {
+  summary: "Plain text search in the raw body.",
+  points: [
+    { text: "No JSON or XML parsing and no case sensitivity." },
+    { label: "REST example", code: '"status":"open"' },
+    { label: "SOAP example", code: "<AccountId>42</AccountId>" },
+  ],
+};
+
+const SOAP_ACTION_HELP: HelpDoc = {
+  summary: "Selects the mock by the `SOAPAction` header.",
+  points: [
+    { text: "The URL path is ignored unless matching by URL is switched on below." },
+  ],
+  note: "Examples: GetAccount, or the full \"http://example.com/GetAccount\".",
+};
+
+const JSON_PATH_HELP: HelpDoc = {
+  summary: "Compares one value inside a JSON body.",
+  points: [
+    { text: "The path is JSONPath; the value is compared as text." },
+    { label: "Match", code: "$.user.id = 42  →  {\"user\":{\"id\":42}}" },
+    { text: "Leave the value empty to only require that the path exists." },
+  ],
+};
+
+const XML_XPATH_HELP: HelpDoc = {
+  summary: "Matches when an XPath query finds something in an XML body.",
+  points: [
+    { label: "Exists", code: "//Account" },
+    { label: "Has text", code: "//AccountId[text()='42']" },
+  ],
+};
+
+const SOAP_OPERATION_HELP: HelpDoc = {
+  summary: "The first element inside the SOAP Body, i.e. the operation name.",
+  points: [{ label: "Example", code: "GetAccount" }],
+  note: "Use it when SOAPAction is missing or unreliable. Requires parsing the XML envelope.",
+};
+
+const SOAP_XPATH_HELP: HelpDoc = {
+  summary: "Matches when an XPath query finds something in the SOAP envelope.",
+  points: [
+    { label: "Exists", code: "//GetAccount" },
+    { label: "Has text", code: "//AccountId[text()='42']" },
+  ],
+  note: "Requires parsing the XML envelope.",
+};
+
+const pathModeOptions = [
+  { value: "exact", label: "exact — this path only" },
+  { value: "prefix", label: "prefix — this path and below" },
+  { value: "template", label: "template — {placeholders}" },
+];
 
 const blank = (type: string): MockDto => ({
   name: "",
@@ -19,7 +74,7 @@ const blank = (type: string): MockDto => ({
 });
 
 interface Props {
-  show: boolean;
+  open: boolean;
   initial?: MockDto | null;
   defaultType: string;
   isNew?: boolean;
@@ -27,513 +82,465 @@ interface Props {
   onCancel: () => void;
 }
 
-export function MockEditor({ show, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
+export function MockEditor({ open, initial, defaultType, isNew = true, onSave, onCancel }: Props) {
   const [mock, setMock] = useState<MockDto>(initial ?? blank(defaultType));
   const [useDelay, setUseDelay] = useState(false);
   const [useHeaderMatch, setUseHeaderMatch] = useState(false);
   const [useUrlMatch, setUseUrlMatch] = useState(false);
   const [useAdvanced, setUseAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (show) {
-      const next = initial ?? blank(defaultType);
-      setMock(next);
-      setUseDelay((next.response.delayMs ?? 0) > 0);
-      setUseHeaderMatch(hasHeaderMatch(next.match));
-      setUseUrlMatch(hasUrlMatch(next.match, mock.type === "soap"));
-      setUseAdvanced(hasExtraFilters(next.match, next.type === "soap"));
+    if (!open) {
+      return;
     }
-  }, [defaultType, initial, show]);
+    const next = initial ?? blank(defaultType);
+    setMock(next);
+    setUseDelay((next.response.delayMs ?? 0) > 0);
+    setUseHeaderMatch(hasHeaderMatch(next.match));
+    setUseUrlMatch(hasUrlMatch(next.match, next.type === "soap"));
+    setUseAdvanced(hasExtraFilters(next.match, next.type === "soap"));
+    setError(null);
+  }, [defaultType, initial, open]);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const isSoap = mock.type === "soap";
+  const headerResetKey = `${open}:${initial?.name ?? "new"}:${initial?.fileName ?? ""}:${initial?.type ?? defaultType}`;
+  const patch = (next: Partial<MockDto>) => setMock((current) => ({ ...current, ...next }));
+  const patchMatch = (next: Partial<MockMatchDto>) =>
+    setMock((current) => ({ ...current, match: { ...current.match, ...next } }));
+
+  const submit = async () => {
+    if (!mock.name.trim()) {
+      setError("Name is required.");
+      return;
+    }
+    if (isSoap && !useAdvanced && !mock.match.soapAction?.trim()) {
+      setError("SOAPAction is required unless advanced matching or URL matching is used.");
+      return;
+    }
+
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         ...mock,
-        match: persistMatch(mock.match, mock.type === "soap", useAdvanced, useHeaderMatch),
-        response: {
-          ...mock.response,
-          delayMs: useDelay ? mock.response.delayMs : 0,
-        },
+        match: persistMatch(mock.match, isSoap, useAdvanced, useHeaderMatch, useUrlMatch),
+        response: { ...mock.response, delayMs: useDelay ? mock.response.delayMs : 0 },
       });
+    } catch {
+      setError("Could not save the mock.");
     } finally {
       setSaving(false);
     }
   };
 
-  const isSoap = mock.type === "soap";
-  const headerResetKey = `${show}:${initial?.name ?? "new"}:${initial?.fileName ?? ""}:${initial?.type ?? defaultType}`;
+  const queryText = mock.match.query
+    ? Object.entries(mock.match.query)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("&")
+    : "";
 
   return (
-    <Modal show={show} onHide={onCancel} size="lg" scrollable>
-      <Modal.Header closeButton>
-        <Modal.Title>{!isNew && initial?.name ? `Edit ${initial.name}` : "New mock"}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form id="mock-form" onSubmit={submit}>
-          <Row className="g-3">
-            <Col md={4}>
-              <Form.Group>
-                <FieldLabel help="REST matches HTTP APIs. SOAP matches XML envelope requests, usually with a SOAPAction header.">
-                  Type
-                </FieldLabel>
-                <Form.Select
-                  value={mock.type}
-                  onChange={(event) => {
-                    const type = event.target.value;
-                    setMock({
-                      ...mock,
-                      type,
-                      match:
-                        type === "soap"
-                          ? { ...mock.match, path: null, pathMode: "exact" }
-                          : mock.match,
-                    });
-                  }}
-                >
-                  <option value="rest">REST</option>
-                  <option value="soap">SOAP</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={5}>
-              <Form.Group>
-                <FieldLabel help="Shown in the mock list and in request logs when this mock answers.">
-                  Name
-                </FieldLabel>
-                <Form.Control
-                  required
-                  value={mock.name}
-                  onChange={(event) => setMock({ ...mock, name: event.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={3} className="d-flex align-items-end pb-1">
-              <Form.Check
-                type="switch"
-                id="mock-enabled"
-                label="Enabled"
-                checked={mock.enabled}
-                onChange={(event) => setMock({ ...mock, enabled: event.target.checked })}
-              />
-            </Col>
+    <Modal
+      open={open}
+      title={!isNew && initial?.name ? `Edit ${initial.name}` : "New mock"}
+      width={880}
+      okText="Save"
+      confirmLoading={saving}
+      onOk={() => void submit()}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
+      {error && (
+        <Typography.Text type="danger" style={{ display: "block", marginBottom: 12 }}>
+          {error}
+        </Typography.Text>
+      )}
+      <Row gutter={[16, 12]}>
+        <Col xs={24} md={6}>
+          <FieldLabel help="REST answers HTTP requests. SOAP answers XML envelope requests, usually carrying a `SOAPAction` header.">
+            Type
+          </FieldLabel>
+          <Segmented
+            block
+            style={{ marginTop: 4 }}
+            value={mock.type}
+            options={[
+              { value: "rest", label: "REST" },
+              { value: "soap", label: "SOAP" },
+            ]}
+            onChange={(value) =>
+              patch({
+                type: String(value),
+                match:
+                  value === "soap"
+                    ? { ...mock.match, path: null, pathMode: "exact" }
+                    : mock.match,
+              })
+            }
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <FieldLabel help="Shown in the mock list and in request logs when this mock answers.">
+            Name
+          </FieldLabel>
+          <Input
+            style={{ marginTop: 4 }}
+            value={mock.name}
+            onChange={(event) => patch({ name: event.target.value })}
+          />
+        </Col>
+        <Col xs={24} md={6}>
+          <FieldLabel help="Disabled mocks are kept on disk but never match.">Enabled</FieldLabel>
+          <div style={{ marginTop: 8 }}>
+            <Switch checked={mock.enabled} onChange={(enabled) => patch({ enabled })} />
+          </div>
+        </Col>
 
-            <Col xs={12}>
-              <div className="editor-section-title">Match</div>
-            </Col>
-            {isSoap ? (
-              <>
-                <Col xs={12}>
-                  <Form.Group>
-                    <FieldLabel help='Value of the SOAPAction header. This is how the mock is selected; the URL path is ignored. Examples: GetAccount or "http://example.com/GetAccount".'>
-                      SOAPAction
-                    </FieldLabel>
-                    <Form.Control
-                      required
-                      value={mock.match.soapAction ?? ""}
-                      onChange={(event) =>
-                        setMock({
-                          ...mock,
-                          match: { ...mock.match, soapAction: event.target.value },
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={12}>
-                  <Form.Check
-                    type="switch"
-                    id="soap-url-match"
-                    label="Match by URL path and query"
-                    checked={useUrlMatch}
-                    onChange={(event) => setUseUrlMatch(event.target.checked)}
-                  />
-                </Col>
-                {useUrlMatch && (
-                  <>
-                    <Col md={6}>
-                      <Form.Group>
-                        <FieldLabel help="The URL path after the host. Leave empty to match any path.">
-                          Path
-                        </FieldLabel>
-                        <Form.Control
-                          placeholder="/endpoint"
-                          value={mock.match.path ?? ""}
-                          onChange={(event) =>
-                            setMock({ ...mock, match: { ...mock.match, path: event.target.value } })
-                          }
-                        />
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group>
-                        <FieldLabel help="Query parameters to match. Leave empty to ignore query string.">
-                          Query
-                        </FieldLabel>
-                        <Form.Control
-                          placeholder="key=value&amp;other=param"
-                          value={
-                            mock.match.query
-                              ? Object.entries(mock.match.query)
-                                  .map(([k, v]) => `${k}=${v}`)
-                                  .join("&")
-                              : ""
-                          }
-                          onChange={(event) => {
-                            const pairs = event.target.value.split("&").filter(Boolean);
-                            const query: Record<string, string> = {};
-                            for (const pair of pairs) {
-                              const eq = pair.indexOf("=");
-                              if (eq === -1) {
-                                query[pair] = "";
-                              } else {
-                                query[pair.slice(0, eq)] = pair.slice(eq + 1);
-                              }
-                            }
-                            setMock({
-                              ...mock,
-                              match: {
-                                ...mock.match,
-                                query: Object.keys(query).length > 0 ? query : null,
-                              },
-                            });
-                          }}
-                        />
-                      </Form.Group>
-                    </Col>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <Col md={4}>
-                  <Form.Group>
-                    <FieldLabel help="The URL path after the host. Leave empty to match any path. Example: /accounts">
-                      Path
-                    </FieldLabel>
-                    <Form.Control
-                      placeholder="/accounts"
-                      value={mock.match.path ?? ""}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, path: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group>
-                    <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
-                    <Form.Select
-                      value={mock.match.pathMode}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, pathMode: event.target.value } })
-                      }
-                    >
-                      <option value="exact">exact — this path only</option>
-                      <option value="prefix">prefix — this path and below</option>
-                      <option value="template">template — {`{placeholders}`}</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group>
-                    <FieldLabel help="HTTP methods this mock accepts. Leave empty to match any method.">
-                      Methods
-                    </FieldLabel>
-                    <MethodTypeahead
-                      id="mock-methods"
-                      multiple
-                      selected={mock.match.methods ?? []}
-                      onChange={(methods) =>
-                        setMock({ ...mock, match: { ...mock.match, methods } })
-                      }
-                      placeholder="Any method"
-                    />
-                  </Form.Group>
-                </Col>
-              </>
-            )}
-            <Col xs={12}>
-              <Form.Check
-                type="switch"
-                id="mock-header-match"
-                label="Match by headers"
-                checked={useHeaderMatch}
-                onChange={(event) => setUseHeaderMatch(event.target.checked)}
-              />
-              <Form.Text>
-                Require these request headers. Names and values are case-insensitive.
-              </Form.Text>
-            </Col>
-            {useHeaderMatch && (
-              <Col xs={12}>
-                <HeaderEditor
-                  id="mock-match-headers"
-                  resetKey={`${headerResetKey}:match`}
-                  label="Request headers"
-                  help="The request must include these headers with these values. Names and values are case-insensitive."
-                  value={mock.match.headers}
-                  onChange={(headers) => setMock({ ...mock, match: { ...mock.match, headers } })}
-                />
-              </Col>
-            )}
+        <Col span={24}>
+          <Divider orientation="horizontal" titlePlacement="left" style={{ margin: "4px 0" }}>
+            Match
+          </Divider>
+        </Col>
 
-            <Col xs={12}>
-              <Form.Check
-                type="switch"
-                id="mock-advanced"
-                label="Advanced matching"
-                checked={useAdvanced}
-                onChange={(event) => setUseAdvanced(event.target.checked)}
+        {isSoap ? (
+          <>
+            <Col xs={24} md={12}>
+              <FieldLabel help={SOAP_ACTION_HELP}>
+                SOAPAction
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                value={mock.match.soapAction ?? ""}
+                onChange={(event) => patchMatch({ soapAction: event.target.value })}
               />
-              <Form.Text>
-                {isSoap
-                  ? "Match on the SOAP body as well as SOAPAction."
-                  : "Match on the request body as well as the path."}
-              </Form.Text>
             </Col>
-            {useAdvanced && !isSoap && (
-              <>
-                <Col xs={12}>
-                  <Form.Group>
-                    <FieldLabel help='Plain text search in the raw body. No JSON or XML parsing. Case is ignored. Example: "status":"open"'>
-                      Body contains
-                    </FieldLabel>
-                    <Form.Control
-                      value={mock.match.bodyContains ?? ""}
-                      onChange={(event) =>
-                        setMock({
-                          ...mock,
-                          match: { ...mock.match, bodyContains: event.target.value },
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <FieldLabel help='For JSON bodies only. JSONPath picks a value out of JSON. $.user.id with 42 matches {"user":{"id":42}}. Leave the value empty to only require that the path exists.'>
-                      JSON path equals
-                    </FieldLabel>
-                    <InputGroup>
-                      <Form.Control
-                        placeholder="$.user.id"
-                        value={mock.match.jsonPath ?? ""}
-                        onChange={(event) =>
-                          setMock({
-                            ...mock,
-                            match: { ...mock.match, jsonPath: event.target.value },
-                          })
-                        }
-                      />
-                      <Form.Control
-                        placeholder="42"
-                        value={mock.match.jsonPathEquals ?? ""}
-                        onChange={(event) =>
-                          setMock({
-                            ...mock,
-                            match: { ...mock.match, jsonPathEquals: event.target.value },
-                          })
-                        }
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <FieldLabel help="For XML bodies only. XPath is a query into the XML. The mock matches when the query finds something. Examples: //Account (that element exists), //AccountId[text()='42'] (that element has this text).">
-                      XML XPath
-                    </FieldLabel>
-                    <Form.Control
-                      placeholder="//AccountId"
-                      value={mock.match.xpath ?? ""}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-              </>
-            )}
-            {useAdvanced && isSoap && (
-              <>
-                <Col md={6}>
-                  <Form.Group>
-                    <FieldLabel help="Plain text search in the raw SOAP body. No XML parsing. Case is ignored. Example: AccountId>42">
-                      Body contains
-                    </FieldLabel>
-                    <Form.Control
-                      value={mock.match.bodyContains ?? ""}
-                      onChange={(event) =>
-                        setMock({
-                          ...mock,
-                          match: { ...mock.match, bodyContains: event.target.value },
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <FieldLabel help="The first child element inside the SOAP Body, i.e. the operation name. Example: GetAccount. Use this when SOAPAction is missing or unreliable. Requires parsing the XML.">
-                      Operation
-                    </FieldLabel>
-                    <Form.Control
-                      value={mock.match.operation ?? ""}
-                      onChange={(event) =>
-                        setMock({
-                          ...mock,
-                          match: { ...mock.match, operation: event.target.value },
-                        })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={12}>
-                  <Form.Group>
-                    <FieldLabel help="For the SOAP XML envelope. XPath is a query into the XML. The mock matches when the query finds something. Examples: //GetAccount (that element exists), //AccountId[text()='42'] (that element has this text). Requires parsing the XML.">
-                      XML XPath
-                    </FieldLabel>
-                    <Form.Control
-                      placeholder="//GetAccount"
-                      value={mock.match.xpath ?? ""}
-                      onChange={(event) =>
-                        setMock({ ...mock, match: { ...mock.match, xpath: event.target.value } })
-                      }
-                    />
-                  </Form.Group>
-                </Col>
-              </>
-            )}
-
-            <Col xs={12}>
-              <div className="editor-section-title">Response</div>
-            </Col>
-            <Col xs={12}>
-              <Form.Check
-                type="switch"
-                id="mock-block"
-                label="Block request (do not respond)"
-                checked={mock.response.block ?? false}
-                onChange={(event) =>
-                  setMock({ ...mock, response: { ...mock.response, block: event.target.checked } })
-                }
-              />
-              {mock.response.block && (
-                <Form.Text>
-                  The client waits until it times out. Status and body are not sent.
-                </Form.Text>
-              )}
-            </Col>
-            <Col md={3}>
-              <Form.Group>
-                <FieldLabel help="HTTP status sent back to the client. Ignored when the request is blocked. Example: 200 or 404.">
-                  Status
-                </FieldLabel>
-                <Form.Control
-                  type="number"
-                  value={mock.response.statusCode}
-                  onChange={(event) =>
-                    setMock({
-                      ...mock,
-                      response: { ...mock.response, statusCode: Number(event.target.value) },
-                    })
-                  }
+            <Col xs={24} md={12}>
+              <div style={{ marginTop: 22 }}>
+                <Switch
+                  size="small"
+                  checked={useUrlMatch}
+                  onChange={setUseUrlMatch}
+                  style={{ marginRight: 8 }}
                 />
-              </Form.Group>
+                <span>Match by URL path and query</span>
+              </div>
             </Col>
-            <Col md={5}>
-              <Form.Group>
-                <FieldLabel help="Content-Type of the mocked response. Pick a common type or type your own.">
-                  Content type
-                </FieldLabel>
-                <ContentTypeTypeahead
-                  id="mock-content-type"
-                  value={mock.response.contentType}
-                  onChange={(contentType) =>
-                    setMock({ ...mock, response: { ...mock.response, contentType } })
-                  }
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4} className="d-flex align-items-end pb-1">
-              <Form.Check
-                type="switch"
-                id="mock-delay"
-                label="Delay response"
-                checked={useDelay}
-                onChange={(event) => {
-                  const enabled = event.target.checked;
-                  setUseDelay(enabled);
-                  if (enabled && (mock.response.delayMs ?? 0) <= 0) {
-                    setMock({ ...mock, response: { ...mock.response, delayMs: 250 } });
-                  }
-                }}
-              />
-            </Col>
-            {useDelay && (
-              <Col md={4}>
-                <Form.Group>
-                  <FieldLabel help="Wait this many milliseconds before sending the response. Use it to simulate a slow service. Example: 250.">
-                    Delay ms
+            {useUrlMatch && (
+              <>
+                <Col xs={24} md={12}>
+                  <FieldLabel help="The URL path after the host, without the query string.">
+                    Path
                   </FieldLabel>
-                  <Form.Control
-                    type="number"
-                    min={0}
-                    value={mock.response.delayMs}
-                    onChange={(event) =>
-                      setMock({
-                        ...mock,
-                        response: { ...mock.response, delayMs: Number(event.target.value) },
-                      })
-                    }
+                  <Input
+                    style={{ marginTop: 4 }}
+                    placeholder="/endpoint"
+                    value={mock.match.path ?? ""}
+                    onChange={(event) => patchMatch({ path: event.target.value })}
                   />
-                </Form.Group>
-              </Col>
+                </Col>
+                <Col xs={24} md={12}>
+                  <FieldLabel help="Query parameters to match. Leave empty to ignore the query string.">
+                    Query
+                  </FieldLabel>
+                  <Input
+                    style={{ marginTop: 4 }}
+                    placeholder="key=value&other=param"
+                    value={queryText}
+                    onChange={(event) => patchMatch({ query: parseQuery(event.target.value) })}
+                  />
+                </Col>
+              </>
             )}
-            <Col xs={12}>
-              <HeaderEditor
-                id="mock-response-headers"
-                resetKey={`${headerResetKey}:response`}
-                label="Response headers"
-                help="Extra headers sent with the mocked response. Content-Type is set above; you can still override it here."
-                value={mock.response.headers}
-                onChange={(headers) =>
-                  setMock({ ...mock, response: { ...mock.response, headers } })
-                }
-                collapsible
+          </>
+        ) : (
+          <>
+            <Col xs={24} md={8}>
+              <FieldLabel help="The URL path after the host, without the query string. Leave empty to match any path.">
+                Path
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                placeholder="/accounts"
+                value={mock.match.path ?? ""}
+                onChange={(event) => patchMatch({ path: event.target.value })}
               />
             </Col>
-            <Col xs={12}>
-              <Form.Group>
-                <FieldLabel help="The body sent back to the client. For REST this is often JSON; for SOAP it is the XML envelope.">
-                  Response body
-                </FieldLabel>
-                <Form.Control
-                  as="textarea"
-                  rows={6}
-                  value={mock.response.body ?? ""}
-                  onChange={(event) =>
-                    setMock({ ...mock, response: { ...mock.response, body: event.target.value } })
-                  }
+            <Col xs={24} md={8}>
+              <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
+              <div style={{ marginTop: 4 }}>
+                <Segmented
+                  block
+                  value={mock.match.pathMode}
+                  options={[
+                    { value: "exact", label: "exact" },
+                    { value: "prefix", label: "prefix" },
+                    { value: "template", label: "template" },
+                  ]}
+                  onChange={(value) => patchMatch({ pathMode: String(value) })}
                 />
-              </Form.Group>
+              </div>
+              <Typography.Text className="app-subtle">
+                {pathModeOptions.find((item) => item.value === mock.match.pathMode)?.label}
+              </Typography.Text>
             </Col>
-          </Row>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" form="mock-form" disabled={saving}>
-          Save
-        </Button>
-      </Modal.Footer>
+            <Col xs={24} md={8}>
+              <FieldLabel help="HTTP methods this mock accepts. Leave empty to match any method.">
+                Methods
+              </FieldLabel>
+              <div style={{ marginTop: 4 }}>
+                <MethodSelect
+                  multiple
+                  value={mock.match.methods ?? []}
+                  onChange={(methods) => patchMatch({ methods })}
+                  placeholder="Any method"
+                />
+              </div>
+            </Col>
+          </>
+        )}
+
+        <Col xs={24}>
+          <Switch
+            size="small"
+            checked={useHeaderMatch}
+            onChange={setUseHeaderMatch}
+            style={{ marginRight: 8 }}
+          />
+          <span>Match by headers</span>
+          <Typography.Text className="app-subtle" style={{ marginLeft: 8 }}>
+            Require these request headers. Names and values are case-insensitive.
+          </Typography.Text>
+        </Col>
+        {useHeaderMatch && (
+          <Col xs={24}>
+            <HeaderEditor
+              resetKey={`${headerResetKey}:match`}
+              label="Request headers"
+              help="The request must include these headers with these values. Names and values are case-insensitive."
+              value={mock.match.headers}
+              onChange={(headers) => patchMatch({ headers })}
+            />
+          </Col>
+        )}
+
+        <Col xs={24}>
+          <Switch
+            size="small"
+            checked={useAdvanced}
+            onChange={setUseAdvanced}
+            style={{ marginRight: 8 }}
+          />
+          <span>Advanced matching</span>
+          <Typography.Text className="app-subtle" style={{ marginLeft: 8 }}>
+            {isSoap
+              ? "Match on the SOAP body as well as SOAPAction."
+              : "Match on the request body as well as the path."}
+          </Typography.Text>
+        </Col>
+
+        {useAdvanced && !isSoap && (
+          <>
+            <Col xs={24}>
+              <FieldLabel help={humanizeHelp}>Body contains</FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                value={mock.match.bodyContains ?? ""}
+                onChange={(event) => patchMatch({ bodyContains: event.target.value })}
+              />
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel help={JSON_PATH_HELP}>
+                JSON path equals
+              </FieldLabel>
+              <Space.Compact style={{ width: "100%", marginTop: 4 }}>
+                <Input
+                  placeholder="$.user.id"
+                  value={mock.match.jsonPath ?? ""}
+                  onChange={(event) => patchMatch({ jsonPath: event.target.value })}
+                />
+                <Input
+                  placeholder="42"
+                  style={{ width: "35%" }}
+                  value={mock.match.jsonPathEquals ?? ""}
+                  onChange={(event) => patchMatch({ jsonPathEquals: event.target.value })}
+                />
+              </Space.Compact>
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel help={useAdvanced && isSoap ? SOAP_XPATH_HELP : XML_XPATH_HELP}>
+                XML XPath
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                placeholder="//AccountId"
+                value={mock.match.xpath ?? ""}
+                onChange={(event) => patchMatch({ xpath: event.target.value })}
+              />
+            </Col>
+          </>
+        )}
+
+        {useAdvanced && isSoap && (
+          <>
+            <Col xs={24} md={12}>
+              <FieldLabel help={humanizeHelp}>
+                Body contains
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                value={mock.match.bodyContains ?? ""}
+                onChange={(event) => patchMatch({ bodyContains: event.target.value })}
+              />
+            </Col>
+            <Col xs={24} md={12}>
+              <FieldLabel help={SOAP_OPERATION_HELP}>
+                Operation
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                value={mock.match.operation ?? ""}
+                onChange={(event) => patchMatch({ operation: event.target.value })}
+              />
+            </Col>
+            <Col span={24}>
+              <FieldLabel help={SOAP_XPATH_HELP}>
+                XML XPath
+              </FieldLabel>
+              <Input
+                style={{ marginTop: 4 }}
+                placeholder="//GetAccount"
+                value={mock.match.xpath ?? ""}
+                onChange={(event) => patchMatch({ xpath: event.target.value })}
+              />
+            </Col>
+          </>
+        )}
+
+        <Col span={24}>
+          <Divider orientation="horizontal" titlePlacement="left" style={{ margin: "4px 0" }}>
+            Response
+          </Divider>
+        </Col>
+        <Col xs={24}>
+          <Switch
+            size="small"
+            checked={mock.response.block ?? false}
+            onChange={(block) => setMock((current) => ({ ...current, response: { ...current.response, block } }))}
+            style={{ marginRight: 8 }}
+          />
+          <span>Block request (do not respond)</span>
+          {mock.response.block && (
+            <Typography.Text className="app-subtle" style={{ marginLeft: 8 }}>
+              The client waits until it times out. Status and body are not sent.
+            </Typography.Text>
+          )}
+        </Col>
+        <Col xs={24} md={6}>
+          <FieldLabel help="HTTP status sent back to the client. Ignored when the request is blocked.">
+            Status
+          </FieldLabel>
+          <InputNumber
+            style={{ width: "100%", marginTop: 4 }}
+            value={mock.response.statusCode}
+            onChange={(value) =>
+              setMock((current) => ({
+                ...current,
+                response: { ...current.response, statusCode: Number(value ?? 200) },
+              }))
+            }
+          />
+        </Col>
+        <Col xs={24} md={10}>
+          <FieldLabel help="Content-Type of the mocked response. Pick a common type or type your own, e.g. `application/json`.">
+            Content type
+          </FieldLabel>
+          <div style={{ marginTop: 4 }}>
+            <ContentTypeSelect
+              value={mock.response.contentType}
+              onChange={(contentType) =>
+                setMock((current) => ({ ...current, response: { ...current.response, contentType } }))
+              }
+            />
+          </div>
+        </Col>
+        <Col xs={24} md={8}>
+          <FieldLabel help="Wait this many milliseconds before sending the response, to simulate a slow service.">
+            Delay response
+          </FieldLabel>
+          <div className="app-row" style={{ gap: 8, marginTop: 4 }}>
+            <Switch
+              checked={useDelay}
+              onChange={(enabled) => {
+                setUseDelay(enabled);
+                if (enabled && (mock.response.delayMs ?? 0) <= 0) {
+                  setMock((current) => ({ ...current, response: { ...current.response, delayMs: 250 } }));
+                }
+              }}
+            />
+            {useDelay && (
+              <InputNumber
+                min={0}
+                addonAfter="ms"
+                value={mock.response.delayMs}
+                onChange={(value) =>
+                  setMock((current) => ({
+                    ...current,
+                    response: { ...current.response, delayMs: Number(value ?? 0) },
+                  }))
+                }
+              />
+            )}
+          </div>
+        </Col>
+        <Col span={24}>
+          <HeaderEditor
+            resetKey={`${headerResetKey}:response`}
+            label="Response headers"
+            help="Extra headers sent with the mocked response. Content-Type is set above; you can still override it here."
+            value={mock.response.headers}
+            onChange={(headers) =>
+              setMock((current) => ({ ...current, response: { ...current.response, headers } }))
+            }
+            collapsible
+          />
+        </Col>
+        <Col span={24}>
+          <FieldLabel help="The body sent back to the client. For REST this is often JSON; for SOAP it is the XML envelope.">
+            Response body
+          </FieldLabel>
+          <Input.TextArea
+            style={{ marginTop: 4, fontFamily: "ui-monospace, Menlo, Consolas, monospace", fontSize: 12 }}
+            rows={6}
+            value={mock.response.body ?? ""}
+            onChange={(event) =>
+              setMock((current) => ({
+                ...current,
+                response: { ...current.response, body: event.target.value },
+              }))
+            }
+          />
+        </Col>
+      </Row>
+      <div style={{ marginTop: 12 }}>
+        <FieldHelp text="Switched-off groups are cleared on save, so a disabled header or body rule never lingers in the mock file." />
+      </div>
     </Modal>
   );
+}
+
+function parseQuery(text: string): Record<string, string> | null {
+  const query: Record<string, string> = {};
+  for (const pair of text.split("&").filter(Boolean)) {
+    const eq = pair.indexOf("=");
+    if (eq === -1) {
+      query[pair] = "";
+    } else {
+      query[pair.slice(0, eq)] = pair.slice(eq + 1);
+    }
+  }
+  return Object.keys(query).length > 0 ? query : null;
 }
 
 function hasHeaderMatch(match: MockMatchDto): boolean {
@@ -552,8 +559,9 @@ function persistMatch(
   isSoap: boolean,
   useAdvanced: boolean,
   useHeaderMatch: boolean,
+  useUrlMatch: boolean,
 ): MockMatchDto {
-  const next = {
+  const next: MockMatchDto = {
     ...(useAdvanced ? match : basicMatch(match)),
     headers: useHeaderMatch ? match.headers : null,
   };
@@ -564,12 +572,12 @@ function persistMatch(
   return {
     ...next,
     methods: null,
-    query: useHeaderMatch ? next.query : null,
+    query: useUrlMatch ? next.query : null,
+    path: useUrlMatch ? next.path : null,
   };
 }
 
 function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
-  // For SOAP with URL matching enabled, path/mode/query count as extra filters.
   if (isSoap && match.pathMode && match.pathMode !== "exact") {
     return true;
   }
@@ -578,7 +586,6 @@ function hasExtraFilters(match: MockMatchDto, isSoap = false): boolean {
     return true;
   }
 
-  // SOAP with URL matching and a path set counts as having extra filters.
   if (isSoap && match.path && match.path.trim()) {
     return true;
   }

@@ -1,6 +1,9 @@
-﻿import { useState } from "react";
-import { Badge, Button, Stack, Table } from "react-bootstrap";
+import { PlusOutlined } from "@ant-design/icons";
+import { App, Button, Space, Table, Tag, Typography } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { useState } from "react";
 import { CertificateEditor } from "../components/CertificateEditor";
+import { PageHeader } from "../components/PageHeader";
 import { RootCertificatePanel } from "../components/RootCertificatePanel";
 import {
   useCreateCertificateMutation,
@@ -11,6 +14,7 @@ import {
 import type { CertificateDto } from "../store/types";
 
 export function CertificatesPage() {
+  const { modal, message } = App.useApp();
   const certificates = useGetCertificatesQuery();
   const [editing, setEditing] = useState<CertificateDto | null | undefined>(undefined);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
@@ -23,10 +27,26 @@ export function CertificatesPage() {
   const save = async (certificate: CertificateDto) => {
     if (editing?.name) {
       await updateCertificate({ name: editing.name, body: certificate }).unwrap();
+      message.success(`Saved ${certificate.name}.`);
     } else {
       await createCertificate(certificate).unwrap();
+      message.success(`Added ${certificate.name}.`);
     }
     setEditing(undefined);
+  };
+
+  const confirmDelete = (certificate: CertificateDto) => {
+    modal.confirm({
+      title: `Delete ${certificate.name}?`,
+      content:
+        "Proxies using this certificate fall back to no certificate until they are updated.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        await deleteCertificate(certificate.name).unwrap();
+        message.success(`Deleted ${certificate.name}.`);
+      },
+    });
   };
 
   const locationLabel = (certificate: CertificateDto) => {
@@ -36,108 +56,107 @@ export function CertificatesPage() {
     return certificate.pfxPath || "—";
   };
 
+  const columns: ColumnsType<CertificateDto> = [
+    { title: "Name", dataIndex: "name", width: 220 },
+    {
+      title: "Type",
+      dataIndex: "type",
+      width: 100,
+      render: (type: string) =>
+        type === "server" ? <Tag color="gold">Server</Tag> : <Tag color="blue">Client</Tag>,
+    },
+    {
+      title: "Source",
+      dataIndex: "source",
+      width: 140,
+      render: (source: string) => (source === "windowsStore" ? "Windows store" : "File"),
+    },
+    {
+      title: "Location",
+      dataIndex: "pfxPath",
+      render: (_value, certificate) => (
+        <code className="app-code">{locationLabel(certificate)}</code>
+      ),
+    },
+    {
+      title: "Password",
+      key: "password",
+      width: 200,
+      render: (_value, certificate) => {
+        if (certificate.source === "windowsStore") {
+          return <span className="app-subtle">n/a</span>;
+        }
+        if (!certificate.password) {
+          return <span className="app-subtle">none</span>;
+        }
+        const shown = revealed[certificate.name] === true;
+        return (
+          <Space size={8}>
+            <code className="app-code">{shown ? certificate.password : "••••••••"}</code>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0 }}
+              onClick={() =>
+                setRevealed((current) => ({ ...current, [certificate.name]: !shown }))
+              }
+            >
+              {shown ? "Hide" : "Show"}
+            </Button>
+          </Space>
+        );
+      },
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 170,
+      align: "right",
+      render: (_value, certificate) => (
+        <Space size={4}>
+          <Button size="small" onClick={() => setEditing(certificate)}>
+            Edit
+          </Button>
+          <Button size="small" danger onClick={() => confirmDelete(certificate)}>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <>
-      <Stack direction="horizontal" className="mb-3">
-        <div>
-          <h1 className="h3 mb-0">Certificates</h1>
-          <div>Shared catalog. Select a certificate when creating or editing a proxy.</div>
-        </div>
-        <Button className="ms-auto" onClick={() => setEditing(null)}>
-          Add certificate
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Certificates"
+        description="Shared catalog. Select a certificate when creating or editing a proxy."
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing(null)}>
+            Add certificate
+          </Button>
+        }
+      />
 
       <RootCertificatePanel certificates={catalog} />
 
-      <h2 className="h5 mb-3">Client and server certificates</h2>
-      <Table striped responsive className="align-middle">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Source</th>
-            <th>Location</th>
-            <th>Password</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {leafCertificates.map((certificate) => {
-            const isStore = certificate.source === "windowsStore";
-            const showSecret = revealed[certificate.name] === true;
-            return (
-              <tr key={certificate.name}>
-                <td>{certificate.name}</td>
-                <td>
-                  <Badge
-                    bg={certificate.type === "server" ? "warning" : "primary"}
-                    text={certificate.type === "server" ? "dark" : undefined}
-                  >
-                    {certificate.type === "server" ? "Server" : "Client"}
-                  </Badge>
-                </td>
-                <td>{isStore ? "Windows store" : "File"}</td>
-                <td>
-                  <code>{locationLabel(certificate)}</code>
-                </td>
-                <td>
-                  {isStore ? (
-                    <span className="row-meta">n/a</span>
-                  ) : certificate.password ? (
-                    <Stack direction="horizontal" gap={2} className="align-items-center">
-                      <code>{showSecret ? certificate.password : "••••••••"}</code>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0"
-                        onClick={() =>
-                          setRevealed((current) => ({
-                            ...current,
-                            [certificate.name]: !showSecret,
-                          }))
-                        }
-                      >
-                        {showSecret ? "Hide" : "Show"}
-                      </Button>
-                    </Stack>
-                  ) : (
-                    <span className="row-meta">none</span>
-                  )}
-                </td>
-                <td className="text-end">
-                  <Stack direction="horizontal" gap={1} className="justify-content-end">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => setEditing(certificate)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline-danger"
-                      size="sm"
-                      onClick={() => deleteCertificate(certificate.name)}
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                </td>
-              </tr>
-            );
-          })}
-          {leafCertificates.length === 0 && (
-            <tr>
-              <td colSpan={6}>
-                No client or server certificates yet. Add one here, or generate a server certificate
-                from a root CA.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+      <Typography.Title level={5} style={{ marginTop: 0 }}>
+        Client and server certificates
+      </Typography.Title>
+      <Table<CertificateDto>
+        rowKey="name"
+        size="small"
+        loading={certificates.isLoading}
+        columns={columns}
+        dataSource={leafCertificates}
+        pagination={false}
+        locale={{
+          emptyText:
+            "No client or server certificates yet. Add one here, or generate a server certificate from a root CA.",
+        }}
+      />
+
       <CertificateEditor
-        show={editing !== undefined}
+        open={editing !== undefined}
         initial={editing}
         onSave={save}
         onCancel={() => setEditing(undefined)}

@@ -1,33 +1,26 @@
+import { CaretDownOutlined, CaretRightOutlined } from "@ant-design/icons";
+import { Button, Modal, Space, Switch, Table, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
-import {
-  Badge,
-  Button,
-  Col,
-  Form,
-  Modal,
-  OverlayTrigger,
-  Row,
-  Stack,
-  Table,
-  Tooltip,
-} from "react-bootstrap";
+import type { ColumnsType } from "antd/es/table";
 import { formatBytes } from "../format";
 import { getHeader, parseHeaders as parseHeaderMap } from "../headers";
 import { looksLikeHtml } from "../looksLikeHtml";
-import { modeClass, statusClass } from "../logColors";
+import { modeColor, protocolColor, statusColor } from "../logColors";
 import { modeBadge } from "../modeBadge";
 import { parseBody, type ParsedField } from "../parseBody";
 import { protocolBadge } from "../protocolBadge";
 import type { LogDetailDto, MockDto } from "../store/types";
 import { BodyTree } from "./BodyTree";
 import { CopyButton } from "./CopyButton";
+import { ValueTooltip } from "./FieldHelp";
 import { HtmlBodyPreview } from "./HtmlBodyPreview";
-import { LogRequestLine } from "./SoapActionBanner";
+import { LogRequestLine } from "./LogBits";
 
 interface Props {
-  show: boolean;
+  open: boolean;
   log: LogDetailDto | null;
   existingMock?: MockDto;
+  loading?: boolean;
   onClose: () => void;
   onOpenMock?: (mock: MockDto) => void;
   onCreateMock?: (log: LogDetailDto) => void;
@@ -36,9 +29,10 @@ interface Props {
 }
 
 export function LogDetailModal({
-  show,
+  open,
   log,
   existingMock,
+  loading,
   onClose,
   onOpenMock,
   onCreateMock,
@@ -46,92 +40,95 @@ export function LogDetailModal({
   onCreateIgnore,
 }: Props) {
   const [raw, setRaw] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setRaw(false);
+    }
+  }, [open]);
+
   const kind = protocolBadge(log?.protocol ?? "");
 
   return (
     <Modal
-      show={show}
-      onHide={onClose}
-      dialogClassName="log-detail-modal"
-      scrollable
-      onExited={() => setRaw(false)}
+      open={open}
+      className="log-detail-modal"
+      width="min(1600px, 96vw)"
+      title={log ? <LogRequestLine item={log} /> : "Log entry"}
+      onCancel={onClose}
+      destroyOnHidden
+      footer={
+        <Space wrap>
+          {existingMock && onOpenMock && (
+            <Button type="primary" onClick={() => onOpenMock(existingMock)}>
+              Edit mock
+            </Button>
+          )}
+          {!existingMock && log && onCreateMock && (
+            <Button type="primary" onClick={() => onCreateMock(log)}>
+              Create mock
+            </Button>
+          )}
+          {log && onCreateSend && <Button onClick={() => onCreateSend(log)}>Resend</Button>}
+          {log && onCreateIgnore && (
+            <Button danger onClick={() => onCreateIgnore(log)}>
+              Ignore
+            </Button>
+          )}
+          <Button onClick={onClose}>Close</Button>
+        </Space>
+      }
     >
-      <Modal.Header closeButton>
-        <Modal.Title>{log ? <LogRequestLine item={log} showSoapAction /> : null}</Modal.Title>
-      </Modal.Header>
+      {loading && !log && <Typography.Text>Loading…</Typography.Text>}
       {log && (
-        <Modal.Body>
-          <Stack direction="horizontal" gap={2} className="mb-3 flex-wrap">
-            <Badge bg={kind.bg} text={kind.text}>
-              {kind.label}
-            </Badge>
-            <span className={`badge ${modeClass(log.mode)}`}>{modeBadge(log.mode).label}</span>
-            <span className={`badge ${statusClass(log.statusCode)}`}>{log.statusCode ?? "-"}</span>
-            <span>{log.durationMs} ms</span>
-            {log.proxyName && <span>{log.proxyName}</span>}
-            {log.mockName && <span>Mock: {log.mockName}</span>}
-            {log.error && <Badge bg="danger">{log.error}</Badge>}
-            <div className="ms-auto">
-              <Form.Check
-                type="switch"
-                id="log-raw-view"
-                label="Raw view"
-                checked={raw}
-                onChange={(event) => setRaw(event.currentTarget.checked)}
-              />
-            </div>
-          </Stack>
-          <Row className="g-3">
-            <Col lg={6}>
-              <HttpMessage
-                title="Request"
-                headers={log.requestHeaders}
-                query={log.query}
-                body={log.requestBody}
-                truncated={log.requestBodyTruncated ?? false}
-                originalBytes={log.requestBytes}
-                raw={raw}
-              />
-            </Col>
-            <Col lg={6}>
-              <HttpMessage
-                title="Response"
-                headers={log.responseHeaders}
-                body={log.responseBody}
-                truncated={log.responseBodyTruncated ?? false}
-                originalBytes={log.responseBytes}
-                raw={raw}
-                allowHtmlPreview
-              />
-            </Col>
-          </Row>
-        </Modal.Body>
+        <>
+          <div className="log-detail-meta">
+            <Tag color={protocolColor(log.protocol)}>{kind.label}</Tag>
+            <Tag color={modeColor(log.mode)}>{modeBadge(log.mode).label}</Tag>
+            <Tag color={statusColor(log.statusCode)}>{log.statusCode ?? "-"}</Tag>
+            <span className="app-subtle">{log.durationMs} ms</span>
+            {log.proxyName && <span className="app-subtle">Proxy: {log.proxyName}</span>}
+            {log.mockName && (
+              <span className="app-subtle">
+                Mock:{" "}
+                {existingMock && onOpenMock ? (
+                  <Button type="link" size="small" onClick={() => onOpenMock(existingMock)}>
+                    {log.mockName}
+                  </Button>
+                ) : (
+                  log.mockName
+                )}
+              </span>
+            )}
+            {log.error && <Tag color="red">{log.error}</Tag>}
+            <span className="log-detail-meta-raw">
+              <Switch size="small" checked={raw} onChange={setRaw} id="log-raw-view" />
+              <label htmlFor="log-raw-view">Raw view</label>
+            </span>
+          </div>
+
+          <div className="log-detail-grid">
+            <HttpMessage
+              title="Request"
+              headers={log.requestHeaders}
+              query={log.query}
+              body={log.requestBody}
+              truncated={log.requestBodyTruncated ?? false}
+              originalBytes={log.requestBytes}
+              raw={raw}
+            />
+            <HttpMessage
+              title="Response"
+              headers={log.responseHeaders}
+              body={log.responseBody}
+              truncated={log.responseBodyTruncated ?? false}
+              originalBytes={log.responseBytes}
+              raw={raw}
+              allowHtmlPreview
+            />
+          </div>
+        </>
       )}
-      <Modal.Footer>
-        {existingMock && onOpenMock && (
-          <Button variant="primary" onClick={() => onOpenMock(existingMock)}>
-            Edit mock
-          </Button>
-        )}
-        {!existingMock && log && onCreateMock && (
-          <Button variant="primary" onClick={() => onCreateMock(log)}>
-            Create mock
-          </Button>
-        )}
-        {log && onCreateSend && (
-          <Button variant="outline-info" onClick={() => onCreateSend(log)}>
-            Resend
-          </Button>
-        )}
-        {log && onCreateIgnore && (
-          <Button variant="outline-danger" onClick={() => onCreateIgnore(log)}>
-            Ignore
-          </Button>
-        )}
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 }
@@ -169,8 +166,8 @@ function HttpMessage({
   }, [body]);
 
   return (
-    <Stack gap={3}>
-      <h2 className="h5 mb-0">{title}</h2>
+    <div className="log-detail-pane">
+      <h2 className="log-detail-pane-title">{title}</h2>
       <FieldBlock
         title="Headers"
         rawText={headers}
@@ -191,40 +188,40 @@ function HttpMessage({
         />
       ) : null}
       <div>
-        <Stack direction="horizontal" gap={3} className="mb-2">
+        <div className="log-body-head">
           <strong>Body</strong>
-          {truncated && (
-            <Badge bg="warning" text="dark" className="ms-2">
-              exceeded limit
-            </Badge>
-          )}
-          <div className="ms-auto d-flex align-items-center gap-3">
+          {truncated && <Tag color="orange">exceeded limit</Tag>}
+          <div className="log-body-head-actions">
             {html && (
-              <Form.Check
-                type="switch"
-                id={`html-preview-${title}`}
-                label="HTML preview"
-                checked={htmlPreview}
-                onChange={(event) => setHtmlPreview(event.currentTarget.checked)}
-              />
+              <span className="log-inline-switch">
+                <Switch
+                  size="small"
+                  checked={htmlPreview}
+                  onChange={setHtmlPreview}
+                  id={`html-preview-${title}`}
+                />
+                <label htmlFor={`html-preview-${title}`}>HTML preview</label>
+              </span>
             )}
             <CopyButton value={body ?? ""} label="Copy body" />
           </div>
-        </Stack>
-        {html && htmlPreview ? (
-          <HtmlBodyPreview html={body ?? ""} />
-        ) : raw || !bodyNodes ? (
-          <pre className="border rounded p-2 mb-0">
-            {body ||
-              (truncated
-                ? `Body not stored. Original size: ${formatBytes(originalBytes)}.`
-                : "(empty)")}
-          </pre>
-        ) : (
-          <BodyTree nodes={bodyNodes} empty="(empty)" />
-        )}
+        </div>
+        <div className="log-body-scroll">
+          {html && htmlPreview ? (
+            <HtmlBodyPreview html={body ?? ""} />
+          ) : raw || !bodyNodes ? (
+            <pre className="app-code app-prewrap log-raw-text">
+              {body ||
+                (truncated
+                  ? `Body not stored. Original size: ${formatBytes(originalBytes)}.`
+                  : "(empty)")}
+            </pre>
+          ) : (
+            <BodyTree nodes={bodyNodes} empty="(empty)" />
+          )}
+        </div>
       </div>
-    </Stack>
+    </div>
   );
 }
 
@@ -246,85 +243,87 @@ function FieldBlock({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+
   useEffect(() => {
     setOpen(defaultOpen);
   }, [rawText, defaultOpen]);
 
   return (
-    <div>
-      <Stack direction="horizontal" className="mb-2">
+    <div className="log-field-block">
+      <div className="log-field-head">
         <button
           type="button"
           className="log-collapse-toggle"
+          aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
-          <i className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`} aria-hidden />
-          <strong>{title}</strong>
-          <span className="row-meta">{fields.length}</span>
+          {open ? <CaretDownOutlined /> : <CaretRightOutlined />}
+          <span className="log-collapse-toggle-label">{title}</span>
+          <span className="app-subtle">{fields.length}</span>
         </button>
-        <div className="ms-auto">
-          <CopyButton value={rawText ?? ""} label={copyLabel} />
+        <CopyButton value={rawText ?? ""} label={copyLabel} />
+      </div>
+      {open && (
+        <div className="log-field-body">
+          {raw ? (
+            <pre className="app-code app-prewrap log-raw-text">{rawText || "(none)"}</pre>
+          ) : (
+            <FieldTable fields={fields} empty={empty} />
+          )}
         </div>
-      </Stack>
-      {open &&
-        (raw ? (
-          <pre className="border rounded p-2 mb-0">{rawText || "(none)"}</pre>
-        ) : (
-          <FieldTable fields={fields} empty={empty} />
-        ))}
+      )}
     </div>
   );
 }
 
 function FieldTable({ fields, empty }: { fields: ParsedField[]; empty: string }) {
+  const columns: ColumnsType<ParsedField> = [
+    {
+      title: "Name",
+      dataIndex: "name",
+      width: "32%",
+      render: (value: string) => <TruncatedText value={value} />,
+    },
+    {
+      title: "Value",
+      dataIndex: "value",
+      render: (value: string) => <TruncatedText value={value} code />,
+    },
+    {
+      title: "",
+      key: "copy",
+      width: 44,
+      align: "center",
+      render: (_value, field) => (
+        <CopyButton value={field.value} label={`Copy ${field.name}`} />
+      ),
+    },
+  ];
+
   return (
-    <Table bordered size="sm" className="log-headers-table mb-0">
-      <colgroup>
-        <col className="log-headers-name" />
-        <col />
-        <col className="log-headers-copy" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Value</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {fields.map((field) => (
-          <tr key={`${field.name}:${field.value}`}>
-            <td className="log-headers-value">
-              <TruncatedText value={field.name} />
-            </td>
-            <td className="log-headers-value">
-              <TruncatedText value={field.value} code />
-            </td>
-            <td className="text-center">
-              <CopyButton value={field.value} label={`Copy ${field.name}`} />
-            </td>
-          </tr>
-        ))}
-        {fields.length === 0 && (
-          <tr>
-            <td colSpan={3}>{empty}</td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
+    <Table<ParsedField>
+      rowKey={(field) => `${field.name}:${field.value}`}
+      size="small"
+      bordered
+      className="log-field-table"
+      tableLayout="fixed"
+      columns={columns}
+      dataSource={fields}
+      pagination={false}
+      locale={{ emptyText: empty }}
+    />
   );
 }
 
 function TruncatedText({ value, code = false }: { value: string; code?: boolean }) {
-  const content = code ? <code>{value}</code> : value;
   if (!value) {
-    return content;
+    return null;
   }
 
   return (
-    <OverlayTrigger overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}>
-      <span className="log-headers-text">{content}</span>
-    </OverlayTrigger>
+    <ValueTooltip value={value}>
+      {code ? <code className="app-code">{value}</code> : value}
+    </ValueTooltip>
   );
 }
 

@@ -38,3 +38,46 @@ export const timelineSeries = [
 ] as const;
 
 export type TimelineSeriesKey = (typeof timelineSeries)[number]["key"];
+
+export function statusColor(status?: number | null): string {
+  if (!status) {
+    return "default";
+  }
+  if (status >= 200 && status < 300) {
+    return "green";
+  }
+  if (status >= 300 && status < 400) {
+    return "gold";
+  }
+  if (status >= 400 && status < 500) {
+    return "orange";
+  }
+  if (status >= 500 && status < 600) {
+    return "red";
+  }
+  return "default";
+}
+
+export function modeColor(mode: string): string {
+  if (mode === "mock") {
+    return "blue";
+  }
+  if (mode === "manual") {
+    return "purple";
+  }
+  return "default";
+}
+
+export function protocolColor(protocol: string): string {
+  switch (protocol) {
+    case "soap":
+      return "gold";
+    case "json":
+      return "blue";
+    case "xml":
+      return "cyan";
+    default:
+      return "default";
+  }
+}
+

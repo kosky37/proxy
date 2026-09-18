@@ -1,14 +1,13 @@
-﻿import { Card, Col, Form, Row, Stack } from "react-bootstrap";
+import { Card, Col, Form, Input, InputNumber, Row, Select, Switch, Typography } from "antd";
 import { Link } from "react-router-dom";
 import type { CertificateDto, UpsertProxyRequest } from "../store/types";
+import { FieldHelp } from "./FieldHelp";
 
 interface Props {
   form: UpsertProxyRequest;
   onChange: (next: UpsertProxyRequest) => void;
   certificates?: CertificateDto[];
-  /** Show folder id field (create only). */
   showId?: boolean;
-  /** Show enabled switch, delays, and log settings (edit / full settings). */
   showAdvanced?: boolean;
 }
 
@@ -19,241 +18,205 @@ export function ProxySettingsFields({
   showId = false,
   showAdvanced = true,
 }: Props) {
-  const set = (next: UpsertProxyRequest) => onChange(next);
+  const set = (patch: Partial<UpsertProxyRequest>) => onChange({ ...form, ...patch });
   const serverCerts = certificates.filter((item) => item.type === "server");
   const clientCerts = certificates.filter((item) => item.type === "client");
 
+  const certificateLink = (
+    <Typography.Text className="app-subtle">
+      Defined on the <Link to="/certificates">Certificates</Link> page.
+    </Typography.Text>
+  );
+
   return (
-    <Stack gap={3}>
-      <Card>
-        <Card.Body>
-          <h2 className="h6 mb-3">Proxy</h2>
-          <Row className="g-3 align-items-end">
+    <Row gutter={[16, 16]}>
+      <Col span={24}>
+        <Card size="small" title="Proxy">
+          <Row gutter={[16, 8]}>
             {showId && (
-              <Col md={4}>
-                <Form.Group>
-                  <Form.Label>Id</Form.Label>
-                  <Form.Control
-                    value={form.id ?? ""}
+              <Col xs={24} md={8}>
+                <Form.Item
+                  label="Id"
+                  help="Leave empty to derive it from the name."
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
                     placeholder="folder-name"
-                    onChange={(event) => set({ ...form, id: event.target.value })}
+                    value={form.id ?? ""}
+                    onChange={(event) => set({ id: event.target.value })}
                   />
-                  <Form.Text>Leave empty to derive it from the name.</Form.Text>
-                </Form.Group>
+                </Form.Item>
               </Col>
             )}
-            <Col md={showId ? 5 : 8}>
-              <Form.Group>
-                <Form.Label>Name</Form.Label>
-                <Form.Control
-                  required
+            <Col xs={24} md={showId ? 10 : 16}>
+              <Form.Item label="Name" required style={{ marginBottom: 0 }}>
+                <Input
                   value={form.name}
-                  onChange={(event) => set({ ...form, name: event.target.value })}
+                  onChange={(event) => set({ name: event.target.value })}
                 />
-              </Form.Group>
+              </Form.Item>
             </Col>
             {showAdvanced && (
-              <Col md={showId ? 3 : 4} className="d-flex align-items-end pb-2">
-                <Form.Check
-                  type="switch"
-                  id="proxy-enabled"
-                  label="Enabled"
-                  checked={form.enabled}
-                  onChange={(event) => set({ ...form, enabled: event.target.checked })}
-                />
+              <Col xs={24} md={showId ? 6 : 8}>
+                <Form.Item label="Enabled" style={{ marginBottom: 0 }}>
+                  <Switch
+                    checked={form.enabled}
+                    onChange={(enabled) => set({ enabled })}
+                  />
+                </Form.Item>
               </Col>
             )}
           </Row>
-        </Card.Body>
-      </Card>
+        </Card>
+      </Col>
 
-      <Row className="g-3">
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Body>
-              <h2 className="h6 mb-3">Listen</h2>
-              <Stack gap={3}>
-                <Form.Group>
-                  <Form.Label>Listen URL</Form.Label>
-                  <Form.Control
-                    required
-                    value={form.listen.url}
-                    onChange={(event) =>
-                      set({ ...form, listen: { ...form.listen, url: event.target.value } })
-                    }
-                  />
-                  <Form.Text>Scheme, host, and port this proxy binds.</Form.Text>
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Path prefix</Form.Label>
-                  <Form.Control
-                    value={form.listen.pathPrefix ?? ""}
-                    placeholder="/api"
-                    onChange={(event) =>
-                      set({
-                        ...form,
-                        listen: { ...form.listen, pathPrefix: event.target.value || null },
-                      })
-                    }
-                  />
-                  <Form.Text>
-                    Optional. Share a port by giving each proxy a different prefix. Removed before
-                    the request is forwarded.
-                  </Form.Text>
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Server certificate</Form.Label>
-                  <Form.Select
-                    value={form.listen.serverCertificateId ?? ""}
-                    onChange={(event) =>
-                      set({
-                        ...form,
-                        listen: {
-                          ...form.listen,
-                          serverCertificateId: event.target.value || null,
-                        },
-                      })
-                    }
-                  >
-                    <option value="">None</option>
-                    {serverCerts.map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Text>
-                    HTTPS certificate for this listener. Defined on the{" "}
-                    <Link to="/certificates">Certificates</Link> page.
-                  </Form.Text>
-                </Form.Group>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6}>
-          <Card className="h-100">
-            <Card.Body>
-              <h2 className="h6 mb-3">Destination</h2>
-              <Stack gap={3}>
-                <Form.Group>
-                  <Form.Label>Destination URL</Form.Label>
-                  <Form.Control
-                    required
-                    value={form.destination.address}
-                    onChange={(event) =>
-                      set({
-                        ...form,
-                        destination: { ...form.destination, address: event.target.value },
-                      })
-                    }
-                  />
-                  <Form.Text>Upstream service used when no mock matches.</Form.Text>
-                </Form.Group>
-                {showAdvanced && (
-                  <Form.Group>
-                    <Form.Label>Passthrough delay ms</Form.Label>
-                    <Form.Control
-                      type="number"
-                      value={form.passthroughDelayMs}
-                      onChange={(event) =>
-                        set({ ...form, passthroughDelayMs: Number(event.target.value) })
-                      }
-                    />
-                    <Form.Text>Optional wait before forwarding an unmatched request.</Form.Text>
-                  </Form.Group>
-                )}
-                <Form.Group>
-                  <Form.Label>Client certificate</Form.Label>
-                  <Form.Select
-                    value={form.destination.clientCertificateId ?? ""}
-                    onChange={(event) =>
-                      set({
-                        ...form,
-                        destination: {
-                          ...form.destination,
-                          clientCertificateId: event.target.value || null,
-                        },
-                      })
-                    }
-                  >
-                    <option value="">None</option>
-                    {clientCerts.map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                  <Form.Text>
-                    Presented to the destination. Defined on the{" "}
-                    <Link to="/certificates">Certificates</Link> page.
-                  </Form.Text>
-                </Form.Group>
-                <Form.Check
-                  type="switch"
-                  id="accept-any-cert"
-                  label="Accept any server certificate"
-                  checked={form.destination.acceptAnyServerCertificate}
-                  onChange={(event) =>
-                    set({
-                      ...form,
-                      destination: {
-                        ...form.destination,
-                        acceptAnyServerCertificate: event.target.checked,
-                      },
-                    })
-                  }
-                />
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+      <Col xs={24} md={12}>
+        <Card size="small" title="Listen" style={{ height: "100%" }}>
+          <Form.Item
+            label="Listen URL"
+            required
+            help="Scheme, host, and port this proxy binds, e.g. https://127.0.0.1:8085."
+          >
+            <Input
+              value={form.listen.url}
+              onChange={(event) => set({ listen: { ...form.listen, url: event.target.value } })}
+            />
+          </Form.Item>
+          <Form.Item
+            label="Path prefix"
+            help="Optional. Share a port by giving each proxy a different prefix. It is removed before the request is forwarded."
+          >
+            <Input
+              placeholder="/api"
+              value={form.listen.pathPrefix ?? ""}
+              onChange={(event) =>
+                set({ listen: { ...form.listen, pathPrefix: event.target.value || null } })
+              }
+            />
+          </Form.Item>
+          <Form.Item
+            label={
+              <span className="app-row" style={{ gap: 6 }}>
+                <span>Server certificate</span>
+                <FieldHelp text="HTTPS certificate for this listener. Used when the listen URL scheme is https." />
+              </span>
+            }
+            help={certificateLink}
+          >
+            <Select
+              style={{ width: "100%" }}
+              value={form.listen.serverCertificateId ?? ""}
+              onChange={(value) =>
+                set({ listen: { ...form.listen, serverCertificateId: value || null } })
+              }
+              options={[
+                { value: "", label: "None" },
+                ...serverCerts.map((item) => ({ value: item.name, label: item.name })),
+              ]}
+            />
+          </Form.Item>
+        </Card>
+      </Col>
+
+      <Col xs={24} md={12}>
+        <Card size="small" title="Destination" style={{ height: "100%" }}>
+          <Form.Item
+            label="Destination URL"
+            required
+            help="Upstream service used when no mock matches."
+          >
+            <Input
+              value={form.destination.address}
+              onChange={(event) =>
+                set({ destination: { ...form.destination, address: event.target.value } })
+              }
+            />
+          </Form.Item>
+          {showAdvanced && (
+            <Form.Item
+              label="Passthrough delay ms"
+              help="Optional wait before forwarding an unmatched request."
+            >
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                value={form.passthroughDelayMs}
+                onChange={(value) => set({ passthroughDelayMs: Number(value ?? 0) })}
+              />
+            </Form.Item>
+          )}
+          <Form.Item
+            label={
+              <span className="app-row" style={{ gap: 6 }}>
+                <span>Client certificate</span>
+                <FieldHelp text="Presented to the destination when this proxy calls it." />
+              </span>
+            }
+            help={certificateLink}
+          >
+            <Select
+              style={{ width: "100%" }}
+              value={form.destination.clientCertificateId ?? ""}
+              onChange={(value) =>
+                set({ destination: { ...form.destination, clientCertificateId: value || null } })
+              }
+              options={[
+                { value: "", label: "None" },
+                ...clientCerts.map((item) => ({ value: item.name, label: item.name })),
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Accept any server certificate" style={{ marginBottom: 0 }}>
+            <Switch
+              checked={form.destination.acceptAnyServerCertificate}
+              onChange={(acceptAnyServerCertificate) =>
+                set({
+                  destination: { ...form.destination, acceptAnyServerCertificate },
+                })
+              }
+            />
+          </Form.Item>
+        </Card>
+      </Col>
 
       {showAdvanced && (
-        <Card>
-          <Card.Body>
-            <h2 className="h6 mb-3">Logs</h2>
-            <Row className="g-3">
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Retention (days)</Form.Label>
-                  <Form.Control
-                    type="number"
+        <Col span={24}>
+          <Card size="small" title="Logs">
+            <Row gutter={[16, 8]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Retention (days)"
+                  help="0 keeps logs forever; older entries are deleted automatically."
+                  style={{ marginBottom: 0 }}
+                >
+                  <InputNumber
                     min={0}
+                    style={{ width: "100%" }}
                     value={form.logRetentionDays ?? 7}
-                    onChange={(event) =>
-                      set({ ...form, logRetentionDays: Number(event.target.value) })
-                    }
+                    onChange={(value) => set({ logRetentionDays: Number(value ?? 0) })}
                   />
-                  <Form.Text>
-                    0 keeps logs forever. Older entries are deleted automatically.
-                  </Form.Text>
-                </Form.Group>
+                </Form.Item>
               </Col>
-              <Col md={6}>
-                <Form.Group>
-                  <Form.Label>Max logged body (KB)</Form.Label>
-                  <Form.Control
-                    type="number"
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Max logged body (KB)"
+                  help="Bodies larger than this are not stored; only the original size is logged."
+                  style={{ marginBottom: 0 }}
+                >
+                  <InputNumber
                     min={1}
+                    style={{ width: "100%" }}
                     value={Math.round((form.bodyLogLimitBytes ?? 1_048_576) / 1024)}
-                    onChange={(event) =>
-                      set({
-                        ...form,
-                        bodyLogLimitBytes: Math.max(1, Number(event.target.value)) * 1024,
-                      })
+                    onChange={(value) =>
+                      set({ bodyLogLimitBytes: Math.max(1, Number(value ?? 1)) * 1024 })
                     }
                   />
-                  <Form.Text>
-                    Bodies larger than this are not stored; only the original size is logged.
-                  </Form.Text>
-                </Form.Group>
+                </Form.Item>
               </Col>
             </Row>
-          </Card.Body>
-        </Card>
+          </Card>
+        </Col>
       )}
-    </Stack>
+    </Row>
   );
 }

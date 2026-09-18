@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Button, Col, Form, Modal, Row } from "react-bootstrap";
+import { Col, Input, Modal, Row, Segmented, Typography } from "antd";
+import { useEffect, useState } from "react";
 import type { IgnoredPathDto } from "../store/types";
 import { FieldLabel, pathModeHelp } from "./FieldHelp";
-import { MethodTypeahead } from "./TypeaheadFields";
+import { MethodSelect } from "./Selects";
 
 const blank = (): IgnoredPathDto => ({
   name: "",
@@ -13,99 +13,107 @@ const blank = (): IgnoredPathDto => ({
 });
 
 interface Props {
-  show: boolean;
+  open: boolean;
   initial?: IgnoredPathDto | null;
   isNew?: boolean;
   onSave: (ignore: IgnoredPathDto) => Promise<void>;
   onCancel: () => void;
 }
 
-export function IgnoreEditor({ show, initial, isNew = !initial?.name, onSave, onCancel }: Props) {
+export function IgnoreEditor({ open, initial, isNew = !initial?.name, onSave, onCancel }: Props) {
   const [ignore, setIgnore] = useState<IgnoredPathDto>(initial ?? blank());
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (show) {
+    if (open) {
       setIgnore(initial ?? blank());
+      setError(null);
     }
-  }, [initial, show]);
+  }, [initial, open]);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
+    if (!ignore.name.trim() || !ignore.path.trim()) {
+      setError("Name and path are required.");
+      return;
+    }
+
     setSaving(true);
+    setError(null);
     try {
       await onSave(ignore);
+    } catch {
+      setError("Could not save the ignore.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={onCancel}>
-      <Modal.Header closeButton>
-        <Modal.Title>{isNew ? "New ignore" : `Edit ${initial?.name}`}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form id="ignore-form" onSubmit={submit}>
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>Name</Form.Label>
-                <Form.Control
-                  required
-                  value={ignore.name}
-                  onChange={(event) => setIgnore({ ...ignore, name: event.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group>
-                <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
-                <Form.Select
-                  value={ignore.pathMode}
-                  onChange={(event) => setIgnore({ ...ignore, pathMode: event.target.value })}
-                >
-                  <option value="exact">exact — this path only</option>
-                  <option value="prefix">prefix — this path and below</option>
-                  <option value="template">template — {`{placeholders}`}</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col xs={12}>
-              <Form.Group>
-                <Form.Label>Path</Form.Label>
-                <Form.Control
-                  required
-                  placeholder="/health"
-                  value={ignore.path}
-                  onChange={(event) => setIgnore({ ...ignore, path: event.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col xs={12}>
-              <Form.Group>
-                <Form.Label>Methods (optional)</Form.Label>
-                <MethodTypeahead
-                  id="ignore-methods"
-                  multiple
-                  selected={ignore.methods ?? []}
-                  onChange={(methods) => setIgnore({ ...ignore, methods })}
-                  placeholder="Any method"
-                />
-                <Form.Text>Leave empty to ignore every method for this path.</Form.Text>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" form="ignore-form" disabled={saving}>
-          Save
-        </Button>
-      </Modal.Footer>
+    <Modal
+      open={open}
+      title={isNew ? "New ignore" : `Edit ${initial?.name}`}
+      width={640}
+      okText="Save"
+      confirmLoading={saving}
+      onOk={() => void submit()}
+      onCancel={onCancel}
+      destroyOnHidden
+    >
+      {error && (
+        <Typography.Text type="danger" style={{ display: "block", marginBottom: 12 }}>
+          {error}
+        </Typography.Text>
+      )}
+      <Row gutter={[16, 12]}>
+        <Col xs={24} md={12}>
+          <FieldLabel help="Catalog name for this ignore rule.">Name</FieldLabel>
+          <Input
+            style={{ marginTop: 4 }}
+            value={ignore.name}
+            onChange={(event) => setIgnore({ ...ignore, name: event.target.value })}
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <FieldLabel help={pathModeHelp}>Path mode</FieldLabel>
+          <div style={{ marginTop: 4 }}>
+            <Segmented
+              block
+              value={ignore.pathMode}
+              options={[
+                { value: "exact", label: "exact" },
+                { value: "prefix", label: "prefix" },
+                { value: "template", label: "template" },
+              ]}
+              onChange={(value) => setIgnore({ ...ignore, pathMode: String(value) })}
+            />
+          </div>
+        </Col>
+        <Col span={24}>
+          <FieldLabel help="Path that should not be written to the request log. Noisy polling endpoints are typical candidates, e.g. `/health`.">
+            Path
+          </FieldLabel>
+          <Input
+            style={{ marginTop: 4 }}
+            placeholder="/health"
+            value={ignore.path}
+            onChange={(event) => setIgnore({ ...ignore, path: event.target.value })}
+          />
+        </Col>
+        <Col span={24}>
+          <FieldLabel help="Leave empty to ignore every HTTP method for this path.">
+            Methods (optional)
+          </FieldLabel>
+          <div style={{ marginTop: 4 }}>
+            <MethodSelect
+              multiple
+              value={ignore.methods ?? []}
+              onChange={(methods) => setIgnore({ ...ignore, methods })}
+              placeholder="Any method"
+            />
+          </div>
+        </Col>
+      </Row>
     </Modal>
   );
 }

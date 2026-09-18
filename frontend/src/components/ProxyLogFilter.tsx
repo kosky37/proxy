@@ -1,127 +1,136 @@
-import { useMemo, useState } from "react";
-import { Badge, Button, Collapse, Form, Stack } from "react-bootstrap";
-import type { ProxyListItemDto } from "../store/types";
+import { Badge, Button, Col, Collapse, Input, Row, Select, Space } from "antd";
+import { useState } from "react";
+import { FieldLabel, type HelpContent } from "./FieldHelp";
 
-interface Props {
-  proxies: ProxyListItemDto[];
-  selectedIds: string[];
-  onToggle: (id: string, checked: boolean) => void;
-  onSelectIds: (ids: string[]) => void;
+export interface LogFilter {
+  path: string;
+  soapAction: string;
+  body: string;
+  mode: string;
+  protocol: string;
 }
 
-export function ProxyLogFilter({ proxies, selectedIds, onToggle, onSelectIds }: Props) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return proxies;
-    }
-    return proxies.filter((proxy) =>
-      [proxy.id, proxy.name, proxy.listenUrl, proxy.listenPathPrefix, proxy.destinationAddress]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [proxies, query]);
+export const emptyLogFilter: LogFilter = {
+  path: "",
+  soapAction: "",
+  body: "",
+  mode: "",
+  protocol: "",
+};
 
-  const summary =
-    selectedIds.length === 0
-      ? "No proxies selected"
-      : selectedIds.length === proxies.length
-        ? `All ${proxies.length} proxies`
-        : `${selectedIds.length} of ${proxies.length} proxies`;
+export function activeFilterCount(filter: LogFilter): number {
+  return Object.values(filter).filter(Boolean).length;
+}
+
+const help: Record<"path" | "soapAction" | "body" | "mode" | "protocol", HelpContent> = {
+  path: "Substring match on the request path, query string excluded.",
+  soapAction:
+    "Substring match on the `SOAPAction` header. Leave empty to match any action.",
+  body:
+    "Substring match on the stored request or response body.\n- Only the first part of a large body is stored, so a match late in the payload can be missed.",
+  mode: "How the request was answered.",
+  protocol: "Payload type detected from the request body and headers.",
+};
+
+interface Props {
+  filter: LogFilter;
+  onChange: (next: LogFilter) => void;
+  onClear: () => void;
+}
+
+export function ProxyLogFilter({ filter, onChange, onClear }: Props) {
+  const count = activeFilterCount(filter);
+  const [open, setOpen] = useState(false);
+  const set = (patch: Partial<LogFilter>) => onChange({ ...filter, ...patch });
 
   return (
-    <div className="log-filters mb-3">
-      <button
-        type="button"
-        className="log-collapse-toggle"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-      >
-        <i className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"}`} aria-hidden />
-        <strong>Proxies</strong>
-        <span className="row-meta">{summary}</span>
-        {selectedIds.length > 0 && selectedIds.length < proxies.length && (
-          <Badge bg="primary">{selectedIds.length}</Badge>
-        )}
-      </button>
-      <Collapse in={open}>
-        <div className="mt-3">
-          {proxies.length === 0 ? (
-            <div className="row-meta">Create a proxy first.</div>
-          ) : (
-            <>
-              <Stack direction="horizontal" gap={2} className="flex-wrap align-items-center mb-2">
-                <Form.Control
-                  className="proxy-log-search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search by name, id, listen URL, or destination"
-                  aria-label="Search proxies"
-                />
-                <Button
-                  variant="outline-secondary"
-                  size="sm"
-                  onClick={() => onSelectIds(proxies.map((proxy) => proxy.id))}
-                >
-                  All
-                </Button>
-                <Button variant="outline-secondary" size="sm" onClick={() => onSelectIds([])}>
-                  None
-                </Button>
-                {query && (
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    disabled={visible.length === 0}
-                    onClick={() =>
-                      onSelectIds([
-                        ...new Set([...selectedIds, ...visible.map((proxy) => proxy.id)]),
-                      ])
-                    }
-                  >
-                    Add matches
-                  </Button>
-                )}
-              </Stack>
-              <div className="row-meta mb-2">
-                {visible.length === proxies.length
-                  ? `${proxies.length} proxies`
-                  : `${visible.length} of ${proxies.length} match`}
-              </div>
-              <div className="proxy-log-list">
-                {visible.map((proxy) => (
-                  <Form.Check
-                    key={proxy.id}
-                    type="checkbox"
-                    id={`global-log-proxy-${proxy.id}`}
-                    className="proxy-log-item"
-                    checked={selected.has(proxy.id)}
-                    label={
-                      <span>
-                        <span className="proxy-log-name">{proxy.name || proxy.id}</span>
-                        <span className="row-meta">
-                          {proxy.id}
-                          {proxy.listenPathPrefix ? ` · ${proxy.listenPathPrefix}` : ""}
-                          {` · ${proxy.listenUrl}`}
-                        </span>
-                      </span>
-                    }
-                    onChange={(event) => onToggle(proxy.id, event.target.checked)}
+    <div className="app-panel app-filter-panel" style={{ marginBottom: 12 }}>
+      <Collapse
+        ghost
+        activeKey={open ? ["filters"] : []}
+        onChange={(keys) => setOpen(keys.length > 0)}
+        items={[
+          {
+            key: "filters",
+            label: (
+              <Space size={8}>
+                <strong>Filters</strong>
+                {count > 0 ? <Badge count={count} color="var(--log-mode-mock)" /> : null}
+              </Space>
+            ),
+            extra: (
+              <Button
+                size="small"
+                type="link"
+                disabled={count === 0}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClear();
+                }}
+              >
+                Clear
+              </Button>
+            ),
+            children: (
+              <Row gutter={[16, 8]}>
+                <Col xs={24} md={8}>
+                  <FieldLabel help={help.path}>Path contains</FieldLabel>
+                  <Input
+                    style={{ marginTop: 4 }}
+                    value={filter.path}
+                    onChange={(event) => set({ path: event.target.value })}
                   />
-                ))}
-                {visible.length === 0 && (
-                  <div className="mock-set-empty">No proxies match this search.</div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </Collapse>
+                </Col>
+                <Col xs={24} md={8}>
+                  <FieldLabel help={help.soapAction}>SOAPAction contains</FieldLabel>
+                  <Input
+                    style={{ marginTop: 4 }}
+                    value={filter.soapAction}
+                    onChange={(event) => set({ soapAction: event.target.value })}
+                  />
+                </Col>
+                <Col xs={24} md={8}>
+                  <FieldLabel help={help.body}>Body contains</FieldLabel>
+                  <Input
+                    style={{ marginTop: 4 }}
+                    value={filter.body}
+                    onChange={(event) => set({ body: event.target.value })}
+                  />
+                </Col>
+                <Col xs={24} md={8}>
+                  <FieldLabel help={help.mode}>Mode</FieldLabel>
+                  <Select
+                    style={{ width: "100%", marginTop: 4 }}
+                    value={filter.mode || ""}
+                    onChange={(mode) => set({ mode })}
+                    options={[
+                      { value: "", label: "Any mode" },
+                      { value: "mock", label: "Answered by a mock" },
+                      { value: "passthrough", label: "Forwarded to the destination" },
+                      { value: "manual", label: "Sent from the Send tab" },
+                    ]}
+                  />
+                </Col>
+                <Col xs={24} md={8}>
+                  <FieldLabel help={help.protocol}>Type</FieldLabel>
+                  <Select
+                    style={{ width: "100%", marginTop: 4 }}
+                    value={filter.protocol || ""}
+                    onChange={(protocol) => set({ protocol })}
+                    options={[
+                      { value: "", label: "Any type" },
+                      { value: "json", label: "JSON" },
+                      { value: "xml", label: "XML" },
+                      { value: "soap", label: "SOAP" },
+                      { value: "other", label: "Other" },
+                    ]}
+                  />
+                </Col>
+              </Row>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

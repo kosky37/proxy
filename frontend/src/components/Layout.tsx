@@ -1,53 +1,74 @@
-import { useState } from "react";
-import { Badge, Button, Container, Nav, Navbar } from "react-bootstrap";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { ApiOutlined, MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { Badge, Button, Layout as AntLayout, Menu } from "antd";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useGetHealthQuery } from "../store/proxyApi";
-import { applyTheme, readTheme, type Theme } from "../theme";
+import { useAppTheme } from "../themeContext";
+import { HelpTooltip } from "./FieldHelp";
+
+const NAV_ITEMS = [
+  { key: "/", label: "Proxies" },
+  { key: "/certificates", label: "Certificates" },
+  { key: "/logs", label: "Logs" },
+];
 
 export function Layout() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const current = readTheme();
-    applyTheme(current);
-    return current;
-  });
+  const navigate = useNavigate();
+  const location = useLocation();
   const health = useGetHealthQuery();
+  const { theme, toggleTheme } = useAppTheme();
 
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    applyTheme(next);
-    setTheme(next);
-  };
+  const selectedKey = NAV_ITEMS.map((item) => item.key)
+    .filter((key) => key !== "/" && location.pathname.startsWith(key))
+    .at(0) ?? "/";
+
+  const online = health.data?.status === "ok";
 
   return (
-    <>
-      <Navbar expand bg="body-tertiary" className="border-bottom">
-        <Container fluid>
-          <Navbar.Brand as={Link} to="/" className="d-flex align-items-center gap-2">
-            <img src="/favicon.svg" alt="" className="app-logo" />
-            ProxyMockTool
-          </Navbar.Brand>
-          <Nav className="me-auto">
-            <Nav.Link as={NavLink} to="/" end>
-              Proxies
-            </Nav.Link>
-            <Nav.Link as={NavLink} to="/certificates">
-              Certificates
-            </Nav.Link>
-            <Nav.Link as={NavLink} to="/logs">
-              Logs
-            </Nav.Link>
-          </Nav>
-          <Badge bg={health.data?.status === "ok" ? "success" : "secondary"} className="me-3">
-            API {health.data?.status ?? "offline"}
-          </Badge>
-          <Button variant="outline-secondary" size="sm" onClick={toggleTheme}>
-            {theme === "light" ? "Dark" : "Light"} mode
-          </Button>
-        </Container>
-      </Navbar>
-      <Container fluid className="py-4">
+    <AntLayout style={{ minHeight: "100vh", background: "var(--app-bg)" }}>
+      <AntLayout.Header className="app-header">
+        <div className="app-header-brand">
+          <img src="/favicon.svg" alt="" className="app-logo" />
+          <span>ProxyMockTool</span>
+        </div>
+        <Menu
+          className="app-header-nav"
+          mode="horizontal"
+          selectedKeys={[selectedKey]}
+          items={NAV_ITEMS}
+          onClick={({ key }) => navigate(key)}
+        />
+        <div className="app-header-tools">
+          <HelpTooltip
+            help={
+              online
+                ? "API reachable on port 5050."
+                : "API not reachable — start the host or the API project."
+            }
+          >
+            <Badge
+              status={online ? "success" : "default"}
+              text={
+                <span className="app-inline-row">
+                  <ApiOutlined />
+                  API {health.data?.status ?? "offline"}
+                </span>
+              }
+            />
+          </HelpTooltip>
+          <HelpTooltip help={theme === "light" ? "Switch to dark mode." : "Switch to light mode."}>
+            <Button
+              size="small"
+              type="text"
+              aria-label="Toggle colour theme"
+              icon={theme === "light" ? <MoonOutlined /> : <SunOutlined />}
+              onClick={toggleTheme}
+            />
+          </HelpTooltip>
+        </div>
+      </AntLayout.Header>
+      <AntLayout.Content className="app-content">
         <Outlet />
-      </Container>
-    </>
+      </AntLayout.Content>
+    </AntLayout>
   );
 }

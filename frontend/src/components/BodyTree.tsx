@@ -1,74 +1,85 @@
+import { CaretDownOutlined, CaretRightOutlined } from "@ant-design/icons";
 import { useState } from "react";
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import type { ParsedNode } from "../parseBody";
 import { CopyButton } from "./CopyButton";
+import { ValueTooltip } from "./FieldHelp";
+
+interface Row {
+  node: ParsedNode;
+  depth: number;
+  expandable: boolean;
+  expanded: boolean;
+}
 
 export function BodyTree({ nodes, empty }: { nodes: ParsedNode[]; empty: string }) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
   if (nodes.length === 0) {
-    return <div className="body-tree border rounded px-2 py-2 text-secondary">{empty}</div>;
+    return (
+      <div className="body-tree app-subtle" style={{ padding: "8px 10px" }}>
+        {empty}
+      </div>
+    );
   }
 
+  const rows: Row[] = [];
+  const walk = (list: ParsedNode[], depth: number) => {
+    for (const node of list) {
+      const expandable = (node.children?.length ?? 0) > 0;
+      const expanded = !collapsed[node.id];
+      rows.push({ node, depth, expandable, expanded });
+      if (expandable && expanded) {
+        walk(node.children ?? [], depth + 1);
+      }
+    }
+  };
+  walk(nodes, 0);
+
   return (
-    <div className="body-tree border rounded">
+    <div className="body-tree">
       <div className="body-tree-header">
         <span />
         <span>Name</span>
         <span>Value</span>
         <span />
       </div>
-      {nodes.map((node) => (
-        <TreeNode key={node.id} node={node} depth={0} />
+      {rows.map((row) => (
+        <div
+          key={row.node.id}
+          className={`body-tree-row${row.expandable ? " is-group" : ""}`}
+          style={{ paddingLeft: 8 + row.depth * 16 }}
+          role={row.expandable ? "button" : undefined}
+          onClick={
+            row.expandable
+              ? () => setCollapsed((current) => ({ ...current, [row.node.id]: !current[row.node.id] }))
+              : undefined
+          }
+        >
+          {row.expandable ? (
+            row.expanded ? (
+              <CaretDownOutlined />
+            ) : (
+              <CaretRightOutlined />
+            )
+          ) : (
+            <span />
+          )}
+          <span className="body-tree-name" title={row.node.name}>
+            {row.node.name}
+            {row.expandable && <span className="body-tree-count">({row.node.children?.length})</span>}
+          </span>
+          {row.node.value ? (
+            <ValueTooltip value={row.node.value} className="body-tree-value">
+              {row.node.value}
+            </ValueTooltip>
+          ) : (
+            <span />
+          )}
+          <span onClick={(event) => event.stopPropagation()}>
+            <CopyButton value={row.node.value} label={`Copy ${row.node.name}`} />
+          </span>
+        </div>
       ))}
     </div>
-  );
-}
-
-function TreeNode({ node, depth }: { node: ParsedNode; depth: number }) {
-  const children = node.children ?? [];
-  const nestable = children.length > 0;
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="body-tree-block">
-      <div
-        className={`body-tree-row${nestable ? " is-group" : ""}`}
-        style={{ paddingLeft: `${0.45 + depth * 1.05}rem` }}
-        onClick={nestable ? () => setOpen((value) => !value) : undefined}
-        role={nestable ? "button" : undefined}
-        aria-expanded={nestable ? open : undefined}
-      >
-        {nestable ? (
-          <i
-            className={`bi ${open ? "bi-chevron-down" : "bi-chevron-right"} body-tree-chevron`}
-            aria-hidden
-          />
-        ) : (
-          <span />
-        )}
-        <span className="body-tree-name" title={node.name}>
-          {node.name}
-          {nestable && <span className="body-tree-count">({children.length})</span>}
-        </span>
-        <ValueCell value={node.value} />
-        <span className="text-center" onClick={(event) => event.stopPropagation()}>
-          <CopyButton value={node.value} label={`Copy ${node.name}`} />
-        </span>
-      </div>
-      {nestable &&
-        open &&
-        children.map((child) => <TreeNode key={child.id} node={child} depth={depth + 1} />)}
-    </div>
-  );
-}
-
-function ValueCell({ value }: { value?: string }) {
-  if (value == null || value === "") {
-    return <span />;
-  }
-
-  return (
-    <OverlayTrigger overlay={<Tooltip className="tooltip-wide">{value}</Tooltip>}>
-      <code className="body-tree-value">{value}</code>
-    </OverlayTrigger>
   );
 }

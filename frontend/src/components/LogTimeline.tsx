@@ -95,8 +95,8 @@ export function LogTimeline({
   const finishSelection = (startX: number, endX: number) => {
     if (Math.abs(endX - startX) < 4) {
       const index = Math.min(
+        Math.max(Math.floor((endX - PADDING.left) / barWidth), 0),
         buckets.length - 1,
-        Math.max(0, Math.floor((endX - PADDING.left) / barWidth)),
       );
       const bucket = buckets[index];
       if (!bucket) {
@@ -108,9 +108,7 @@ export function LogTimeline({
       return;
     }
 
-    const left = Math.min(startX, endX);
-    const right = Math.max(startX, endX);
-    onSelect(xToTime(left), xToTime(right));
+    onSelect(xToTime(Math.min(startX, endX)), xToTime(Math.max(startX, endX)));
   };
 
   useEffect(() => {

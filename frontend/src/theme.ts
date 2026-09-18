@@ -8,6 +8,6 @@ export function readTheme(): Theme {
 }
 
 export function applyTheme(theme: Theme) {
-  document.documentElement.setAttribute("data-bs-theme", theme);
+  document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(key, theme);
 }

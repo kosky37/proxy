@@ -1,8 +1,4 @@
-interface Props {
-  html: string;
-}
-
-export function HtmlBodyPreview({ html }: Props) {
+export function HtmlBodyPreview({ html }: { html: string }) {
   return (
     <iframe
       className="html-body-preview"

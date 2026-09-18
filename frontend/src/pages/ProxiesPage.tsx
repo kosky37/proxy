@@ -1,20 +1,33 @@
-﻿import { useEffect, useState, type FormEvent } from "react";
-import { Alert, Badge, Button, Form, Modal, Stack, Table } from "react-bootstrap";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  Alert,
+  App,
+  Button,
+  Modal,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import type { ColumnsType } from "antd/es/table";
 import { CopyButton } from "../components/CopyButton";
+import { PageHeader } from "../components/PageHeader";
 import { ProxySettingsFields } from "../components/ProxySettingsFields";
 import {
   useCreateProxyMutation,
   useDeleteProxyMutation,
   useGetCertificatesQuery,
-  useGetProxyQuery,
   useGetProxiesQuery,
+  useGetProxyQuery,
   useSetMocksEnabledMutation,
   useUpdateProxyMutation,
 } from "../store/proxyApi";
-import type { UpsertProxyRequest } from "../store/types";
+import type { ProxyListItemDto, UpsertProxyRequest } from "../store/types";
 
-const emptyForm: UpsertProxyRequest = {
+export const emptyProxyForm: UpsertProxyRequest = {
   id: "",
   name: "Gateway",
   enabled: true,
@@ -31,7 +44,8 @@ const emptyForm: UpsertProxyRequest = {
 };
 
 export function ProxiesPage() {
-  const { data, isLoading, error, refetch } = useGetProxiesQuery();
+  const { modal, message } = App.useApp();
+  const { data, isLoading, error, refetch, isFetching } = useGetProxiesQuery();
   const certificates = useGetCertificatesQuery();
   const [createProxy, createState] = useCreateProxyMutation();
   const [updateProxy, updateState] = useUpdateProxyMutation();
@@ -39,12 +53,12 @@ export function ProxiesPage() {
   const [setMocksEnabled] = useSetMocksEnabledMutation();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<UpsertProxyRequest>(emptyProxyForm);
   const editingProxy = useGetProxyQuery(editId ?? "", { skip: !editId });
 
   useEffect(() => {
     if (showCreate) {
-      setForm(emptyForm);
+      setForm(emptyProxyForm);
     }
   }, [showCreate]);
 
@@ -63,171 +77,210 @@ export function ProxiesPage() {
     }
   }, [editingProxy.data]);
 
-  const onCreate = async (event: FormEvent) => {
-    event.preventDefault();
-    await createProxy({
-      ...form,
-      id: form.id || undefined,
-    }).unwrap();
-    setShowCreate(false);
+  const create = async () => {
+    if (!form.name.trim() || !form.listen.url.trim() || !form.destination.address.trim()) {
+      message.error("Name, listen URL, and destination URL are required.");
+      return;
+    }
+
+    try {
+      await createProxy({ ...form, id: form.id || undefined }).unwrap();
+      message.success(`Created ${form.name}.`);
+      setShowCreate(false);
+    } catch {
+      message.error("Could not create the proxy.");
+    }
   };
 
-  const onSaveEdit = async (event: FormEvent) => {
-    event.preventDefault();
+  const saveEdit = async () => {
     if (!editId) {
       return;
     }
-    await updateProxy({ id: editId, body: form }).unwrap();
-    setEditId(null);
+
+    try {
+      await updateProxy({ id: editId, body: form }).unwrap();
+      message.success("Proxy settings saved.");
+      setEditId(null);
+    } catch {
+      message.error("Could not save the proxy settings.");
+    }
   };
+
+  const confirmDelete = (proxy: ProxyListItemDto) => {
+    modal.confirm({
+      title: `Delete ${proxy.name}?`,
+      content: "The proxy folder, its mocks, ignores, and mock sets are removed. This cannot be undone.",
+      okText: "Delete",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await deleteProxy(proxy.id).unwrap();
+          message.success(`Deleted ${proxy.name}.`);
+        } catch {
+          message.error("Could not delete the proxy.");
+        }
+      },
+    });
+  };
+
+  const columns: ColumnsType<ProxyListItemDto> = [
+    {
+      title: "Name",
+      dataIndex: "name",
+      width: 200,
+      render: (_value, proxy) => (
+        <Space size={6} wrap>
+          <Link to={`/proxies/${proxy.id}`}>{proxy.name}</Link>
+          {!proxy.enabled && <Tag>disabled</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: "Listen",
+      dataIndex: "listenUrl",
+      render: (_value, proxy) => (
+        <div>
+          <div className="app-row" style={{ gap: 4 }}>
+            <code className="app-code">{proxy.listenUrl}</code>
+            <CopyButton value={proxy.listenUrl} label="Copy listen URL" />
+          </div>
+          {proxy.listenPathPrefix && (
+            <div className="app-subtle">prefix {proxy.listenPathPrefix}</div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Destination",
+      dataIndex: "destinationAddress",
+      render: (_value, proxy) => (
+        <div className="app-row" style={{ gap: 4 }}>
+          <code className="app-code">{proxy.destinationAddress}</code>
+          <CopyButton value={proxy.destinationAddress} label="Copy destination URL" />
+        </div>
+      ),
+    },
+    {
+      title: "Mocks",
+      key: "mocks",
+      width: 190,
+      render: (_value, proxy) => (
+        <Space size={6}>
+          <Switch
+            size="small"
+            checked={proxy.mocksEnabled}
+            aria-label={`Mocks enabled for ${proxy.name}`}
+            onChange={(mocksEnabled) =>
+              void setMocksEnabled({ id: proxy.id, mocksEnabled })
+            }
+          />
+          <span className="app-subtle">
+            {proxy.enabledMockCount}/{proxy.mockCount} enabled
+          </span>
+        </Space>
+      ),
+    },
+    {
+      title: "",
+      key: "actions",
+      width: 170,
+      align: "right",
+      render: (_value, proxy) => (
+        <Space size={6}>
+          <Button size="small" onClick={() => setEditId(proxy.id)}>
+            Edit
+          </Button>
+          <Button size="small" danger onClick={() => confirmDelete(proxy)}>
+            Delete
+          </Button>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <>
-      <Stack direction="horizontal" className="mb-3">
-        <h1 className="h3 mb-0">Proxies</h1>
-        <div className="ms-auto d-flex gap-2">
-          <Button variant="outline-secondary" size="sm" onClick={() => refetch()}>
-            Refresh
-          </Button>
-          <Button onClick={() => setShowCreate(true)}>New proxy</Button>
-        </div>
-      </Stack>
+      <PageHeader
+        title="Proxies"
+        description="Each folder under proxies/ is a listener with its own mocks, ignores, and log store."
+        actions={
+          <>
+            <Button
+              icon={<ReloadOutlined />}
+              loading={isFetching}
+              onClick={() => void refetch()}
+            >
+              Refresh
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowCreate(true)}>
+              New proxy
+            </Button>
+          </>
+        }
+      />
 
-      {isLoading && <Alert variant="secondary">Loading…</Alert>}
       {error && (
-        <Alert variant="danger">Could not load proxies. Is the API running on port 5050?</Alert>
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Could not load proxies"
+          description="Is the API running on port 5050?"
+        />
       )}
 
-      <Table striped hover responsive className="align-middle proxies-table">
-        <colgroup>
-          <col className="proxies-col-name" />
-          <col className="proxies-col-listen" />
-          <col className="proxies-col-destination" />
-          <col className="proxies-col-mocks" />
-          <col className="proxies-col-actions" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Listen</th>
-            <th>Destination</th>
-            <th>Mocks</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {data?.map((proxy) => (
-            <tr key={proxy.id}>
-              <td>
-                <Link to={`/proxies/${proxy.id}`}>{proxy.name}</Link>
-                {!proxy.enabled && (
-                  <Badge bg="secondary" className="ms-2">
-                    disabled
-                  </Badge>
-                )}
-              </td>
-              <td>
-                <div className="copyable-cell">
-                  <code>{proxy.listenUrl}</code>
-                  <CopyButton value={proxy.listenUrl} label="Copy listen URL" />
-                </div>
-                {proxy.listenPathPrefix && <div className="row-meta">{proxy.listenPathPrefix}</div>}
-              </td>
-              <td>
-                <div className="copyable-cell">
-                  <code>{proxy.destinationAddress}</code>
-                  <CopyButton value={proxy.destinationAddress} label="Copy destination URL" />
-                </div>
-              </td>
-              <td className="proxies-mocks-cell">
-                <Form.Check
-                  type="switch"
-                  id={`mocks-${proxy.id}`}
-                  checked={proxy.mocksEnabled}
-                  label={`${proxy.enabledMockCount}/${proxy.mockCount} enabled`}
-                  onChange={(event) =>
-                    setMocksEnabled({
-                      id: proxy.id,
-                      mocksEnabled: event.target.checked,
-                    })
-                  }
-                />
-              </td>
-              <td className="text-end">
-                <Stack direction="horizontal" gap={1} className="justify-content-end">
-                  <Button variant="outline-primary" size="sm" onClick={() => setEditId(proxy.id)}>
-                    Edit
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => deleteProxy(proxy.id)}>
-                    Delete
-                  </Button>
-                </Stack>
-              </td>
-            </tr>
-          ))}
-          {data?.length === 0 && (
-            <tr>
-              <td colSpan={5}>No proxy folders found.</td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+      <Table<ProxyListItemDto>
+        rowKey="id"
+        size="small"
+        loading={isLoading}
+        columns={columns}
+        dataSource={data ?? []}
+        pagination={false}
+        locale={{ emptyText: "No proxy folders found." }}
+      />
 
-      <Modal show={showCreate} onHide={() => setShowCreate(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>New proxy</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form id="proxy-create-form" onSubmit={onCreate}>
-            <ProxySettingsFields
-              form={form}
-              onChange={setForm}
-              certificates={certificates.data}
-              showId
-              showAdvanced={false}
-            />
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreate(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form="proxy-create-form" disabled={createState.isLoading}>
-            Create
-          </Button>
-        </Modal.Footer>
+      <Modal
+        open={showCreate}
+        title="New proxy"
+        width={880}
+        okText="Create"
+        confirmLoading={createState.isLoading}
+        onOk={() => void create()}
+        onCancel={() => setShowCreate(false)}
+        destroyOnHidden
+      >
+        <ProxySettingsFields
+          form={form}
+          onChange={setForm}
+          certificates={certificates.data}
+          showId
+          showAdvanced={false}
+        />
       </Modal>
 
-      <Modal show={Boolean(editId)} onHide={() => setEditId(null)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Edit {editingProxy.data?.name ?? "proxy"}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {editingProxy.isLoading && <Alert variant="secondary">Loading…</Alert>}
-          {editingProxy.isError && <Alert variant="danger">Could not load proxy settings.</Alert>}
-          {editingProxy.data && (
-            <Form id="proxy-edit-form" onSubmit={onSaveEdit}>
-              <ProxySettingsFields
-                form={form}
-                onChange={setForm}
-                certificates={certificates.data}
-                showAdvanced
-              />
-            </Form>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setEditId(null)}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="proxy-edit-form"
-            disabled={updateState.isLoading || !editingProxy.data}
-          >
-            Save
-          </Button>
-        </Modal.Footer>
+      <Modal
+        open={Boolean(editId)}
+        title={`Edit ${editingProxy.data?.name ?? "proxy"}`}
+        width={880}
+        okText="Save"
+        okButtonProps={{ disabled: !editingProxy.data }}
+        confirmLoading={updateState.isLoading}
+        onOk={() => void saveEdit()}
+        onCancel={() => setEditId(null)}
+        destroyOnHidden
+      >
+        {editingProxy.isLoading && <Typography.Text>Loading…</Typography.Text>}
+        {editingProxy.isError && (
+          <Alert type="error" showIcon message="Could not load proxy settings." />
+        )}
+        {editingProxy.data && (
+          <ProxySettingsFields
+            form={form}
+            onChange={setForm}
+            certificates={certificates.data}
+            showAdvanced
+          />
+        )}
       </Modal>
     </>
   );

@@ -9,8 +9,17 @@ const apiProxy = {
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: "127.0.0.1",
     port: 5173,
+    strictPort: true,
     proxy: apiProxy,
+    watch: {
+      ignored: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/.*.tmpdir/**",
+      ],
+    },
   },
   preview: {
     host: "127.0.0.1",
